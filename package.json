@@ -1,0 +1,62 @@
+{
+  "name": "education-blockchain",
+  "version": "1.0.0",
+  "description": "Decentralized Education System",
+  "main": "truffle-config.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "truffle test",
+    "compile": "truffle compile",
+    "migrate": "truffle migrate"
+  },
+  "dependencies": {
+    "@chakra-ui/icons": "^2.1.1",
+    "@chakra-ui/next-js": "^2.4.2",
+    "@chakra-ui/react": "^2.8.2",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@openzeppelin/contracts": "^4.9.6",
+    "@tanstack/react-query": "^5.72.1",
+    "@truffle/hdwallet-provider": "^2.0.16",
+    "@types/html2canvas": "^0.5.35",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "axios": "^1.8.4",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.13.5",
+    "framer-motion": "^10.18.0",
+    "html2canvas": "^1.4.1",
+    "ipfs-http-client": "^60.0.1",
+    "jspdf": "^3.0.1",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
+    "typescript": "^5.3.3",
+    "viem": "^2.26.2",
+    "wagmi": "^2.14.16"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.16",
+    "@types/node": "^20.17.30",
+    "ganache": "^7.9.2",
+    "hardhat": "^2.23.0",
+    "truffle": "^5.5.7"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "author": "Osama Ibrahim",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OsamaIbrhim/education-blockchain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OsamaIbrhim/education-blockchain/issues"
+  },
+  "homepage": "https://github.com/OsamaIbrhim/education-blockchain#readme"
+}
