@@ -90,7 +90,7 @@ export const registerUser = async (role: string) => {
   try {
     // Error.1 missing revert data  
     // const provider = await getProvider();
-    
+
     // solve error.1
     if (!window.ethereum) {
       throw new Error('No ethereum provider found');
@@ -99,7 +99,7 @@ export const registerUser = async (role: string) => {
 
     const signer = await provider.getSigner();
     const contractAddress = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS;
-    
+
     if (!contractAddress) {
       throw new Error('Contract address is not configured');
     }

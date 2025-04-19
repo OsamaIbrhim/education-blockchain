@@ -1,318 +1,124 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { useRouter } from 'next/router';
-import { ethers } from 'ethers';
+import { useAccount, usePublicClient } from 'wagmi';
+import { useContract } from './useContract';
+import type { Hash } from 'viem';
+import { Certificate, Exam, ExamResult, ExamStatistics, NewExam } from '../types/institution';
+import { InstitutionData } from '../components/institution/InstitutionProfile';
+import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
 import {
   getUserRole,
   isVerifiedUser,
   getCertificates,
   getInstitutionExams,
-  updateExamStatus,
+  updateExamStatus as updateExamStatusUtil,
   submitExamResult,
   getExamResult,
-  enrollStudent,
-  createExam,
-  getContract
-} from '../utilsFront/contracts';
-import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
-import { Certificate, Exam, ExamResult, ExamStatistics, NewExam } from '../types/institution';
-import { useAccount } from 'wagmi';
-import { useContract } from './useContract';
-import { InstitutionData } from '../components/institution/InstitutionProfile';
+  enrollStudent as enrollStudentUtil,
+  createExam as createExamUtil,
+  issueCertificate as issueCertificateUtil
+} from '../utils/contracts';
 
 // Add type for local storage
 const INSTITUTION_STORAGE_KEY = 'institution_data';
 const EXAMS_STORAGE_KEY = 'institution_exams';
 const CERTIFICATES_STORAGE_KEY = 'institution_certificates';
 
+interface InstitutionResponse {
+  name: string;
+  ministry: string;
+  university: string;
+  college: string;
+  description: string;
+  imageUrl: string;
+  website: string;
+  email: string;
+  phone: string;
+  exists: boolean;
+  isVerified: boolean;
+}
+
 export const useInstitution = () => {
-  const { 
-    examManagementContract, 
-    certificatesContract, 
-    isInitialized: contractsInitialized,
-    isLoading: contractsLoading 
-  } = useContract();
-  const { address = undefined, isConnected = false } = useAccount() || {};
+  const { address: account } = useAccount();
+  const publicClient = usePublicClient();
   const toast = useToast();
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [initializationAttempts, setInitializationAttempts] = useState(0);
-  const [institution, setInstitution] = useState<InstitutionData | null>(null);
+  const { examManagement, certificates, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
+  const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [certificatesData, setCertificatesData] = useState<Certificate[]>([]);
   const [hasAccess, setHasAccess] = useState(false);
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
-
-  const checkAccess = async (userAddress: string) => {
-    console.log('[CheckAccess] Starting access check for:', userAddress);
-
-    if (!examManagementContract) {
-      console.error('[CheckAccess] Contract not initialized');
-      toast({ 
-        title: 'Error',
-        description: 'Contract not initialized. Please try again.',
-        status: 'error'
-      });
-      return false;
-    }
-
-    try {
-      console.log('[CheckAccess] Checking if address is institution...');
-      const isInstitutionResult = await examManagementContract.isInstitution(userAddress);
-      console.log('[CheckAccess] isInstitution result:', isInstitutionResult);
-
-      if (!isInstitutionResult) {
-        console.log('[CheckAccess] Address is not registered as institution');
-        toast({ 
-          title: 'Error',
-          description: 'Address is not registered as an institution',
-          status: 'error'
-        });
-        return false;
-      }
-
-      console.log('[CheckAccess] Getting institution data...');
-      const institutionData = await examManagementContract.getInstitution(userAddress);
-      console.log('[CheckAccess] Institution data:', institutionData);
-
-      if (!institutionData || institutionData.length < 10) {
-        console.error('[CheckAccess] Invalid institution data received');
-        toast({ 
-          title: 'Error',
-          description: 'Invalid institution data',
-          status: 'error'
-        });
-        return false;
-      }
-
-      const isVerified = Boolean(institutionData[9]);
-      console.log('[CheckAccess] Institution verification status:', isVerified);
-
-      if (!isVerified) {
-        toast({ 
-          title: 'Error',
-          description: 'Institution is not verified',
-          status: 'error'
-        });
-        return false;
-      }
-
-      console.log('[CheckAccess] Access granted');
-      return true;
-    } catch (error) {
-      console.error('[CheckAccess] Error checking access:', error);
-      toast({ 
-        title: 'Error',
-        description: 'Error checking institution access',
-        status: 'error'
-      });
-      return false;
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-    let initTimeout: NodeJS.Timeout;
-
-    const initializeData = async () => {
+    const checkAccess = async () => {
       try {
-        const initState = {
-          isConnected,
-          hasAddress: !!address,
-          hasExamContract: !!examManagementContract,
-          hasCertificatesContract: !!certificatesContract,
-          contractsInitialized,
-          contractsLoading,
-          attempts: initializationAttempts
+        if (!account || !isInitialized || !isCorrectNetwork) {
+          return;
+        }
+
+        if (!examManagement || !certificates) {
+          console.log('Contracts not initialized');
+          return;
+        }
+
+        // Check if user is an institution
+        const isInstitution = await examManagement.read.isInstitution([account]) as boolean;
+        if (!isInstitution) {
+          setError('Not registered as an institution');
+          return;
+        }
+
+        // Get institution data
+        const data = await examManagement.read.getInstitution([account]) as InstitutionResponse;
+        if (!data || !data.exists) {
+          setError('Institution data not found');
+          return;
+        }
+
+        const institutionDataFormatted: InstitutionData = {
+          name: data.name,
+          ministry: data.ministry,
+          university: data.university,
+          college: data.college,
+          description: data.description,
+          imageUrl: data.imageUrl,
+          website: data.website,
+          email: data.email,
+          phone: data.phone
         };
 
-        console.log('Institution initialization state:', initState);
+        setInstitutionData(institutionDataFormatted);
+        setIsVerified(data.isVerified);
+        setError(null);
 
-        if (!isConnected || !address) {
-          console.log('Not connected or no address available');
-          if (isMounted) {
-            setIsLoading(false);
-            setHasAccess(false);
-            setIsInitialized(false);
-          }
-          return;
-        }
-
-        // Wait for contracts to finish loading
-        if (contractsLoading) {
-          console.log('Contracts are still loading...');
-          return;
-        }
-
-        // Check contract initialization
-        if (!examManagementContract || !certificatesContract || !contractsInitialized) {
-          console.error('Contract initialization check failed:', {
-            hasExamContract: !!examManagementContract,
-            hasCertificatesContract: !!certificatesContract,
-            isInitialized: contractsInitialized
-          });
-
-          if (isMounted) {
-            setIsLoading(false);
-            setHasAccess(false);
-            setIsInitialized(false);
-            
-            // Retry initialization if under max attempts
-            if (initializationAttempts < 3) {
-              console.log(`Scheduling retry attempt ${initializationAttempts + 1}/3...`);
-              initTimeout = setTimeout(() => {
-                setInitializationAttempts(prev => prev + 1);
-              }, 2000 * (initializationAttempts + 1)); // Exponential backoff
-            } else {
-              console.error('Max initialization attempts reached');
-              toast({
-                title: 'خطأ في تهيئة العقود | Contract Initialization Error',
-                description: 'فشل في تهيئة العقود بعد عدة محاولات. يرجى التأكد من اتصال المحفظة والشبكة الصحيحة | Failed to initialize contracts after several attempts. Please check your wallet connection and network.',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-              });
-            }
-          }
-        }
-
-        // Reset attempts on successful initialization
-        if (initializationAttempts > 0) {
-          setInitializationAttempts(0);
-        }
-
-        if (isMounted) {
-          setIsLoading(true);
-        }
-
-        // Check access first
-        const accessGranted = await checkAccess(address);
-        console.log('Access check result:', accessGranted);
-        
-        if (!isMounted) return;
-        
-        setHasAccess(accessGranted);
-
-        if (!accessGranted) {
-          setIsLoading(false);
-          setIsInitialized(false);
-          return;
-        }
-
-        // Load data only if access is granted
-        const [institutionData, examsData, certificatesData] = await Promise.all([
-          loadInstitutionFromContract(address),
-          loadExamsFromContract(address),
-          loadCertificatesFromContract(address)
-        ]);
-
-        if (!isMounted) return;
-
-        if (institutionData) {
-          setInstitution(institutionData);
-          setIsInitialized(true);
-        } else {
-          console.error('Failed to load institution data');
-          setIsInitialized(false);
-        }
-
-        if (examsData) {
-          setExams(examsData);
-        }
-
-        if (certificatesData) {
-          setCertificates(certificatesData);
-        }
-
-      } catch (error) {
-        console.error('Critical initialization error:', {
-          error: error instanceof Error ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-          } : 'Unknown error',
-          state: {
-            address,
-            contractStatus: {
-              hasExamContract: !!examManagementContract,
-              hasCertificatesContract: !!certificatesContract,
-              isInitialized: contractsInitialized,
-              isLoading: contractsLoading
-            }
-          }
+      } catch (error: any) {
+        console.error('Error checking institution access:', error);
+        setError(error?.message || 'Error checking institution access');
+        toast({
+          title: 'Error',
+          description: `Failed to verify institution access: ${error?.message || 'Unknown error'}`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
         });
-        
-        if (isMounted) {
-          setIsInitialized(false);
-          setHasAccess(false);
-          toast({
-            title: 'خطأ في تهيئة البيانات | Data Initialization Error',
-            description: error instanceof Error 
-              ? `${error.message} | يرجى المحاولة مرة أخرى` 
-              : 'حدث خطأ غير معروف | An unknown error occurred',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
       }
     };
 
-    initializeData();
-
-    return () => {
-      isMounted = false;
-      if (initTimeout) {
-        clearTimeout(initTimeout);
-      }
-    };
-  }, [
-    isConnected, 
-    address, 
-    examManagementContract, 
-    certificatesContract, 
-    contractsInitialized,
-    contractsLoading,
-    initializationAttempts,
-    toast
-  ]);
-
-  // Helper functions with proper type checking
-  const loadInstitutionFromContract = async (userAddress: `0x${string}`): Promise<InstitutionData | null> => {
-    if (!examManagementContract || !userAddress) return null;
-
-    try {
-      const data = await examManagementContract.getInstitution(userAddress);
-      return {
-        name: data.name,
-        ministry: data.ministry,
-        university: data.university,
-        college: data.college,
-        description: data.description,
-        imageUrl: data.imageUrl,
-        website: data.website,
-        email: data.email,
-        phone: data.phone,
-      };
-    } catch (error) {
-      console.error('Error loading institution:', error);
-      return null;
-    }
-  };
+    checkAccess();
+  }, [account, examManagement, certificates, isInitialized, isCorrectNetwork, toast]);
 
   const loadExamsFromContract = async (userAddress: `0x${string}`): Promise<Exam[]> => {
-    if (!examManagementContract || !userAddress) {
+    if (!examManagement || !userAddress) {
       return [];
     }
 
     try {
-      return await examManagementContract.getInstitutionExams(userAddress);
+      const result = await examManagement.read.getInstitutionExams([userAddress]) as unknown as Exam[];
+      return result;
     } catch (error) {
       console.error('Error loading exams:', error);
       return [];
@@ -320,12 +126,13 @@ export const useInstitution = () => {
   };
 
   const loadCertificatesFromContract = async (userAddress: `0x${string}`): Promise<Certificate[]> => {
-    if (!certificatesContract || !userAddress) {
+    if (!certificates || !userAddress) {
       return [];
     }
 
     try {
-      return await certificatesContract.getInstitutionCertificates(userAddress);
+      const result = await certificates.read.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
+      return result;
     } catch (error) {
       console.error('Error loading certificates:', error);
       return [];
@@ -333,10 +140,10 @@ export const useInstitution = () => {
   };
 
   const createExam = async (exam: NewExam): Promise<boolean> => {
-    if (!address) {
+    if (!account || !examManagement || !publicClient) {
       toast({
         title: 'خطأ في العنوان | Address Error',
-        description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
+        description: 'لم يتم العثور على عنوان المحفظة أو العقد | Wallet address or contract not found',
         status: 'error',
         duration: 3000,
       });
@@ -345,10 +152,9 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const contract = await getContract();
-      const tx = await contract.createExam(exam.title, exam.description, exam.date);
-      await tx.wait();
-      await loadExamsFromContract(address);
+      const hash = await examManagement.write.createExam([exam.title, exam.description, exam.date]) as Hash;
+      await publicClient.waitForTransactionReceipt({ hash });
+      await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
       console.error('Error creating exam:', err);
@@ -365,7 +171,7 @@ export const useInstitution = () => {
   };
 
   const updateExamStatus = async (examId: string, status: string): Promise<boolean> => {
-    if (!address) {
+    if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
         description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -377,10 +183,8 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const contract = await getContract();
-      const tx = await contract.updateExamStatus(examId, status);
-      await tx.wait();
-      await loadExamsFromContract(address);
+      await updateExamStatusUtil(examId, status);
+      await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
       console.error('Error updating exam status:', err);
@@ -397,11 +201,22 @@ export const useInstitution = () => {
   };
 
   const registerStudents = async (examId: string, students: string[]): Promise<boolean> => {
+    if (!account) {
+      toast({
+        title: 'خطأ في العنوان | Address Error',
+        description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
+        status: 'error',
+        duration: 3000,
+      });
+      return false;
+    }
+
     try {
       setIsLoading(true);
-      const contract = await getContract();
-      const tx = await contract.registerStudents(examId, students);
-      await tx.wait();
+      for (const student of students) {
+        await enrollStudentUtil(examId, student);
+      }
+      await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
       console.error('Error registering students:', err);
@@ -418,22 +233,27 @@ export const useInstitution = () => {
   };
 
   const handleSubmitResults = async (examId: string, results: ExamResult[]): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      const contract = await getContract();
-      const tx = await contract.submitResults(examId, results);
-      await tx.wait();
-      await loadExamResults(examId);
+    if (!account) {
       toast({
-        title: 'تم إضافة النتائج بنجاح | Results submitted successfully',
-        status: 'success',
+        title: 'خطأ في العنوان | Address Error',
+        description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
+        status: 'error',
         duration: 3000,
       });
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      for (const result of results) {
+        await submitExamResult(examId, result.studentAddress, result.score, result.grade, '');
+      }
+      await loadExamsFromContract(account);
       return true;
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error submitting results:', err);
       toast({
-        title: 'حدث خطأ | Error occurred',
+        title: 'Error submitting results',
         description: err instanceof Error ? err.message : 'An unknown error occurred',
         status: 'error',
         duration: 3000,
@@ -474,7 +294,7 @@ export const useInstitution = () => {
       const totalStudents = validResults.length;
       const passingStudents = validResults.filter(result => result.score >= 60).length;
       const totalScore = validResults.reduce((sum, result) => sum + result.score, 0);
-      
+
       const gradeCount = {
         A: validResults.filter(result => result.grade === 'A').length,
         B: validResults.filter(result => result.grade === 'B').length,
@@ -510,7 +330,7 @@ export const useInstitution = () => {
   };
 
   const handleEnrollStudent = async (examId: string, studentAddress: string) => {
-    if (!address) {
+    if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
         description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -522,13 +342,13 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await enrollStudent(examId, studentAddress);
+      await enrollStudentUtil(examId, studentAddress);
       toast({
         title: 'Student enrolled successfully',
         status: 'success',
         duration: 3000,
       });
-      await loadExamsFromContract(address);
+      await loadExamsFromContract(account);
       return true;
     } catch (err: unknown) {
       console.error('Error enrolling student:', err);
@@ -545,7 +365,7 @@ export const useInstitution = () => {
   };
 
   const issueCertificate = async (studentAddress: string, certificate: { title: string; description: string }): Promise<boolean> => {
-    if (!address) {
+    if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
         description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -557,17 +377,10 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const contract = await getContract();
-      const tx = await contract.issueCertificate(studentAddress, certificate.title, certificate.description);
-      await tx.wait();
-      await loadCertificatesFromContract(address);
-      toast({
-        title: 'Certificate issued successfully',
-        status: 'success',
-        duration: 3000,
-      });
+      await issueCertificateUtil(studentAddress, JSON.stringify(certificate));
+      await loadCertificatesFromContract(account);
       return true;
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error issuing certificate:', err);
       toast({
         title: 'Error issuing certificate',
@@ -582,33 +395,32 @@ export const useInstitution = () => {
   };
 
   const saveInstitutionProfile = async (data: InstitutionData): Promise<void> => {
-    if (!examManagementContract || !address) {
+    if (!examManagement || !account || !publicClient) {
       throw new Error('Contract or address not available');
     }
 
     // Validate required fields
-    if (!data.name || !data.ministry || !data.university || !data.college || 
-        !data.description || !data.imageUrl || !data.website || !data.email || !data.phone) {
+    if (!data.name || !data.ministry || !data.university || !data.college ||
+      !data.description || !data.imageUrl || !data.website || !data.email || !data.phone) {
       throw new Error('جميع الحقول مطلوبة | All fields are required');
     }
 
     try {
       setIsLoading(true);
-      const tx = await examManagementContract.write.updateInstitutionProfile({
-        args: [
-          data.name,
-          data.ministry,
-          data.university,
-          data.college,
-          data.description,
-          data.imageUrl || '',
-          data.website || '',
-          data.email || '',
-          data.phone || ''
-        ]
-      });
-      await tx.wait();
-      setInstitution(data);
+      const hash = await examManagement.write.updateInstitutionProfile([
+        data.name,
+        data.ministry,
+        data.university,
+        data.college,
+        data.description,
+        data.imageUrl || '',
+        data.website || '',
+        data.email || '',
+        data.phone || ''
+      ]) as Hash;
+
+      await publicClient.waitForTransactionReceipt({ hash });
+      setInstitutionData(data);
       toast({
         title: 'تم الحفظ بنجاح | Saved Successfully',
         status: 'success',
@@ -631,16 +443,19 @@ export const useInstitution = () => {
   };
 
   return {
-    institution,
-    exams,
-    certificates,
-    isLoading,
+    institutionData,
+    isVerified,
+    isLoading: isLoading || contractsLoading,
+    error,
     isInitialized,
+    isCorrectNetwork,
+    exams,
+    certificatesData,
     hasAccess,
     selectedExamResults,
     examStatistics,
-    saveInstitutionProfile,
     createExam,
+    saveInstitutionProfile,
     updateExamStatus,
     registerStudents,
     handleSubmitResults,
@@ -648,4 +463,4 @@ export const useInstitution = () => {
     loadExamResults,
     issueCertificate,
   };
-}; 
+};
