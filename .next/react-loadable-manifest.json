@@ -12,17 +12,5 @@
   "node_modules\\.pnpm\\viem@2.26.2_bufferutil@4.0.7_typescript@5.8.3_utf-8-validate@6.0.3\\node_modules\\viem\\_esm\\utils\\signature\\recoverPublicKey.js -> @noble/curves/secp256k1": {
     "id": "node_modules\\.pnpm\\viem@2.26.2_bufferutil@4.0.7_typescript@5.8.3_utf-8-validate@6.0.3\\node_modules\\viem\\_esm\\utils\\signature\\recoverPublicKey.js -> @noble/curves/secp256k1",
     "files": []
-  },
-  "pages\\dashboard\\admin.tsx -> ../../components/dashboard/InstitutionsTable": {
-    "id": "pages\\dashboard\\admin.tsx -> ../../components/dashboard/InstitutionsTable",
-    "files": [
-      "static/chunks/components_dashboard_InstitutionsTable_tsx.js"
-    ]
-  },
-  "pages\\dashboard\\admin.tsx -> ../../components/dashboard/StatsGrid": {
-    "id": "pages\\dashboard\\admin.tsx -> ../../components/dashboard/StatsGrid",
-    "files": [
-      "static/chunks/components_dashboard_StatsGrid_tsx.js"
-    ]
   }
 }

@@ -86,6 +86,7 @@ contract Identity is Ownable, Pausable {
         
         if (_role == UserRole.INSTITUTION) {
             institutions[msg.sender] = true;
+            emit InstitutionAdded(msg.sender);  // Add this line
         }
         
         emit UserRegistered(msg.sender, _role);
@@ -136,4 +137,9 @@ contract Identity is Ownable, Pausable {
     function unpause() external onlyAdmin {
         _unpause();
     }
-} 
+    
+    // Add this function to check if an address is registered as an institution
+    function isInstitution(address _address) public view returns (bool) {
+        return institutions[_address];
+    }
+}
