@@ -4,7 +4,6 @@ import { useRouter } from 'next/router';
 import { ethers } from 'ethers';
 import {
   getUserRole,
-  isVerifiedUser,
   getCertificates,
   getInstitutionExams,
   updateExamStatus,
@@ -13,7 +12,7 @@ import {
   enrollStudent,
   createExam,
   getContract
-} from '../utilsFront/contracts';
+} from '../utils/contracts';
 import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
 import { Certificate, Exam, ExamResult, ExamStatistics, NewExam } from '../types/institution';
 import { useAccount } from 'wagmi';
@@ -346,7 +345,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       const contract = await getContract();
-      const tx = await contract.createExam(exam.title, exam.description, exam.date);
+      const tx = await contract.examManagementContract.createExam(exam.title, exam.description, exam.date);
       await tx.wait();
       await loadExamsFromContract(address);
       return true;
@@ -378,7 +377,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       const contract = await getContract();
-      const tx = await contract.updateExamStatus(examId, status);
+      const tx = await contract.examManagementContract.updateExamStatus(examId, status);
       await tx.wait();
       await loadExamsFromContract(address);
       return true;
@@ -400,7 +399,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       const contract = await getContract();
-      const tx = await contract.registerStudents(examId, students);
+      const tx = await contract.examManagementContract.registerStudents(examId, students);
       await tx.wait();
       return true;
     } catch (err: any) {
@@ -421,7 +420,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       const contract = await getContract();
-      const tx = await contract.submitResults(examId, results);
+      const tx = await contract.examManagementContract.submitResults(examId, results);
       await tx.wait();
       await loadExamResults(examId);
       toast({
@@ -558,7 +557,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       const contract = await getContract();
-      const tx = await contract.issueCertificate(studentAddress, certificate.title, certificate.description);
+      const tx = await contract.certificatesContract.issueCertificate(studentAddress, certificate.title, certificate.description);
       await tx.wait();
       await loadCertificatesFromContract(address);
       toast({
