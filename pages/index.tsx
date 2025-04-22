@@ -67,7 +67,7 @@ function WalletConnection() {
         try {
           const role = await getUserRole(accounts[0]) as RoleType;
           setUserRole(role);
-          
+
           // Redirect based on role
           if (role === 'admin') {
             router.push('/dashboard/admin');
@@ -117,7 +117,7 @@ function WalletConnection() {
       setUserRole('');
       // Clear any stored data
       localStorage.clear();
-      
+
       toast({
         title: 'Disconnected',
         description: 'Wallet disconnected successfully',
@@ -148,8 +148,8 @@ function WalletConnection() {
           </Button>
         </VStack>
       ) : (
-        <Button 
-          colorScheme="blue" 
+        <Button
+          colorScheme="blue"
           onClick={handleConnectWallet}
         >
           Connect with MetaMask
@@ -269,7 +269,7 @@ function IssueCertificateModal() {
 
       // Issue certificate on blockchain
       await issueCertificate(studentAddress, ipfsHash);
-      
+
       toast({
         title: 'Success',
         description: 'Certificate issued successfully',
@@ -330,8 +330,8 @@ function IssueCertificateModal() {
                     placeholder="Enter certificate details"
                   />
                 </FormControl>
-                <Button 
-                  colorScheme="blue" 
+                <Button
+                  colorScheme="blue"
                   onClick={handleIssueCertificate}
                   isLoading={loading}
                   isDisabled={!isVerified}
@@ -374,11 +374,11 @@ function ViewCertificatesModal() {
       const accounts = await requestAccounts();
       const currentAddress = accounts[0];
       console.log('Loading certificates for address:', currentAddress);
-      
+
       // Check user role first
       const role = await checkUserRole(currentAddress);
       console.log('User role for certificates:', role);
-      
+
       if (role !== 'student') {
         throw new Error(`Only students can view certificates. Current role: ${role}`);
       }
@@ -386,7 +386,7 @@ function ViewCertificatesModal() {
       console.log('Fetching certificates from contract...');
       const certs = await getCertificates(currentAddress);
       console.log('Raw certificates data:', certs);
-      
+
       if (!certs || certs.length === 0) {
         console.log('No certificates found');
         setCertificates([]);
@@ -407,7 +407,7 @@ function ViewCertificatesModal() {
           return cert;
         }
       }));
-      
+
       console.log('Formatted certificates:', formattedCerts);
       setCertificates(formattedCerts);
     } catch (error: any) {
@@ -462,11 +462,11 @@ function ViewCertificatesModal() {
                     Refresh Certificates
                   </Button>
                   {certificates.map((cert: any, index: number) => (
-                    <Box 
+                    <Box
                       key={index}
-                      p={4} 
-                      border="1px" 
-                      borderColor="gray.200" 
+                      p={4}
+                      border="1px"
+                      borderColor="gray.200"
                       borderRadius="md"
                       shadow="sm"
                     >
@@ -477,7 +477,7 @@ function ViewCertificatesModal() {
                         <Text><strong>Details:</strong> {JSON.stringify(cert.data)}</Text>
                       )}
                       <HStack mt={2} spacing={2}>
-                        <Button 
+                        <Button
                           size="sm"
                           colorScheme="blue"
                           onClick={() => window.open(`https://ipfs.io/ipfs/${cert.ipfsHash}`, '_blank')}
@@ -552,8 +552,8 @@ function VerifyCertificateModal() {
                   placeholder="Enter certificate ID"
                 />
               </FormControl>
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 onClick={handleVerify}
                 isLoading={loading}
               >
@@ -603,7 +603,7 @@ function VerificationStatus() {
       </Button>
       {isVerified !== null && (
         <Text color={isVerified ? 'green.500' : 'red.500'}>
-          Your account is {isVerified ? 'verified' : 'not verified'}. 
+          Your account is {isVerified ? 'verified' : 'not verified'}.
           {!isVerified && ' Please contact the administrator for verification.'}
         </Text>
       )}
@@ -697,7 +697,7 @@ export default function Home() {
         if (accounts.length > 0) {
           const currentAccount = accounts[0];
           setAccount(currentAccount);
-          
+
           // Check if user is admin first
           try {
             const isAdminUser = await isOwner(currentAccount);
@@ -738,7 +738,7 @@ export default function Home() {
       try {
         const role = await getUserRole(accounts[0]) as RoleType;
         setUserRole(role);
-        
+
         // Redirect based on role
         if (role === 'admin') {
           router.push('/dashboard/admin');
@@ -796,6 +796,14 @@ export default function Home() {
 
       if (role === '') {
         throw new Error('This account is not registered. Please register first.');
+      }
+
+      // Add verification check for institutions
+      if (role === 'institution') {
+        const isVerified = await isVerifiedUser(account);
+        if (!isVerified) {
+          throw new Error('Your institution account is not verified yet. Please wait until an admin verifies your account.');
+        }
       }
 
       // Redirect based on role
@@ -863,7 +871,7 @@ export default function Home() {
         router.push('/dashboard/admin');
         return;
       }
-      
+
       // If not admin, proceed with regular registration
       if (!selectedRole) {
         throw new Error('Please select a role');
@@ -871,7 +879,7 @@ export default function Home() {
 
       await registerUser(selectedRole);
       setCurrentRole(selectedRole);
-      
+
       // After successful registration, redirect based on role
       const redirectMap: { [key: string]: string } = {
         'student': '/dashboard/student',
@@ -910,7 +918,7 @@ export default function Home() {
         <Box>
           <Text mb={2}>المحفظة المتصلة - Connected Account:</Text>
           <Text fontSize="sm" mb={4}>{account || 'Not connected'}</Text>
-          
+
           {!account ? (
             <Button
               colorScheme="blue"
