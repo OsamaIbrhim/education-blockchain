@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -24,6 +24,7 @@ contract Identity is Ownable, Pausable {
     event InstitutionAdded(address indexed institution);
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
+    event IPFSHashUpdated(address indexed user, string ipfsHash);
     
     modifier onlyVerifiedInstitution() {
         require(institutions[msg.sender] && users[msg.sender].isVerified, "Not a verified institution");
@@ -103,6 +104,7 @@ contract Identity is Ownable, Pausable {
     function updateUserIPFS(string memory _newIpfsHash) external whenNotPaused {
         require(users[msg.sender].userAddress != address(0), "User does not exist");
         users[msg.sender].ipfsHash = _newIpfsHash;
+        emit IPFSHashUpdated(msg.sender, _newIpfsHash);
     }
     
     function getUserRole(address _userAddress) external view returns (UserRole) {

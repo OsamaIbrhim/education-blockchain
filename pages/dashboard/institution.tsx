@@ -63,8 +63,19 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
 import { BsArrowUpCircle } from 'react-icons/bs';
 import { Connector, useAccount, useConnect } from 'wagmi';
-import { validateNetwork, EXPECTED_NETWORK } from '../../utils/ethersConfig';
-import { getProvider } from '../../utils/ethersConfig';
+import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider, getContract } from '../../utils/ethersConfig';
+import { IdentityABI } from '../../constants/abis';
+import { getContracts } from '../../utils/contracts';
+
+const getIdentityContract = async () => {
+  const signer = await getSigner();
+  const identityContract = getContract(
+    process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS || '',
+    IdentityABI,
+    signer
+  );
+  return identityContract;
+};
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
@@ -232,6 +243,7 @@ const InstitutionDashboard = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
+  const [identityContract, setIdentityContract] = useState<any>(null);
 
   // 5. Effect hooks
   useEffect(() => {
@@ -274,6 +286,28 @@ const InstitutionDashboard = () => {
       checkNetwork();
     }
   }, [isWalletConnected, toast]);
+  
+  useEffect(() => {
+    const initContract = async () => {
+      try {
+        const { identityContract } = await getContracts();
+        setIdentityContract(identityContract);
+      } catch (error: any) {
+        console.error('Error initializing contract:', error);
+        toast({
+          title: 'خطأ في تهيئة العقد | Contract initialization error',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
+    if (isWalletConnected && !networkError) {
+      initContract();
+    }
+  }, [isWalletConnected, networkError, toast]);
 
   // 6. Memoized values
   const notificationVariants = useMemo(() => ({
@@ -819,6 +853,8 @@ const InstitutionDashboard = () => {
                   <InstitutionProfile
                     onSave={handleSaveProfile}
                     loading={isLoading}
+                    contract={identityContract}
+                    userAddress={address}
                   />
                 </TabPanel>
                 <TabPanel>

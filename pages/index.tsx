@@ -28,6 +28,11 @@ import { useRouter } from 'next/router';
 import { connectWallet, getAccounts, requestAccounts } from '../utils/web3Provider';
 
 type RoleType = 'admin' | 'institution' | 'student' | 'employer' | '';
+const redirectMap: { [key: string]: string } = {
+  student: '/dashboard/student',
+  institution: '/dashboard/institution',
+  employer: '/dashboard/employer',
+};
 
 interface Certificate {
   id: string;
@@ -877,16 +882,21 @@ export default function Home() {
         throw new Error('Please select a role');
       }
 
+      // Register the user
       await registerUser(selectedRole);
       setCurrentRole(selectedRole);
 
-      // After successful registration, redirect based on role
-      const redirectMap: { [key: string]: string } = {
-        'student': '/dashboard/student',
-        'institution': '/dashboard/institution',
-        'employer': '/dashboard/employer'
-      };
+      // Check verification status for institutions
+      if (selectedRole === 'institution') {
+        const isVerified = await isVerifiedUser(account!);
+        if (!isVerified) {
+          throw new Error(
+            'Your institution account is not verified yet. Please wait until an admin verifies your account.'
+          );
+        }
+      }
 
+      // After successful registration, redirect based on role
       const redirectPath = redirectMap[selectedRole];
       if (redirectPath) {
         setRedirecting(true);

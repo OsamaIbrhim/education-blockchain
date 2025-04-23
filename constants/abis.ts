@@ -10,3 +10,13 @@ export const ExamManagementABI = [
   "function getExamStatistics(string memory _examId) external view returns (uint256 totalStudents, uint256 averageScore, uint256 passRate)",
   "function getExamResults(string memory _examId) external view returns (address[] memory students, uint256[] memory scores, string[] memory grades)"
 ]; 
+
+export const IdentityABI = [
+  "function registerUser(uint8 _role, string memory _ipfsHash) external",
+  "function verifyUser(address _userAddress) external returns (bool)",
+  "function getUserRole(address _userAddress) external view returns (uint8)",
+  "function isVerifiedUser(address _userAddress) external view returns (bool)",
+  "function updateUserIPFS(string memory _newIpfsHash) external",
+  "function owner() view returns (address)",
+  "event IPFSHashUpdated(address indexed user, string ipfsHash)"
+];
