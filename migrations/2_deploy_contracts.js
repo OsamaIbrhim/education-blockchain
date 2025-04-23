@@ -38,4 +38,4 @@ module.exports = async function(deployer, network, accounts) {
         console.log('Examinations contract deployed at:', examinationsInstance.address);
         console.log('ExamManagement contract deployed at:', examManagementInstance.address);
     }
-}; 
+};
