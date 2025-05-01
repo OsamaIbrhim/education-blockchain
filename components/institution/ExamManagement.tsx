@@ -29,7 +29,9 @@ import {
   StatLabel,
   StatNumber,
   StatGroup,
-  Grid
+  Grid,
+  Flex,
+  useColorModeValue
 } from '@chakra-ui/react';
 import { AddIcon, ViewIcon } from '@chakra-ui/icons';
 import { Exam, NewExam } from '../../types/institution';
@@ -145,95 +147,106 @@ export function ExamManagement({
   const totalExams = exams.length;
   const activeExams = exams.filter(exam => exam.status === 'active').length;
   const completedExams = exams.filter(exam => exam.status === 'completed').length;
-
+  const bgColor = useColorModeValue('white', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  
   return (
     <Box>
       <VStack spacing={6} align="stretch">
-        <HStack justify="space-between">
-          <Heading size="lg">إدارة الاختبارات | Exam Management</Heading>
-          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onCreateOpen}>
-            إنشاء اختبار جديد | Create New Exam
-          </Button>
-        </HStack>
+        <Box
+          p={6}
+          bg={bgColor}
+          borderRadius="xl"
+          borderWidth="1px"
+          borderColor={borderColor}
+          shadow="sm"
+        >
+          <HStack justify="space-between">
+            <Heading size="lg">إدارة الاختبارات | Exam Management</Heading>
+            <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onCreateOpen}>
+              إنشاء اختبار جديد | Create New Exam
+            </Button>
+          </HStack>
 
-        {/* Statistics */}
-        <StatGroup>
-          <Grid templateColumns="repeat(3, 1fr)" gap={4} w="100%">
-            <Stat>
-              <StatLabel>إجمالي الاختبارات | Total Exams</StatLabel>
-              <StatNumber>{totalExams}</StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel>الاختبارات النشطة | Active Exams</StatLabel>
-              <StatNumber>{activeExams}</StatNumber>
-            </Stat>
-            <Stat>
-              <StatLabel>الاختبارات المكتملة | Completed Exams</StatLabel>
-              <StatNumber>{completedExams}</StatNumber>
-            </Stat>
-          </Grid>
-        </StatGroup>
+          {/* Statistics */}
+          <StatGroup>
+            <Grid templateColumns="repeat(3, 1fr)" gap={4} w="100%">
+              <Stat>
+                <StatLabel>إجمالي الاختبارات | Total Exams</StatLabel>
+                <StatNumber>{totalExams}</StatNumber>
+              </Stat>
+              <Stat>
+                <StatLabel>الاختبارات النشطة | Active Exams</StatLabel>
+                <StatNumber>{activeExams}</StatNumber>
+              </Stat>
+              <Stat>
+                <StatLabel>الاختبارات المكتملة | Completed Exams</StatLabel>
+                <StatNumber>{completedExams}</StatNumber>
+              </Stat>
+            </Grid>
+          </StatGroup>
 
-        {/* Exams Table */}
-        <Box overflowX="auto">
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>العنوان | Title</Th>
-                <Th>التاريخ | Date</Th>
-                <Th>المدة | Duration</Th>
-                <Th>الحالة | Status</Th>
-                <Th>الإجراءات | Actions</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {exams.map(exam => (
-                <Tr key={exam.id}>
-                  <Td>{exam.title}</Td>
-                  <Td>{new Date(exam.date).toLocaleDateString()}</Td>
-                  <Td>{exam.duration} minutes</Td>
-                  <Td>
-                    <Badge
-                      colorScheme={
-                        exam.status === 'active'
-                          ? 'green'
-                          : exam.status === 'completed'
-                          ? 'blue'
-                          : 'gray'
-                      }
-                    >
-                      {exam.status}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <HStack spacing={2}>
-                      <Button
-                        size="sm"
-                        leftIcon={<ViewIcon />}
-                        onClick={() => {
-                          setSelectedExamId(exam.id);
-                          onEnrollOpen();
-                        }}
-                      >
-                        تسجيل طالب | Enroll Student
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          handleStatusUpdate(
-                            exam.id,
-                            exam.status === 'active' ? 'completed' : 'active'
-                          )
+          {/* Exams Table */}
+          <Box overflowX="auto">
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>العنوان | Title</Th>
+                  <Th>التاريخ | Date</Th>
+                  <Th>المدة | Duration</Th>
+                  <Th>الحالة | Status</Th>
+                  <Th>الإجراءات | Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {exams.map(exam => (
+                  <Tr key={exam.id}>
+                    <Td>{exam.title}</Td>
+                    <Td>{new Date(exam.date).toLocaleDateString()}</Td>
+                    <Td>{exam.duration} minutes</Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
+                          exam.status === 'active'
+                            ? 'green'
+                            : exam.status === 'completed'
+                              ? 'blue'
+                              : 'gray'
                         }
                       >
-                        {exam.status === 'active' ? 'إنهاء | Complete' : 'تنشيط | Activate'}
-                      </Button>
-                    </HStack>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+                        {exam.status}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button
+                          size="sm"
+                          leftIcon={<ViewIcon />}
+                          onClick={() => {
+                            setSelectedExamId(exam.id);
+                            onEnrollOpen();
+                          }}
+                        >
+                          تسجيل طالب | Enroll Student
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleStatusUpdate(
+                              exam.id,
+                              exam.status === 'active' ? 'completed' : 'active'
+                            )
+                          }
+                        >
+                          {exam.status === 'active' ? 'إنهاء | Complete' : 'تنشيط | Activate'}
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
         </Box>
       </VStack>
 
@@ -273,13 +286,6 @@ export function ExamManagement({
                     type="number"
                     value={newExam.duration}
                     onChange={e => setNewExam({ ...newExam, duration: e.target.value })}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>IPFS Hash</FormLabel>
-                  <Input
-                    value={newExam.ipfsHash}
-                    onChange={e => setNewExam({ ...newExam, ipfsHash: e.target.value })}
                   />
                 </FormControl>
               </VStack>

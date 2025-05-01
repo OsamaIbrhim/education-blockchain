@@ -5,24 +5,15 @@ import { useContract } from './useContract';
 import type { Hash } from 'viem';
 import { Certificate, Exam, ExamResult, ExamStatistics, NewExam } from '../types/institution';
 import { InstitutionData } from '../components/institution/InstitutionProfile';
-import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
 import {
-  getUserRole,
-  isVerifiedUser,
-  getCertificates,
-  getInstitutionExams,
   updateExamStatus as updateExamStatusUtil,
   submitExamResult,
   getExamResult,
   enrollStudent as enrollStudentUtil,
   createExam as createExamUtil,
-  issueCertificate as issueCertificateUtil
+  issueCertificate as issueCertificateUtil,
 } from '../utils/contracts';
-
-// Add type for local storage
-const INSTITUTION_STORAGE_KEY = 'institution_data';
-const EXAMS_STORAGE_KEY = 'institution_exams';
-const CERTIFICATES_STORAGE_KEY = 'institution_certificates';
+import { createExam as createExamService, getInstitution, getInstitutionExams } from '../services/examManagement';
 
 interface InstitutionResponse {
   name: string;
@@ -57,44 +48,15 @@ export const useInstitution = () => {
     const checkAccess = async () => {
       try {
         if (!account || !isInitialized || !isCorrectNetwork) {
+          // throw new Error('');
           return;
         }
 
         if (!examManagement || !certificates) {
-          console.log('Contracts not initialized');
-          return;
+          throw new Error('Contracts not initialized');
         }
 
-        // Check if user is an institution
-        const isInstitution = await examManagement.read.isInstitution([account]) as boolean;
-        if (!isInstitution) {
-          setError('Not registered as an institution');
-          return;
-        }
-
-        // Get institution data
-        const data = await examManagement.read.getInstitution([account]) as InstitutionResponse;
-        if (!data || !data.exists) {
-          setError('Institution data not found');
-          return;
-        }
-
-        const institutionDataFormatted: InstitutionData = {
-          name: data.name,
-          ministry: data.ministry,
-          university: data.university,
-          college: data.college,
-          description: data.description,
-          imageUrl: data.imageUrl,
-          website: data.website,
-          email: data.email,
-          phone: data.phone
-        };
-
-        setInstitutionData(institutionDataFormatted);
-        setIsVerified(data.isVerified);
         setError(null);
-
       } catch (error: any) {
         console.error('Error checking institution access:', error);
         setError(error?.message || 'Error checking institution access');
@@ -109,7 +71,28 @@ export const useInstitution = () => {
     };
 
     checkAccess();
-  }, [account, examManagement, certificates, isInitialized, isCorrectNetwork, toast]);
+  }, [account, examManagement, certificates, isInitialized, isCorrectNetwork]);
+
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (!account || !examManagement || !isInitialized || !isCorrectNetwork) {
+        setIsVerified(false);
+        return;
+      }
+      
+      try {
+        // The function returns multiple values, we need to destructure them
+        const institution = await getInstitution(account);
+        
+        setIsVerified(institution?.isVerified || false);
+      } catch (error) {
+        console.error('Error checking verification status:', error);
+        setIsVerified(false);
+      }
+    };
+
+    checkVerificationStatus();
+  }, [account, examManagement, isInitialized, isCorrectNetwork]);
 
   const loadExamsFromContract = async (userAddress: `0x${string}`): Promise<Exam[]> => {
     if (!examManagement || !userAddress) {
@@ -117,7 +100,11 @@ export const useInstitution = () => {
     }
 
     try {
-      const result = await examManagement.read.getInstitutionExams([userAddress]) as unknown as Exam[];
+      // From the contract:
+      // function getInstitutionExams(address _institution) external view returns (string[] memory)
+      // But in our code we're expecting a different return type
+      const result = await getInstitutionExams(userAddress) as unknown as Exam[];
+      console.log("Loaded exams:", result);
       return result;
     } catch (error) {
       console.error('Error loading exams:', error);
@@ -131,7 +118,7 @@ export const useInstitution = () => {
     }
 
     try {
-      const result = await certificates.read.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
+      const result = await certificates.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
       return result;
     } catch (error) {
       console.error('Error loading certificates:', error);
@@ -139,6 +126,24 @@ export const useInstitution = () => {
     }
   };
 
+  // effect to load exams and certificates
+  useEffect(() => {
+    if (!account) {
+      // throw new Error('');
+      return;
+    }
+    const loadExamsAndCertificates = async () => {
+      if (account) {
+        const exams = await loadExamsFromContract(account);
+        const certificates = await loadCertificatesFromContract(account);
+        setExams(exams);
+        setCertificatesData(certificates);
+      }
+    };
+    loadExamsAndCertificates();
+  }, [account, examManagement, certificates]);
+
+  // create exam
   const createExam = async (exam: NewExam): Promise<boolean> => {
     if (!account || !examManagement || !publicClient) {
       toast({
@@ -152,9 +157,23 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const hash = await examManagement.write.createExam([exam.title, exam.description, exam.date]) as Hash;
-      await publicClient.waitForTransactionReceipt({ hash });
+      
+      const hash = await createExamService({
+        ...exam,
+        id: '',
+        status: 'PENDING',
+        students: []
+      });
+      
+      // await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
       await loadExamsFromContract(account);
+      toast({
+        title: 'Exam Created',
+        description: 'Your exam has been created successfully',
+        status: 'success',
+        duration: 3000,
+      });
+      
       return true;
     } catch (err: any) {
       console.error('Error creating exam:', err);
@@ -407,7 +426,8 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const hash = await examManagement.write.updateInstitutionProfile([
+      // Direct function call without using write property
+      const hash = await examManagement.updateInstitutionProfile([
         data.name,
         data.ministry,
         data.university,
@@ -441,6 +461,26 @@ export const useInstitution = () => {
       setIsLoading(false);
     }
   };
+
+  // Add this to help with troubleshooting contract methods
+  const logContractMethods = (contract: any, name: string) => {
+    if (!contract) return;
+    
+    console.log(`Contract ${name} methods:`, {
+      contractExists: !!contract,
+      methods: Object.keys(contract),
+      hasCreateExam: typeof contract.createExam,
+      hasUpdateProfile: typeof contract.updateInstitutionProfile
+    });
+  };
+  
+  // Call this function in useEffect to log contract methods when they load
+  useEffect(() => {
+    if (examManagement && certificates) {
+      logContractMethods(examManagement, 'examManagement');
+      logContractMethods(certificates, 'certificates');
+    }
+  }, [examManagement, certificates]);
 
   return {
     institutionData,

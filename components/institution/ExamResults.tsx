@@ -24,6 +24,7 @@ import {
   Select,
   Spinner,
   Center,
+  useColorModeValue
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import ResultsModal from './ResultsModal';
@@ -103,116 +104,128 @@ export function ExamResults({
     );
   }
 
+  const bgColor = useColorModeValue('white', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+
   return (
     <Box>
       <VStack spacing={6} align="stretch">
-        <HStack justify="space-between">
-          <Heading size="lg">نتائج الاختبار | Exam Results</Heading>
-          <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen} isDisabled={!selectedExamId}>
-            إضافة نتيجة | Add Result
-          </Button>
-        </HStack>
+        <Box
+          p={6}
+          bg={bgColor}
+          borderRadius="xl"
+          borderWidth="1px"
+          borderColor={borderColor}
+          shadow="sm"
+        >
+          <HStack justify="space-between">
+            <Heading size="lg">نتائج الاختبار | Exam Results</Heading>
+            <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen} isDisabled={!selectedExamId}>
+              إضافة نتيجة | Add Result
+            </Button>
+          </HStack>
 
-        {/* Exam Selection */}
-        <Box>
-          <Text mb={2}>اختر الاختبار | Select Exam</Text>
-          <Select
-            placeholder="اختر اختبار | Select an exam"
-            value={selectedExamId || ''}
-            onChange={(e) => onSelectExam(e.target.value)}
-          >
-            {exams.map((exam) => (
-              <option key={exam.id} value={exam.id}>
-                {exam.title}
-              </option>
-            ))}
-          </Select>
-        </Box>
-
-        {/* Statistics */}
-        {statistics && (
+          {/* Exam Selection */}
           <Box>
-            <Heading size="md" mb={4}>الإحصائيات | Statistics</Heading>
-            <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4}>
-              <StatGroup>
-                <Stat>
-                  <StatLabel>إجمالي الطلاب | Total Students</StatLabel>
-                  <StatNumber>{statistics.totalStudents}</StatNumber>
-                </Stat>
-              </StatGroup>
-
-              <StatGroup>
-                <Stat>
-                  <StatLabel>نسبة النجاح | Pass Rate</StatLabel>
-                  <StatNumber>{statistics.passRate}%</StatNumber>
-                </Stat>
-              </StatGroup>
-
-              <StatGroup>
-                <Stat>
-                  <StatLabel>متوسط الدرجات | Average Score</StatLabel>
-                  <StatNumber>{statistics.averageScore.toFixed(2)}</StatNumber>
-                </Stat>
-              </StatGroup>
-            </Grid>
-
-            <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={4} mt={4}>
-              <Box>
-                <Text fontWeight="bold" mb={2}>توزيع الدرجات | Grade Distribution</Text>
-                <VStack align="start">
-                  <Text>A: {statistics.aCount} طالب</Text>
-                  <Text>B: {statistics.bCount} طالب</Text>
-                  <Text>C: {statistics.cCount} طالب</Text>
-                  <Text>D: {statistics.dCount} طالب</Text>
-                  <Text>F: {statistics.fCount} طالب</Text>
-                </VStack>
-              </Box>
-
-              <Box>
-                <Text fontWeight="bold" mb={2}>الدرجة الأكثر شيوعاً | Most Common Grade</Text>
-                <Badge colorScheme={getGradeColor(statistics.mostCommonGrade)} fontSize="lg">
-                  {statistics.mostCommonGrade}
-                </Badge>
-              </Box>
-            </Grid>
+            <Text mb={2}>اختر الاختبار | Select Exam</Text>
+            <Select
+              placeholder="اختر اختبار | Select an exam"
+              value={selectedExamId || ''}
+              onChange={(e) => onSelectExam(e.target.value)}
+            >
+              {exams.map((exam) => (
+                <option key={exam.id} value={exam.id}>
+                  {exam.title}
+                </option>
+              ))}
+            </Select>
           </Box>
-        )}
 
-        {/* Results Table */}
-        <Box>
-          <Heading size="md" mb={4}>قائمة النتائج | Results List</Heading>
-          {results.length > 0 ? (
-            <Box overflowX="auto">
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>عنوان الطالب | Student Address</Th>
-                    <Th>الدرجة | Score</Th>
-                    <Th>التقدير | Grade</Th>
-                    <Th>ملاحظات | Notes</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {results.map((result, index) => (
-                    <Tr key={index}>
-                      <Td>{result.studentAddress}</Td>
-                      <Td>{result.score}</Td>
-                      <Td>
-                        <Badge colorScheme={getGradeColor(result.grade)}>
-                          {result.grade}
-                        </Badge>
-                      </Td>
-                      <Td>{result.notes}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+          {/* Statistics */}
+          {statistics && (
+            <Box>
+              <Heading size="md" mb={4}>الإحصائيات | Statistics</Heading>
+              <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4}>
+                <StatGroup>
+                  <Stat>
+                    <StatLabel>إجمالي الطلاب | Total Students</StatLabel>
+                    <StatNumber>{statistics.totalStudents}</StatNumber>
+                  </Stat>
+                </StatGroup>
+
+                <StatGroup>
+                  <Stat>
+                    <StatLabel>نسبة النجاح | Pass Rate</StatLabel>
+                    <StatNumber>{statistics.passRate}%</StatNumber>
+                  </Stat>
+                </StatGroup>
+
+                <StatGroup>
+                  <Stat>
+                    <StatLabel>متوسط الدرجات | Average Score</StatLabel>
+                    <StatNumber>{statistics.averageScore.toFixed(2)}</StatNumber>
+                  </Stat>
+                </StatGroup>
+              </Grid>
+
+              <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={4} mt={4}>
+                <Box>
+                  <Text fontWeight="bold" mb={2}>توزيع الدرجات | Grade Distribution</Text>
+                  <VStack align="start">
+                    <Text>A: {statistics.aCount} طالب</Text>
+                    <Text>B: {statistics.bCount} طالب</Text>
+                    <Text>C: {statistics.cCount} طالب</Text>
+                    <Text>D: {statistics.dCount} طالب</Text>
+                    <Text>F: {statistics.fCount} طالب</Text>
+                  </VStack>
+                </Box>
+
+                <Box>
+                  <Text fontWeight="bold" mb={2}>الدرجة الأكثر شيوعاً | Most Common Grade</Text>
+                  <Badge colorScheme={getGradeColor(statistics.mostCommonGrade)} fontSize="lg">
+                    {statistics.mostCommonGrade}
+                  </Badge>
+                </Box>
+              </Grid>
             </Box>
-          ) : (
-            <Text textAlign="center" color="gray.500">
-              لا توجد نتائج بعد | No results yet
-            </Text>
           )}
+
+          {/* Results Table */}
+          <Box>
+            <Heading size="md" mb={4}>قائمة النتائج | Results List</Heading>
+            {results.length > 0 ? (
+              <Box overflowX="auto">
+                <Table variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>عنوان الطالب | Student Address</Th>
+                      <Th>الدرجة | Score</Th>
+                      <Th>التقدير | Grade</Th>
+                      <Th>ملاحظات | Notes</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((result, index) => (
+                      <Tr key={index}>
+                        <Td>{result.studentAddress}</Td>
+                        <Td>{result.score}</Td>
+                        <Td>
+                          <Badge colorScheme={getGradeColor(result.grade)}>
+                            {result.grade}
+                          </Badge>
+                        </Td>
+                        <Td>{result.notes}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </Box>
+            ) : (
+              <Text textAlign="center" color="gray.500">
+                لا توجد نتائج بعد | No results yet
+              </Text>
+            )}
+          </Box>
         </Box>
       </VStack>
 

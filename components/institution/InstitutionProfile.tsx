@@ -33,7 +33,8 @@ import {
 import { DeleteIcon, PhoneIcon, EmailIcon, LinkIcon, InfoIcon } from '@chakra-ui/icons';
 import { FaUniversity, FaGraduationCap, FaBuilding, FaCloudUploadAlt } from 'react-icons/fa';
 import { useIPFS } from '../../hooks/useIPFS';
-import { getFromIPFS, getCIDFromContract } from '../../utils/ipfsUtils';
+import { getFromIPFS, getCIDFromContract, getImageUrlFromIPFS } from '../../utils/ipfsUtils';
+import { getUserData } from '../../services/identity';
 
 interface InstitutionProfileProps {
   onSave: (data: InstitutionData) => Promise<void>;
@@ -80,6 +81,8 @@ export default function InstitutionProfile({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [originalData, setOriginalData] = useState<InstitutionData | null>(null);
   const toast = useToast();
 
   // Initialize the IPFS hook with the contract instance
@@ -97,12 +100,21 @@ export default function InstitutionProfile({
       
       try {
         setLoadingProfile(true);
-        const userData = await contract.getUsers(userAddress);
+        const userData = await getUserData(userAddress);
         
         if (userData && userData.ipfsHash && userData.ipfsHash !== '') {
           const profileData = await getFromIPFS(userData.ipfsHash);
           if (profileData) {
+            // Ensure we don't display image if imageIpfsCid is removed
+            if (!profileData.imageIpfsCid) {
+              profileData.imageUrl = '';
+            }else{
+              profileData.imageUrl = getImageUrlFromIPFS(profileData.imageIpfsCid);
+            }
+            
             setData(profileData);
+            setOriginalData(profileData);
+            setHasChanges(false);
             toast({
               title: 'تم تحميل البيانات | Data loaded',
               description: 'تم تحميل بيانات المؤسسة من السلسلة | Institution data loaded from blockchain',
@@ -129,6 +141,23 @@ export default function InstitutionProfile({
     fetchProfileData();
   }, [contract, userAddress, toast]);
 
+  // Check for changes when data changes
+  useEffect(() => {
+    if (originalData && Object.keys(originalData).length > 0) {
+      // Check if any field has changed
+      const isChanged = Object.keys(data).some(key => {
+        // Skip lastUpdated when comparing
+        if (key === 'lastUpdated') return false;
+        // @ts-ignore
+        return data[key] !== originalData[key];
+      });
+      setHasChanges(isChanged || imageFile !== null);
+    } else {
+      // If we don't have original data yet or it's empty, assume we're creating new data
+      setHasChanges(true);
+    }
+  }, [data, originalData, imageFile]);
+
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -146,6 +175,7 @@ export default function InstitutionProfile({
       setImageFile(file);
       // Create temporary local URL for preview
       setData({ ...data, imageUrl: URL.createObjectURL(file) });
+      setHasChanges(true);
 
       // Upload image to IPFS
       try {
@@ -225,7 +255,7 @@ export default function InstitutionProfile({
       };
 
       // Upload complete profile data to IPFS and store the CID in the contract
-      const result = await uploadAndSetCID(profileData, `institution-profile-${Date.now()}`);
+      const result = await uploadAndSetCID(profileData, userAddress ?? 'unknown-user');
       
       // Call the parent onSave callback with the updated data
       await onSave(profileData);
@@ -251,6 +281,7 @@ export default function InstitutionProfile({
   const removeImage = () => {
     setImageFile(null);
     setData({ ...data, imageUrl: '', imageIpfsCid: undefined });
+    setHasChanges(true);
   };
 
   // Display error message if IPFS operations fail
@@ -265,6 +296,10 @@ export default function InstitutionProfile({
       });
     }
   }, [error, toast]);
+
+  const updateField = (field: string, value: string) => {
+    setData({ ...data, [field]: value });
+  };
 
   if (loadingProfile) {
     return (
@@ -316,10 +351,10 @@ export default function InstitutionProfile({
                           <Spinner size="xl" />
                           <Text>جاري رفع الصورة... | Uploading image...</Text>
                         </VStack>
-                      ) : data.imageUrl ? (
+                      ) : data.imageIpfsCid ? (
                         <Box position="relative">
                           <Image
-                            src={data.imageUrl}
+                            src={data.imageUrl || `https://ipfs.io/ipfs/${data.imageIpfsCid}`}
                             alt="Institution logo"
                             maxH="200px"
                             mx="auto"
@@ -390,7 +425,7 @@ export default function InstitutionProfile({
                       </InputLeftElement>
                       <Input
                         value={data.name}
-                        onChange={(e) => setData({ ...data, name: e.target.value })}
+                        onChange={(e) => updateField('name', e.target.value)}
                         placeholder="أدخل اسم المؤسسة | Enter institution name"
                         bg={bgColor}
                         size="lg"
@@ -408,7 +443,7 @@ export default function InstitutionProfile({
                       </InputLeftElement>
                       <Select
                         value={data.ministry}
-                        onChange={(e) => setData({ ...data, ministry: e.target.value })}
+                        onChange={(e) => updateField('ministry', e.target.value)}
                         placeholder="اختر الوزارة | Select ministry"
                         bg={bgColor}
                         size="lg"
@@ -436,7 +471,7 @@ export default function InstitutionProfile({
                     </InputLeftElement>
                     <Input
                       value={data.university}
-                      onChange={(e) => setData({ ...data, university: e.target.value })}
+                      onChange={(e) => updateField('university', e.target.value)}
                       placeholder="أدخل اسم الجامعة | Enter university name"
                       bg={bgColor}
                       size="lg"
@@ -454,7 +489,7 @@ export default function InstitutionProfile({
                     </InputLeftElement>
                     <Input
                       value={data.college}
-                      onChange={(e) => setData({ ...data, college: e.target.value })}
+                      onChange={(e) => updateField('college', e.target.value)}
                       placeholder="أدخل اسم الكلية | Enter college name"
                       bg={bgColor}
                       size="lg"
@@ -469,7 +504,7 @@ export default function InstitutionProfile({
                 </FormLabel>
                 <Textarea
                   value={data.description}
-                  onChange={(e) => setData({ ...data, description: e.target.value })}
+                  onChange={(e) => updateField('description', e.target.value)}
                   placeholder="أدخل وصف المؤسسة | Enter institution description"
                   bg={bgColor}
                   size="lg"
@@ -499,7 +534,7 @@ export default function InstitutionProfile({
                       <Input
                         type="email"
                         value={data.email}
-                        onChange={(e) => setData({ ...data, email: e.target.value })}
+                        onChange={(e) => updateField('email', e.target.value)}
                         placeholder="example@institution.edu"
                         bg={bgColor}
                         size="lg"
@@ -516,7 +551,7 @@ export default function InstitutionProfile({
                       <Input
                         type="tel"
                         value={data.phone}
-                        onChange={(e) => setData({ ...data, phone: e.target.value })}
+                        onChange={(e) => updateField('phone', e.target.value)}
                         placeholder="5XXXXXXXX"
                         bg={bgColor}
                         size="lg"
@@ -535,7 +570,7 @@ export default function InstitutionProfile({
                       <Input
                         type="url"
                         value={data.website}
-                        onChange={(e) => setData({ ...data, website: e.target.value })}
+                        onChange={(e) => updateField('website', e.target.value)}
                         placeholder="https://www.example.edu"
                         bg={bgColor}
                         size="lg"
@@ -554,6 +589,7 @@ export default function InstitutionProfile({
                   loadingText="جاري الحفظ... | Saving..."
                   leftIcon={<Icon as={FaUniversity} />}
                   px={8}
+                  isDisabled={!hasChanges}
                 >
                   حفظ البيانات على السلسلة | Save to Blockchain
                 </Button>

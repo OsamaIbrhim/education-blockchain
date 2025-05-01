@@ -25,8 +25,8 @@
       "static/chunks/components_dashboard_StatsGrid_tsx.js"
     ]
   },
-  "utils\\ipfsUtils.ts -> ../utils/contracts": {
-    "id": "utils\\ipfsUtils.ts -> ../utils/contracts",
+  "utils\\ipfsUtils.ts -> ../constants/abis": {
+    "id": "utils\\ipfsUtils.ts -> ../constants/abis",
     "files": []
   }
 }

@@ -1,6 +1,3 @@
-import { ethers } from 'ethers';
-import type { EthereumProvider } from './ethereum';
-
 export interface Institution {
   id: string;
   name: string;

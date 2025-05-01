@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { uploadToIPFS, setCIDInContract, getFromIPFS, getCIDFromContract } from '../utils/ipfsUtils';
-
+import { ExamManagementABI } from 'constants/abis';
+import { ethers } from 'ethers';
+import { getConfig } from 'utils/config';
+import { getSigner } from 'utils/ethersConfig';
 interface TransactionOptions {
   from?: string;
   gas?: number;
@@ -54,7 +57,7 @@ export const useIPFS = () => {
    * @param options - Transaction options
    * @returns Promise with transaction receipt
    */
-  const setCID = async (cid: string, options: TransactionOptions = {}): Promise<any> => {
+  const setCID = async (cid: string, options: TransactionOptions = {}, userAddress: string): Promise<any> => {
     if (!contract) {
       throw new Error('No contract instance provided to useIPFS hook');
     }
@@ -63,7 +66,7 @@ export const useIPFS = () => {
     setError(null);
     
     try {
-      const receipt = await setCIDInContract(contract, cid, options);
+      const receipt = await setCIDInContract(contract, cid, options, userAddress);
       return receipt;
     } catch (err: any) {
       setError(err.message || 'Failed to set CID in contract');
@@ -94,30 +97,59 @@ export const useIPFS = () => {
   };
 
   /**
-   * Upload data to IPFS and set the CID in the contract in one operation
-   * @param data - Data to upload
-   * @param name - Optional name for the file
+   * @param data 
+   * @param name - Optional
    * @param options - Transaction options
    * @returns Promise with CID and transaction receipt
    */
   const uploadAndSetCID = async (
     data: any, 
-    name?: string, 
+    userAddress: string,
     options: TransactionOptions = {}
   ): Promise<UploadAndSetCIDResult> => {
     if (!contract) {
       throw new Error('No contract instance provided to useIPFS hook');
+    }
+    if (!userAddress || userAddress === 'unknown-user') {
+      throw new Error('No user address provided to useIPFS hook');
     }
     
     setIsLoading(true);
     setError(null);
     
     try {
+      const examManagementAddress = getConfig('EXAM_MANAGEMENT_CONTRACT_ADDRESS');
+      const signer = await getSigner();
+
+      // string memory name,
+      // string memory description,
+      // string memory physicalAddress,
+      // string memory email,
+      // string memory phone,
+      // string memory website,
+      // string memory logo,
+      // string memory ministry,
+      // string memory university,
+      // string memory college
+      // here register institution in the exam management contract
+      const examManagementContract = new ethers.Contract(examManagementAddress, ExamManagementABI, signer);
+      await examManagementContract.registerInstitution(
+        data.name || "",
+        data.description || "",
+        data.physicalAddress || "",
+        data.email || "",
+        data.phone || "",
+        data.website || "",
+        data.logo || "",
+        data.ministry || "",
+        data.university || "",
+        data.college || ""
+      );
       // First upload to IPFS
-      const cid = await uploadToIPFS(data, name);
+      const cid = await uploadToIPFS(data, userAddress);
       
       // Then set CID in the contract
-      const receipt = await setCIDInContract(contract, cid, options);
+      const receipt = await setCIDInContract(contract, cid, options, userAddress);
       
       return { cid, receipt };
     } catch (err: any) {

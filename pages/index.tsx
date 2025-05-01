@@ -23,7 +23,8 @@ import {
 } from '@chakra-ui/react';
 import { ethers } from 'ethers';
 import { registerUser, getUserRole, issueCertificate, getCertificates, verifyCertificate, isVerifiedUser, isOwner, verifyInstitution, getOwnerAddress } from '../utils/contracts';
-import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
+import { uploadToIPFS } from '../utils/ipfs';
+import { getFromIPFS } from '../utils/ipfsUtils';
 import { useRouter } from 'next/router';
 import { connectWallet, getAccounts, requestAccounts } from '../utils/web3Provider';
 
@@ -965,7 +966,7 @@ export default function Home() {
                   >
                     دخول للحساب - Login
                   </Button>
-                  {currentRole !== 'admin' && (
+                  {/* {currentRole !== 'admin' && (
                     <Button
                       colorScheme="blue"
                       onClick={() => {
@@ -976,7 +977,7 @@ export default function Home() {
                     >
                       تسجيل حساب جديد - Register New Account
                     </Button>
-                  )}
+                  )} */}
                 </VStack>
               </Box>
             ) : (

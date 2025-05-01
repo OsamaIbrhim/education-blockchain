@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { ExamManagementABI } from '../constants/abis';
+import { ExamManagementABI, IdentityABI, CertificatesABI } from '../constants/abis';
 import {
   getProvider,
   getSigner,
@@ -10,27 +10,14 @@ import {
   getAddress,
   type EthereumProvider
 } from './ethersConfig';
-
-// Contract ABIs
-const IdentityABI = [
-  "function registerUser(uint8 _role, string memory _ipfsHash) external",
-  "function verifyUser(address _userAddress) external returns (bool)",
-  "function getUserRole(address _userAddress) external view returns (uint8)",
-  "function isVerifiedUser(address _userAddress) external view returns (bool)",
-  "function updateUserIPFS(string memory _newIpfsHash) external",
-  // "function owner() external view returns (address)"
-  "function owner() view returns (address)"
-];
-
-const CertificatesABI = [
-  "function issueCertificate(address _studentAddress, string memory _ipfsHash) external returns (bytes32)",
-  "function getStudentCertificates(address _student) external view returns (bytes32[])",
-  "function verifyCertificate(bytes32 _certificateId) external view returns (address student, address institution, string ipfsHash, uint256 issuedAt, bool isValid)"
-];
+import { getConfig } from './config';
+import { getIdentityContract } from 'services/admin';
+import { getExamManagementContract } from 'services/examManagement';
 
 // Contract addresses from .env
 const IDENTITY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS;
 const CERTIFICATES_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS;
+const EXAM_MANAGEMENT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_EXAM_MANAGEMENT_CONTRACT_ADDRESS;
 
 // Role mapping with proper types
 const USER_ROLES = {
@@ -75,7 +62,13 @@ export const getContracts = async () => {
       signer
     );
 
-    return { identityContract, certificatesContract, provider, signer };
+    const examManagementContract = new ethers.Contract(
+      EXAM_MANAGEMENT_CONTRACT_ADDRESS!,
+      ExamManagementABI,
+      signer
+    );
+
+    return { identityContract, certificatesContract, examManagementContract, provider, signer };
   } catch (error: any) {
     console.error('Error initializing contracts:', error);
     throw new Error(`Failed to initialize contracts: ${error.message}`);
@@ -98,13 +91,13 @@ export const registerUser = async (role: string) => {
     const provider = new ethers.BrowserProvider(window.ethereum);
 
     const signer = await provider.getSigner();
-    const contractAddress = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS;
+    const identityAddress = getConfig('IDENTITY_CONTRACT_ADDRESS');
 
-    if (!contractAddress) {
+    if (!identityAddress) {
       throw new Error('Contract address is not configured');
     }
 
-    const contract = new ethers.Contract(contractAddress, IdentityABI, signer);
+    const identityContract = new ethers.Contract(identityAddress, IdentityABI, signer);
 
     // Convert role string to enum value
     const roleMap: { [key: string]: number } = {
@@ -118,13 +111,9 @@ export const registerUser = async (role: string) => {
       throw new Error(`Invalid role: ${role}. Must be one of: student, institution, employer`);
     }
 
-    // solve error.1 (option)
-    // const overrides = {
-    //   gasLimit: 500000, // Set a specific gas limit
-    // };
-
-    const tx = await contract.registerUser(roleValue, ""/*, overrides*/);
+    const tx = await identityContract.registerUser(roleValue, ""/*, overrides*/);
     await tx.wait();
+
     return { status: 'success' };
   } catch (error: any) {
     console.error('Registration error:', error);
@@ -280,10 +269,16 @@ export const verifyInstitution = async (institutionAddress: string) => {
   }
 
   try {
-    const { identityContract } = await getContracts();
-    const tx = await identityContract.verifyUser(institutionAddress);
-    await tx.wait();
-    return tx;
+    const identityContract = await getIdentityContract();
+    const examManagementContract = await getExamManagementContract();
+    // const identityTx = await identityContract.verifyUser(institutionAddress);
+    // await identityTx.wait();
+    const examManagementTx = await examManagementContract.verifyInstitution(institutionAddress);
+    await examManagementTx.wait();
+    return {
+      // identityHash: identityTx.hash,
+      examManagementHash: examManagementTx.hash
+    };
   } catch (error: any) {
     console.error('Error verifying institution:', error);
     throw error;

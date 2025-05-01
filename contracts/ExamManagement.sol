@@ -64,6 +64,7 @@ contract ExamManagement is Ownable, Pausable {
     mapping(bytes32 => Exam) public exams;
     mapping(bytes32 => mapping(address => ExamResult)) public examResults;
     mapping(bytes32 => Certificate) public certificates;
+    mapping(address => bytes32[]) public institutionExams;
     
     // Counters
     Counters.Counter private _examIds;
@@ -214,6 +215,8 @@ contract ExamManagement is Ownable, Pausable {
             students: new address[](0),
             exists: true
         });
+
+        institutionExams[msg.sender].push(examId);
 
         emit ExamCreated(examId, title);
         return examId;
@@ -372,5 +375,10 @@ contract ExamManagement is Ownable, Pausable {
             total > 0 ? (passed * 100) / total : 0,
             total > 0 ? scoreSum / total : 0
         );
+    }
+
+    function getInstitutionExamList(address institution) external view returns (bytes32[] memory) {
+        require(institutions[institution].exists, "Institution does not exist");
+        return institutionExams[institution];
     }
 } 

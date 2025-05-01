@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { usePublicClient, useAccount } from 'wagmi';
-import { getContract, type PublicClient, type GetContractReturnType } from 'viem';
-import { ExamManagementABI } from '../constants/abis';
-import { getContracts } from '../utils/contracts';
+import { usePublicClient, useAccount, useWalletClient } from 'wagmi';
+import { getContract, type PublicClient, type GetContractReturnType, type WalletClient } from 'viem';
+import { ExamManagementABI, IdentityABI, CertificatesABI } from '../constants/abis';
 
-interface ContractAddresses {
-  examManagementContract: { address: string };
-  identityContract: { address: string };
-  certificatesContract: { address: string };
-}
+// Get contract addresses from environment variables
+const IDENTITY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS;
+const CERTIFICATES_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS;
+const EXAM_MANAGEMENT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_EXAM_MANAGEMENT_CONTRACT_ADDRESS;
 
-type ContractType = GetContractReturnType<typeof ExamManagementABI, PublicClient>;
+// Use a simplified type definition to avoid complex type errors
+type ContractType = any;
 
 export function useContract() {
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const { address: account } = useAccount();
   const toast = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -42,43 +42,56 @@ export function useContract() {
         const chainId = await publicClient.getChainId();
         console.log('Current chain ID:', chainId);
         
-        if (chainId !== 1337) {
-          console.log('Wrong network - expected Ganache (1337), got:', chainId);
+        // Accept either Ganache (1337) or Ethereum Mainnet (1)
+        if (chainId !== 1337 && chainId !== 1) {
+          console.log('Wrong network - expected Ganache (1337) or Ethereum Mainnet (1), got:', chainId);
           setIsCorrectNetwork(false);
           return;
         }
 
         setIsCorrectNetwork(true);
 
-        const contracts = (await getContracts()) as unknown as ContractAddresses;
-        
-        if (!contracts.examManagementContract?.address || !contracts.identityContract?.address || !contracts.certificatesContract?.address) {
-          throw new Error('Contract addresses not found');
+        // Verify contract addresses are set
+        if (!IDENTITY_CONTRACT_ADDRESS || !CERTIFICATES_CONTRACT_ADDRESS || !EXAM_MANAGEMENT_CONTRACT_ADDRESS) {
+          console.error('Missing contract addresses:', {
+            identity: IDENTITY_CONTRACT_ADDRESS,
+            certificates: CERTIFICATES_CONTRACT_ADDRESS,
+            examManagement: EXAM_MANAGEMENT_CONTRACT_ADDRESS
+          });
+          
+          throw new Error('Contract addresses are not configured. Please check your environment variables.');
         }
 
-        const examManagementContract = getContract({
-          address: contracts.examManagementContract.address as `0x${string}`,
-          abi: ExamManagementABI,
-          client: publicClient
-        });
-
-        const identityContract = getContract({
-          address: contracts.identityContract.address as `0x${string}`,
-          abi: ExamManagementABI, // Using same ABI temporarily
-          client: publicClient
-        });
-
-        const certificatesContract = getContract({
-          address: contracts.certificatesContract.address as `0x${string}`,
-          abi: ExamManagementABI, // Using same ABI temporarily
-          client: publicClient
-        });
-
-        setExamManagement(examManagementContract as ContractType);
-        setIdentity(identityContract as ContractType);
-        setCertificates(certificatesContract as ContractType);
-        setIsInitialized(true);
-
+        try {
+          const examManagementContract = getContract({
+            address: EXAM_MANAGEMENT_CONTRACT_ADDRESS as `0x${string}`,
+            abi: ExamManagementABI,
+            client: publicClient,
+          });
+          
+          // Initialize state first with basic contract data
+          setExamManagement(examManagementContract);
+          
+          const identityContract = getContract({
+            address: IDENTITY_CONTRACT_ADDRESS as `0x${string}`,
+            abi: IdentityABI,
+            client: publicClient,
+          });
+          
+          setIdentity(identityContract);
+  
+          const certificatesContract = getContract({
+            address: CERTIFICATES_CONTRACT_ADDRESS as `0x${string}`,
+            abi: CertificatesABI,
+            client: publicClient,
+          });
+          
+          setCertificates(certificatesContract);
+          setIsInitialized(true);
+        } catch (contractError: any) {
+          console.error('Error creating contract instances:', contractError);
+          throw new Error(`Failed to create contract instances: ${contractError.message}`);
+        }
       } catch (error: any) {
         console.error('Contract initialization error:', error);
         toast({
@@ -94,7 +107,7 @@ export function useContract() {
     };
 
     initializeContracts();
-  }, [publicClient, account, toast]);
+  }, [publicClient, walletClient, account, toast]);
 
   return {
     examManagement,
