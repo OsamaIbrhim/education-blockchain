@@ -1,81 +1,44 @@
 import { ethers } from 'ethers';
 import { getConfig } from '../utils/config';
 import { ExamManagementABI } from '../constants/abis';
-import { getProvider, getSigner } from 'utils/ethersConfig';
-import { Exam } from 'types/institution';
+import { getSigner } from 'utils/ethersConfig';
 import { getUserData } from './identity';
-import { getFromIPFS } from 'utils/ipfsUtils';
-import { useAccount } from 'wagmi';
-
-type ExamManagementContractType = ethers.Contract & {
-    getInstitutionExams(address: string): Promise<string[]>;
-    getStudentExams(address: string): Promise<string[]>;
-    enrollStudent(examId: string, studentAddress: string): Promise<boolean>;
-    getExamStatistics(examId: string): Promise<[number, number, number]>;
-    getExamResults(examId: string): Promise<[string[], number[], string[]]>;
-    institutions(address: string): Promise<[string, string, string, string, string, string, string, string, string, string, boolean, boolean]>;
-    createExam(title: string, description: string, date: bigint, duration: bigint, ipfsHash: string): Promise<any>;
-    registerInstitution(
-        name: string,
-        description: string,
-        physicalAddress: string,
-        email: string,
-        phone: string,
-        website: string,
-        logo: string,
-        ministry: string,
-        university: string,
-        college: string,
-        options?: { gasLimit?: number }
-    ): Promise<ethers.ContractTransaction>;
-    verifyInstitution(institutionAddress: string): Promise<any>;
-    updateInstitutionProfile(
-        name: string,
-        ministry: string,
-        university: string,
-        college: string,
-        description: string,
-        logo: string,
-        website: string,
-        email: string,
-        phone: string
-    ): Promise<ethers.ContractTransaction>;
-};
+import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
+import { Exam, ExamManagementContractType, ExamStructOutput, NewExam } from 'types/examManagement';
 
 /**
  * @param signer 
  * @returns 
 */
-export const getExamManagementContract = async (runner?: ethers.Signer | ethers.Provider) => {
+export const getExamManagementContract = async (signer?: ethers.Signer) => {
+    const contractSigner = signer || await getSigner();
     const contractAddress = process.env.NEXT_PUBLIC_EXAM_MANAGEMENT_CONTRACT_ADDRESS?.toString() || getConfig('EXAM_MANAGEMENT_CONTRACT_ADDRESS');
     if (!contractAddress) {
         throw new Error('Contract address not found');
     }
-    const runnerInstance = runner || await getProvider();
-    const contract = new ethers.Contract(contractAddress, ExamManagementABI, runnerInstance);
+    const contract = new ethers.Contract(contractAddress, ExamManagementABI, contractSigner);
     return contract as ExamManagementContractType;
 };
 
-// Check if institution exists and is verified
+
 export const checkInstitutionStatus = async () => {
     try {
-        const provider = await getProvider();
         const signer = await getSigner();
         const address = await signer.getAddress();
         if (!address) {
             return { exists: false, isVerified: false };
         }
-        
+
         const institution = await getUserData(address);
-        
+
         if (!institution) {
             return { exists: false, isVerified: false };
         }
-        
+
         const isVerified = institution.isVerified;
-        
+
         const institutionData = await getFromIPFS(institution.ipfsHash);
-        
+
         return { exists: true, isVerified: isVerified, institution: institutionData };
     } catch (error) {
         console.error('Error checking institution status:', error);
@@ -83,53 +46,39 @@ export const checkInstitutionStatus = async () => {
     }
 };
 
-// create exam
-export const createExam = async (exam: Exam) => {
+/**
+ * @param exam 
+ * @returns 
+ */
+export const createExam = async (exam: NewExam) => {
     try {
+        const contract = await getExamManagementContract();
         const signer = await getSigner();
-        const contract = await getExamManagementContract(signer);
         const address = await signer.getAddress();
 
-        let institution = await getInstitution(address);
+        // Prepare exam data
+        const examData = {
+            title: exam.title,
+            description: exam.description,
+            date: exam.date,
+            duration: exam.duration,
+            institutionAddress: address,
+        };
 
-        const { exists, isVerified, institution: identityInstitution } = await checkInstitutionStatus();
-        // if (!institution) {
-        //     if (!exists || !isVerified) {
-        //         throw new Error("You must be a verified institution to create exams.");
-        //     } else{
-                await registerInstitution({
-                    name: identityInstitution.name,
-                    description: identityInstitution.description,
-                    physicalAddress: identityInstitution.physicalAddress,
-                    email: identityInstitution.email,
-                    phone: identityInstitution.phone,
-                    website: identityInstitution.website,
-                    logo: identityInstitution.logo,
-                    ministry: identityInstitution.ministry,
-                    university: identityInstitution.university,
-                    college: identityInstitution.college,
-                });
-                institution = await getInstitution(address);
+        // Upload exam data to IPFS and get the hash
+        const examDataHash = await uploadToIPFS(examData, 'examData.json');
 
-        //         if (!isVerified){
-        //             await verifyInstitution(address);
-        //         }
-        //     }
-        // }
-        if(isVerified && !institution?.isVerified){
-            await verifyInstitution(address);
-            institution = await getInstitution(address);
-        }
 
+        exam.ipfsHash = examDataHash;
         const dateInSeconds = Math.floor(Number(exam.date) / 1000);
         const duration = Number(exam.duration);
-        
+
         const tx = await contract.createExam(
             exam.title,
             exam.description,
-            BigInt(dateInSeconds),
-            BigInt(duration),
-            ""
+            dateInSeconds,
+            duration,
+            exam.ipfsHash
         );
 
         return tx.hash;
@@ -139,7 +88,7 @@ export const createExam = async (exam: Exam) => {
         if (error.data) {
             console.error('Error data:', error.data);
         }
-        
+
         // More detailed error handling
         if (error.reason) {
             throw new Error(`Contract error: ${error.reason}`);
@@ -151,160 +100,265 @@ export const createExam = async (exam: Exam) => {
     }
 };
 
-// get institution
-export const getInstitution = async (address: string) => {
+/**
+ * @param exam 
+ * @param student 
+ * @returns 
+ */
+export const registerStudentForExam = async (exam: string, student: string, institutionAddress: string | null) => {
+    if (!ethers.isBytesLike(exam) || ethers.getBytes(exam).length !== 32) {
+        throw new Error(`Invalid exam ID format: ${exam}. Expected bytes32.`);
+    }
+    if (!ethers.isAddress(student)) {
+        throw new Error(`Invalid student address format${student}.`);
+    }
+
     try {
-        const provider = await getProvider();
-        const contract = await getExamManagementContract(provider) as unknown as ExamManagementContractType;
-        const data = await contract.getInstitution(address);
-        return {
-            name: data[0],
-            description: data[1],
-            physicalAddress: data[2],
-            email: data[3],
-            phone: data[4],
-            website: data[5],
-            logo: data[6],
-            ministry: data[7],
-            university: data[8],
-            college: data[9],
-            isVerified: data[10]
-        };
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
+        }
+        const signer = await getSigner();
+        const address = await signer.getAddress();
+        const emContract = await getExamManagementContract(signer);
+
+        // check if the student is already added in the institution
+        if (!institutionAddress) {
+            institutionAddress = address;
+        }
+        if (!ethers.isAddress(institutionAddress)) {
+            throw new Error(`Invalid institution address format: ${institutionAddress}.`);
+        }
+        const isStudentInInstitution = await emContract.institutionStudents(institutionAddress, student);
+
+        if (!isStudentInInstitution) {
+            // add the student to the institution
+            
+        }
+
+        // check if the student is already registered for the exam
+        const studentExams = await emContract.getStudentExamList(student);
+        if (studentExams.includes(exam)) {
+            throw new Error(`Student ${student} is already registered for the exam ${exam}.`);
+        }
+        // check if the exam is already started --- will be add
+
+        const tx = await emContract.registerStudentsForExam(exam, [student]);
+        await tx.wait();
+        return true;
+    } catch (error) {
+        console.error('Error enrolling student:', error);
+        throw error;
+    }
+};
+
+/**
+ * @param institutionAddress 
+ * @returns 
+ */
+export const getInstitutionExams = async (institutionAddress: string) => {
+    try {
+        const signer = await getSigner();
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        const examAddresses = await emContract.getInstitutionExamList(institutionAddress);
+        // 0x5796d958fd1e8becef17daf225a1bfa7a312fd139f1c85cb9990c5b153eb575e
+        const exams: Exam[] = [];
+
+        for (const examAddress of examAddresses) {
+            try {
+                const exam = await getExam(examAddress);
+                if (!exam) {
+                    console.warn(`Exam data for address ${examAddress} is null.`);
+                    continue;
+                }
+                const examData = await getFromIPFS(exam.ipfsHash);
+                exams.push({
+                    ...exam,
+                    ...examData,
+                    address: examAddress,
+                });
+            } catch (error) {
+                console.error(`Error fetching exam with ID ${examAddress}:`, error);
+            }
+        }
+
+        return exams;
     } catch (error: any) {
-        console.error('Error getting institution:', error);
+        console.error('Error getting institution exams:', error);
+        return [];
+    }
+};
+
+// getInstitutionStudents
+/**
+ * @param institutionAddress
+ * @returns isntitution students
+ */
+export const getInstitutionStudents = async (institutionAddress: string | null) => {
+    try {
+        const signer = await getSigner();
+        const address = await signer.getAddress();
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        if (!institutionAddress) {
+            institutionAddress = address;
+        }
+        
+        if (!ethers.isAddress(institutionAddress)) {
+            throw new Error(`Invalid institution address format: ${institutionAddress}.`);
+        }
+
+        const students = await emContract.getInstitutionStudents(institutionAddress);
+        return students;
+    } catch (error) {
+        console.error('Error getting institution students:', error);
+        throw error;
+    }
+}
+
+/**
+ * @param examId 
+ * @returns 
+ */
+export const getExam = async (examId: string): Promise<Exam | null> => {
+    if (!ethers.isBytesLike(examId) || ethers.getBytes(examId).length !== 32) {
+        console.error(`Invalid examId format passed to getExam: ${examId}. Expected bytes32.`);
+        return null;
+    }
+
+    try {
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
+        }
+        const signer = await getSigner();
+        const emContract = await getExamManagementContract(signer);
+
+        const examResult: ExamStructOutput = await emContract.getExam(examId);
+
+        const examData: Exam = {
+            address: examId,
+            title: examResult.title,
+            description: examResult.description,
+            date: new Date(Number(examResult.date) * 1000),
+            duration: Number(examResult.duration),
+            ipfsHash: examResult.ipfsHash,
+            status: examResult.status,
+            students: examResult.students,
+            exists: examResult.exists,
+        };
+
+        if (!examResult.exists) {
+            console.warn(`Exam with ID ${examId} reported as not existing by the contract.`);
+            return null;
+        }
+
+        return examResult.exists ? examData : null;
+
+    } catch (error) {
+        console.error(`Error getting exam ${examId}:`, error);
+        if (error instanceof Error && 'error' in error) {
+            const nestedError = (error as any).error;
+            if (nestedError && nestedError.message) {
+                console.error("Nested error details:", nestedError.message);
+            } else {
+                console.error("Nested error object:", nestedError);
+            }
+        } else if (error instanceof Error) {
+            console.error("Error message:", error.message);
+        }
         return null;
     }
 };
 
-// register institution
-export const registerInstitution = async (institutionData: {
-    name: string;
-    description: string;
-    physicalAddress: string;
-    email: string;
-    phone: string;
-    website: string;
-    logo: string;
-    ministry: string;
-    university: string;
-    college: string;
-}) => {
+/**
+ * @param examId 
+ * @returns 
+ */
+export const getExamResults = async (examId: string, student: string) => {
     try {
-        const signer = await getSigner();
-        const contract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
-
-        const tx = await contract.registerInstitution(
-            institutionData.name,
-            institutionData.description,
-            institutionData.physicalAddress,
-            institutionData.email,
-            institutionData.phone,
-            institutionData.website,
-            institutionData.logo,
-            institutionData.ministry,
-            institutionData.university,
-            institutionData.college,
-        );
-
-        return { success: true, tx };
-    } catch (error: any) {
-        console.error('Error registering institution:', error);
-        return { success: false, error: error.message || error };
-    }
-};
-
-// Verify institution (must be called by contract owner)
-export const verifyInstitution = async (institutionAddress: string) => {
-    try {
-        const signer = await getSigner();
-        const contract = await getExamManagementContract(signer);
-        
-        console.log('Verifying institution:', institutionAddress);
-        
-        // Encode function data
-        const data = contract.interface.encodeFunctionData("verifyInstitution", [institutionAddress]);
-        
-        // Create transaction with explicit gas limit
-        const tx = await signer.sendTransaction({
-            to: await contract.getAddress(),
-            data: data,
-            gasLimit: 1000000
-        });
-        
-        const receipt = await tx.wait();
-        console.log('Institution verified, transaction confirmed:', receipt);
-        
-        return { 
-            success: true, 
-            message: 'Institution verified successfully',
-            hash: tx.hash
-        };
-    } catch (error: any) {
-        console.error('Error verifying institution:', error);
-        
-        if (error.data?.reason) {
-            return { 
-                success: false, 
-                message: `Verification failed: ${error.data.reason}` 
-            };
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
         }
-        
-        return { 
-            success: false, 
-            message: `Verification failed: ${error.message || 'Unknown error'}` 
-        };
-    }
-};
-
-// update institution profile
-export const updateInstitutionProfile = async (profile: {
-    name: string;
-    ministry: string;
-    university: string;
-    college: string;
-    description: string;
-    logo: string;
-    website: string;
-    email: string;
-    phone: string;
-}) => {
-    try {
         const signer = await getSigner();
-        const contract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
-        const tx = await contract.updateInstitutionProfile(
-            profile.name,
-            profile.ministry,
-            profile.university,
-            profile.college,
-            profile.description,
-            profile.logo,
-            profile.website,
-            profile.email,
-            profile.phone
-        );
-        return { success: true, tx };
-    } catch (error: any) {
-        console.error('Error updating institution profile:', error);
-        return { success: false, error: error.message || error };
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        const result = await emContract.getExamResult(examId, student);
+        return result;
+    } catch (error) {
+        console.error('Error getting exam result:', error);
+        throw error;
     }
 };
 
-// get institution exams
-export const getInstitutionExams = async (institutionAddress: string) => {
+/**
+ * @param examId 
+ * @returns 
+ */
+export const getStudentExams = async (student: string) => {
     try {
-        const provider = await getProvider();
-        const contract = await getExamManagementContract(provider) as unknown as ExamManagementContractType;
-
-        const institution = await getInstitution(institutionAddress);
-
-        if(!institution){
-            throw new Error("Institution not found");
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
         }
-        
-        const examIds = await contract.getInstitutionExamList(institutionAddress);
-        return examIds;
-    } catch (error: any) {
-        console.error('Error getting institution exams:', error);
-        return [];
+        const signer = await getSigner();
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        const exams = await emContract.getStudentExams(student);
+        return exams;
+    } catch (error) {
+        console.error('Error getting student exams:', error);
+        throw error;
+    }
+};
+
+/**
+ * @param examId 
+ * @param student 
+ * @param score 
+ * @param grade 
+ * @param ipfsHash 
+ * @returns 
+ */
+export const submitExamResult = async (
+    examId: string,
+    student: string,
+    score: number,
+    grade: string,
+    ipfsHash: string
+) => {
+    try {
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
+        }
+        const signer = await getSigner();
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        const tx = await emContract.submitExamResult(examId, student, score, grade, ipfsHash);
+        await tx.wait();
+        return true;
+    } catch (error) {
+        console.error('Error submitting exam result:', error);
+        throw error;
+    }
+};
+
+/**
+ * @param examId 
+ * @param status 
+ * @returns 
+ */
+export const updateExamStatus = async (examId: string, status: string) => {
+    try {
+        if (!window.ethereum) {
+            throw new Error('No ethereum provider found');
+        }
+        const signer = await getSigner();
+        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+
+        const tx = await emContract.updateExamStatus(examId, status);
+        await tx.wait();
+        return true;
+    } catch (error) {
+        console.error('Error updating exam status:', error);
+        throw error;
     }
 };
