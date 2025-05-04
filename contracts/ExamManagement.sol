@@ -5,8 +5,18 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+interface IIdentity {
+    enum UserRole { NONE, STUDENT, INSTITUTION, EMPLOYER, ADMIN }
+    
+    function getUserRole(address _userAddress) external view returns (UserRole);
+    function isVerifiedUser(address _userAddress) external view returns (bool);
+    function isInstitution(address _address) external view returns (bool);
+}
+
 contract ExamManagement is Ownable, Pausable {
     using Counters for Counters.Counter;
+
+    IIdentity public identityContract;
 
     struct Institution {
         string name;
@@ -82,10 +92,14 @@ contract ExamManagement is Ownable, Pausable {
     event CertificateIssued(bytes32 indexed certificateId, address indexed student);
     event InstitutionProfileUpdated(address indexed institution, string name);
 
+    constructor(address _identityContractAddress) {
+        identityContract = IIdentity(_identityContractAddress);
+    }
+
     // Modifiers
     modifier onlyVerifiedInstitution() {
-        require(institutions[msg.sender].exists, "Institution does not exist");
-        require(institutions[msg.sender].isVerified, "Institution is not verified");
+        require(identityContract.isInstitution(msg.sender), "Not a registered institution");
+        require(identityContract.isVerifiedUser(msg.sender), "Institution is not verified");
         _;
     }
 
@@ -172,6 +186,7 @@ contract ExamManagement is Ownable, Pausable {
         string memory email
     ) external onlyVerifiedInstitution {
         require(!students[studentAddress].exists, "Student already exists");
+        require(identityContract.getUserRole(studentAddress) == IIdentity.UserRole.STUDENT, "Address is not registered as a student");
         
         students[studentAddress] = Student({
             name: name,
@@ -381,4 +396,9 @@ contract ExamManagement is Ownable, Pausable {
         require(institutions[institution].exists, "Institution does not exist");
         return institutionExams[institution];
     }
-} 
+
+    function getExam(bytes32 examId) external view returns (Exam memory) {
+        require(exams[examId].exists, "Exam does not exist");
+        return exams[examId];
+    }
+}
