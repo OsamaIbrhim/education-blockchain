@@ -21,17 +21,17 @@ import {
   useDisclosure,
   Spinner
 } from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import { registerUser, getUserRole, issueCertificate, getCertificates, verifyCertificate, isVerifiedUser, isOwner, verifyInstitution, getOwnerAddress } from '../utils/contracts';
+import { registerUser, getUserRole, isVerifiedUser, isOwner, verifyUser } from 'services/identity';
+import { issueCertificate, verifyCertificate, getStudentCertificates } from 'services/certificate';
 import { uploadToIPFS } from '../utils/ipfs';
 import { getFromIPFS } from '../utils/ipfsUtils';
 import { useRouter } from 'next/router';
 import { connectWallet, getAccounts, requestAccounts } from '../utils/web3Provider';
 
-type RoleType = 'admin' | 'institution' | 'student' | 'employer' | '';
+type RoleType = 'admin' | 'institution' | 'student' | 'employer' | 'none';
 const redirectMap: { [key: string]: string } = {
   student: '/dashboard/student',
-  institution: '/dashboard/institution',
+  institution: '/dashboard/institution/profile',
   employer: '/dashboard/employer',
 };
 
@@ -55,7 +55,7 @@ interface RegisterFormData {
 
 function WalletConnection() {
   const [account, setAccount] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<RoleType>('');
+  const [userRole, setUserRole] = useState<RoleType>('none');
   const toast = useToast();
   const router = useRouter();
 
@@ -120,7 +120,7 @@ function WalletConnection() {
     try {
       // Clear local state
       setAccount(null);
-      setUserRole('');
+      setUserRole('none');
       // Clear any stored data
       localStorage.clear();
 
@@ -166,7 +166,7 @@ function WalletConnection() {
 }
 
 function RegisterForm({ account }: { account: string }) {
-  const [role, setRole] = useState<RoleType>('');
+  const [role, setRole] = useState<RoleType>('none');
   const toast = useToast();
 
   const handleRegister = async () => {
@@ -390,7 +390,7 @@ function ViewCertificatesModal() {
       }
 
       console.log('Fetching certificates from contract...');
-      const certs = await getCertificates(currentAddress);
+      const certs = await getStudentCertificates(currentAddress);
       console.log('Raw certificates data:', certs);
 
       if (!certs || certs.length === 0) {
@@ -524,8 +524,8 @@ function VerifyCertificateModal() {
 
     try {
       setLoading(true);
-      const isValid = await verifyCertificate(certificateId);
-      setVerificationResult(isValid);
+      const certificate = await verifyCertificate(certificateId);
+      setVerificationResult(certificate.isValid);
     } catch (error) {
       console.error('Error verifying certificate:', error);
       toast({
@@ -636,7 +636,7 @@ function AdminInterface() {
 
     try {
       setLoading(true);
-      await verifyInstitution(institutionAddress);
+      await verifyUser(institutionAddress);
       toast({
         title: 'Success',
         description: 'Institution verified successfully',
@@ -683,10 +683,10 @@ function AdminInterface() {
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<RoleType>('');
+  const [userRole, setUserRole] = useState<RoleType>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<RoleType>('');
+  const [selectedRole, setSelectedRole] = useState<RoleType>('none');
   const [currentRole, setCurrentRole] = useState<RoleType | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const toast = useToast();
@@ -706,7 +706,7 @@ export default function Home() {
 
           // Check if user is admin first
           try {
-            const isAdminUser = await isOwner(currentAccount);
+            const { status: isAdminUser, owner: adminAddress } = await isOwner(currentAccount);
             if (isAdminUser) {
               setCurrentRole('admin');
               console.log('Admin account detected');
@@ -755,8 +755,15 @@ export default function Home() {
         } else if (role === 'employer') {
           router.push('/dashboard/employer');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.log('User not registered yet');
+        toast({
+          title: 'Error',
+          description: error.message,
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
       }
 
       toast({
@@ -767,10 +774,9 @@ export default function Home() {
         isClosable: true,
       });
     } catch (error: any) {
-      console.error('Error connecting to MetaMask:', error);
       toast({
         title: 'Error',
-        description: 'Failed to connect wallet',
+        description: error.message,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -787,8 +793,14 @@ export default function Home() {
       setLoading(true);
       setError('');
 
+      const role = await getUserRole(account) as RoleType;
+
+      if (role === 'none') {
+        throw new Error('This account is not registered. Please register first.');
+      }
+
       // Check if user is admin first
-      const isAdminUser = await isOwner(account);
+      const { status: isAdminUser, owner: adminAddress } = await isOwner(account);
       if (isAdminUser) {
         console.log('Logging in as admin');
         setRedirecting(true);
@@ -796,19 +808,18 @@ export default function Home() {
         return;
       }
 
-      // If not admin, proceed with regular role check
-      const role = await getUserRole(account) as RoleType;
-      console.log('Logging in with role:', role);
-
-      if (role === '') {
-        throw new Error('This account is not registered. Please register first.');
-      }
-
       // Add verification check for institutions
-      if (role === 'institution') {
-        const isVerified = await isVerifiedUser(account);
+      if (selectedRole === 'institution') {
+        const isVerified = await isVerifiedUser(account!);
         if (!isVerified) {
-          throw new Error('Your institution account is not verified yet. Please wait until an admin verifies your account.');
+          toast({
+            title: 'غير مصرح | Unauthorized',
+            description: 'يرجى انتظار التحقق من قبل المسؤول | Please wait for admin verification',
+            status: 'warning',
+            duration: 9000,
+            isClosable: true,
+            position: 'top',
+          });
         }
       }
 
@@ -827,8 +838,7 @@ export default function Home() {
         throw new Error('Invalid role or role not found');
       }
     } catch (error: any) {
-      console.error('Error logging in:', error);
-      setError(error.message);
+      // setError(error.message);
       toast({
         title: 'خطأ - Error',
         description: error.message,
@@ -865,7 +875,8 @@ export default function Home() {
       // Check if user is admin first
       let isAdminUser = false;
       try {
-        isAdminUser = await isOwner(account!);
+        const adminStatus = await isOwner(account!);
+        isAdminUser = adminStatus.status;
       } catch (error) {
         console.warn('Error checking admin status, proceeding with normal registration');
       }
@@ -891,9 +902,14 @@ export default function Home() {
       if (selectedRole === 'institution') {
         const isVerified = await isVerifiedUser(account!);
         if (!isVerified) {
-          throw new Error(
-            'Your institution account is not verified yet. Please wait until an admin verifies your account.'
-          );
+          toast({
+            title: 'غير مصرح | Unauthorized',
+            description: 'يرجى انتظار التحقق من قبل المسؤول | Please wait for admin verification',
+            status: 'warning',
+            duration: 9000,
+            isClosable: true,
+            position: 'top',
+          });
         }
       }
 
@@ -952,10 +968,10 @@ export default function Home() {
 
         {account && (
           <VStack spacing={4}>
-            {currentRole ? (
+            {currentRole !== 'none' ? (
               <Box bg="yellow.100" p={4} borderRadius="md">
                 <Text>
-                  أنت مسجل حالياً كـ - You are currently registered as: {currentRole}
+                  You are currently registered as: {currentRole} أنت مسجل حالياً كـ
                 </Text>
                 <VStack spacing={4} width="full" mt={4}>
                   <Button
@@ -971,7 +987,7 @@ export default function Home() {
                       colorScheme="blue"
                       onClick={() => {
                         setCurrentRole(null);
-                        setSelectedRole('');
+                        setSelectedRole('none');
                       }}
                       width="full"
                     >
