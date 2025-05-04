@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { useContract } from './useContract';
 import type { Hash } from 'viem';
-import { Certificate, Exam, ExamResult, ExamStatistics, NewExam } from '../types/institution';
+import { Exam, ExamResult, ExamStatistics, NewExam, ExamResultStructOutput } from '../types/examManagement';
+import { Certificate } from '../types/certificate';
 import { InstitutionData } from '../components/institution/InstitutionProfile';
+import { useRouter } from 'next/router';
+
+// services
 import {
-  updateExamStatus as updateExamStatusUtil,
-  submitExamResult,
-  getExamResult,
-  enrollStudent as enrollStudentUtil,
-  createExam as createExamUtil,
   issueCertificate as issueCertificateUtil,
-} from '../utils/contracts';
-import { createExam as createExamService, getInstitution, getInstitutionExams } from '../services/examManagement';
+} from 'services/certificate';
+import {
+  getExamResults,
+  submitExamResult,
+  createExam as createExamService,
+  getInstitutionExams,
+  registerStudentForExam,
+  updateExamStatus as updateExamStatusUtil
+} from 'services/examManagement';
+import { getUserData } from 'services/identity';
 
 interface InstitutionResponse {
   name: string;
@@ -43,6 +50,8 @@ export const useInstitution = () => {
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const unauthorizedToastShownRef = useRef(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -71,77 +80,109 @@ export const useInstitution = () => {
     };
 
     checkAccess();
+
   }, [account, examManagement, certificates, isInitialized, isCorrectNetwork]);
+
 
   useEffect(() => {
     const checkVerificationStatus = async () => {
       if (!account || !examManagement || !isInitialized || !isCorrectNetwork) {
-        setIsVerified(false);
         return;
       }
-      
+
       try {
         // The function returns multiple values, we need to destructure them
-        const institution = await getInstitution(account);
-        
-        setIsVerified(institution?.isVerified || false);
+        const institution = await getUserData(account);
+
+        setIsVerified(institution?.isVerified);
       } catch (error) {
         console.error('Error checking verification status:', error);
         setIsVerified(false);
       }
     };
-
     checkVerificationStatus();
   }, [account, examManagement, isInitialized, isCorrectNetwork]);
 
-  const loadExamsFromContract = async (userAddress: `0x${string}`): Promise<Exam[]> => {
+  // useEffect(() => {
+  //   // Only run redirection logic after initial loading is complete
+  //   if (isLoading) {
+  //     return;
+  //   }
+
+  //   const currentPath = router.pathname;
+  //   const profilePath = '/dashboard/institution/profile';
+
+  //   if (!isVerified) {
+  //     // If NOT verified and NOT already on the profile page...
+  //     if (currentPath !== profilePath) {
+  //       router.push(profilePath);
+
+  //       // Show toast only once using the ref
+  //       if (!unauthorizedToastShownRef.current) {
+  //         toast({
+  //           title: 'غير مصرح | Unauthorized',
+  //           description: 'يرجى إكمال ملفك الشخصي وانتظار التحقق من قبل المسؤول | Please complete your profile and wait for admin verification',
+  //           status: 'warning',
+  //           duration: 9000, // Longer duration
+  //           isClosable: true,
+  //           position: 'top', // Position at the top
+  //         });
+  //         unauthorizedToastShownRef.current = true; // Mark toast as shown
+  //       }
+  //     }
+  //   } else {
+  //     // If VERIFIED, reset the toast ref so it can show again if they become unverified later
+  //     unauthorizedToastShownRef.current = false;
+
+  //     // Optional: If verified and currently on the profile page, redirect to main dashboard
+  //     if (currentPath === profilePath) {
+  //        router.push('/dashboard/institution'); // Adjust target dashboard path if needed
+  //     }
+  //   }
+  // }, [isLoading, isVerified, router, toast]); 
+
+  const loadExamsFromContract = async (userAddress: `0x${string}`) => {
     if (!examManagement || !userAddress) {
       return [];
     }
 
     try {
-      // From the contract:
-      // function getInstitutionExams(address _institution) external view returns (string[] memory)
-      // But in our code we're expecting a different return type
-      const result = await getInstitutionExams(userAddress) as unknown as Exam[];
-      console.log("Loaded exams:", result);
-      return result;
+      const updatedExams = await getInstitutionExams(userAddress) as unknown as Exam[];
+      console.log("Loaded exams:", updatedExams);
+      setExams(updatedExams || []);
     } catch (error) {
       console.error('Error loading exams:', error);
       return [];
     }
   };
 
-  const loadCertificatesFromContract = async (userAddress: `0x${string}`): Promise<Certificate[]> => {
+  const loadCertificatesFromContract = async (userAddress: `0x${string}`) => {
     if (!certificates || !userAddress) {
       return [];
     }
 
     try {
-      const result = await certificates.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
-      return result;
+      const updatedCertificats = await certificates.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
+      setCertificatesData(updatedCertificats || []);
     } catch (error) {
       console.error('Error loading certificates:', error);
       return [];
     }
   };
 
-  // effect to load exams and certificates
+  // effect to load exams
   useEffect(() => {
-    if (!account) {
-      // throw new Error('');
-      return;
+    if (account && examManagement && isInitialized && isCorrectNetwork) {
+      loadExamsFromContract(account);
     }
-    const loadExamsAndCertificates = async () => {
-      if (account) {
-        const exams = await loadExamsFromContract(account);
-        const certificates = await loadCertificatesFromContract(account);
-        setExams(exams);
-        setCertificatesData(certificates);
-      }
-    };
-    loadExamsAndCertificates();
-  }, [account, examManagement, certificates]);
+  }, [account, examManagement, isInitialized, isCorrectNetwork]);
+
+  // effect to load certificates
+  useEffect(() => {
+    if (account && examManagement && isInitialized && isCorrectNetwork) {
+      loadCertificatesFromContract(account);
+    }
+  }, [account, certificates, isInitialized, isCorrectNetwork]);
 
   // create exam
   const createExam = async (exam: NewExam): Promise<boolean> => {
@@ -157,26 +198,49 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      
-      const hash = await createExamService({
-        ...exam,
-        id: '',
-        status: 'PENDING',
-        students: []
-      });
-      
-      // await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+
+      const hash = await createExamService(exam);
+
+      if (hash) {
+        try {
+          // await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+          toast({
+            title: 'Transaction Confirmed',
+            description: 'Exam creation transaction mined.',
+            status: 'info',
+            duration: 2000,
+          });
+        } catch (error) {
+          toast({
+            title: 'Transaction Wait Error',
+            description: `Could not confirm transaction status. Check block explorer: ${error}`,
+            status: 'warning',
+            duration: 5000,
+          });
+        }
+      } else {
+        console.warn("Transaction hash not received from createExamService. Reloading might show stale data.");
+        toast({
+          title: 'Transaction Not Sent?',
+          description: 'Could not get transaction hash. Exam might not have been created.',
+          status: 'warning',
+          duration: 5000,
+        });
+      }
+
       await loadExamsFromContract(account);
-      toast({
-        title: 'Exam Created',
-        description: 'Your exam has been created successfully',
-        status: 'success',
-        duration: 3000,
-      });
-      
+
+      if (hash) {
+        toast({
+          title: 'Exam Created & List Refreshed',
+          description: 'Your exam has been created successfully',
+          status: 'success',
+          duration: 3000,
+        });
+      }
+
       return true;
     } catch (err: any) {
-      console.error('Error creating exam:', err);
       toast({
         title: 'Error creating exam',
         description: err instanceof Error ? err.message : 'An unknown error occurred',
@@ -206,7 +270,6 @@ export const useInstitution = () => {
       await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
-      console.error('Error updating exam status:', err);
       toast({
         title: 'Error updating exam status',
         description: err instanceof Error ? err.message : 'An unknown error occurred',
@@ -233,9 +296,12 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       for (const student of students) {
-        await enrollStudentUtil(examId, student);
+        const success = await registerStudentForExam(examId, student, null);
+        if (success) {
+          toast({ title: 'Student Registered', status: 'success' });
+          await loadExamsFromContract(account!);
+        }
       }
-      await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
       console.error('Error registering students:', err);
@@ -285,45 +351,60 @@ export const useInstitution = () => {
 
   const loadExamResults = async (examId: string) => {
     try {
-      const currentExam = exams.find(exam => exam.id === examId);
-      if (!currentExam) {
-        throw new Error('Exam not found');
-      }
-
-      const examResultsList = await Promise.all(
-        currentExam.students.map(async (studentId: string) => {
-          try {
-            const result = await getExamResult(examId, studentId);
-            return result;
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      const validResults = examResultsList.filter((result): result is ExamResult => result !== null);
-      setSelectedExamResults(validResults);
-
-      if (validResults.length === 0) {
+      const currentExam = exams.find(exam => exam.address === examId);
+      if (!currentExam || !currentExam.students || currentExam.students.length === 0) {
+        console.warn('Exam not found or has no students:', examId);
+        setSelectedExamResults([]);
         setExamStatistics(null);
         return;
       }
 
-      // Calculate statistics
-      const totalStudents = validResults.length;
-      const passingStudents = validResults.filter(result => result.score >= 60).length;
-      const totalScore = validResults.reduce((sum, result) => sum + result.score, 0);
+      const examResultsPromises = currentExam.students.map(async (studentId: string) => {
+        try {
+          const result = await getExamResults(examId, studentId);
+          return { studentId, result };
+        } catch (err) {
+          console.error(`Failed to get result for student ${studentId} in exam ${examId}:`, err);
+          return { studentId, result: null };
+        }
+      });
+
+      const resultsWithStudentId = await Promise.all(examResultsPromises);
+
+      const validRawResults = resultsWithStudentId.filter(
+        (entry): entry is { studentId: string; result: NonNullable<typeof entry.result> } =>
+          entry.result !== null && 'exists' in entry.result
+      );
+
+      const finalResults: ExamResult[] = validRawResults.map(entry => ({
+        studentAddress: entry.studentId,
+        score: Number(entry.result[0]),
+        grade: entry.result[1],
+        ipfsHash: entry.result[2],
+        exists: true,
+      }));
+
+      setSelectedExamResults(finalResults);
+
+      if (finalResults.length === 0) {
+        setExamStatistics(null);
+        return;
+      }
+
+      const totalStudents = finalResults.length;
+      const passingStudents = finalResults.filter(result => result.score >= 60).length;
+      const totalScore = finalResults.reduce((sum, result) => sum + result.score, 0);
 
       const gradeCount = {
-        A: validResults.filter(result => result.grade === 'A').length,
-        B: validResults.filter(result => result.grade === 'B').length,
-        C: validResults.filter(result => result.grade === 'C').length,
-        D: validResults.filter(result => result.grade === 'D').length,
-        F: validResults.filter(result => result.grade === 'F').length
+        A: finalResults.filter(result => result.grade === 'A').length,
+        B: finalResults.filter(result => result.grade === 'B').length,
+        C: finalResults.filter(result => result.grade === 'C').length,
+        D: finalResults.filter(result => result.grade === 'D').length,
+        F: finalResults.filter(result => result.grade === 'F').length
       };
 
-      const mostCommonGrade = Object.entries(gradeCount)
-        .reduce((a, b) => a[1] > b[1] ? a : b)[0];
+      const mostCommonGradeEntry = Object.entries(gradeCount).reduce((a, b) => a[1] >= b[1] ? a : b, ["", 0]);
+      const mostCommonGrade = mostCommonGradeEntry[1] > 0 ? mostCommonGradeEntry[0] : 'N/A';
 
       setExamStatistics({
         totalStudents,
@@ -333,10 +414,11 @@ export const useInstitution = () => {
         cCount: gradeCount.C,
         dCount: gradeCount.D,
         fCount: gradeCount.F,
-        averageScore: totalScore / totalStudents,
-        passRate: (passingStudents * 100) / totalStudents,
+        averageScore: totalStudents > 0 ? totalScore / totalStudents : 0,
+        passRate: totalStudents > 0 ? (passingStudents * 100) / totalStudents : 0,
         mostCommonGrade
       });
+
     } catch (err: unknown) {
       console.error('Error loading exam results:', err);
       toast({
@@ -345,6 +427,8 @@ export const useInstitution = () => {
         status: 'error',
         duration: 3000
       });
+      setSelectedExamResults([]);
+      setExamStatistics(null);
     }
   };
 
@@ -361,13 +445,11 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await enrollStudentUtil(examId, studentAddress);
-      toast({
-        title: 'Student enrolled successfully',
-        status: 'success',
-        duration: 3000,
-      });
-      await loadExamsFromContract(account);
+      const success = await registerStudentForExam(examId, studentAddress, null);
+      if (success) {
+          toast({ title: 'Student Registered', status: 'success' });
+          await loadExamsFromContract(account!);
+      }
       return true;
     } catch (err: unknown) {
       console.error('Error enrolling student:', err);
@@ -465,7 +547,7 @@ export const useInstitution = () => {
   // Add this to help with troubleshooting contract methods
   const logContractMethods = (contract: any, name: string) => {
     if (!contract) return;
-    
+
     console.log(`Contract ${name} methods:`, {
       contractExists: !!contract,
       methods: Object.keys(contract),
@@ -473,7 +555,7 @@ export const useInstitution = () => {
       hasUpdateProfile: typeof contract.updateInstitutionProfile
     });
   };
-  
+
   // Call this function in useEffect to log contract methods when they load
   useEffect(() => {
     if (examManagement && certificates) {
