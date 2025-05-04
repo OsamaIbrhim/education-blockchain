@@ -32,7 +32,7 @@ import {
   HStack,
   Divider,
 } from '@chakra-ui/react';
-import { Certificate } from '../../types/institution';
+import { Certificate } from '../../types/certificate';
 
 interface CertificateManagementProps {
   certificates: Certificate[];
@@ -65,6 +65,9 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
       مجموع الدرجات: ${totalScore} من ${maxScore}
       الأختام: ${stamps}
     `;
+
+    // I should make the data ipfs hash and save it
+    // const ipfsHash = await saveToIPFS({ title, description });
 
     await onIssueCertificate(studentAddress, { title, description });
     onClose();
