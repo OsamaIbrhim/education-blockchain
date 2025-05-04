@@ -48,7 +48,8 @@ import {
   FormHelperText,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import { getUserRole, getCertificates } from '../../utils/contracts';
+import { getStudentCertificates, verifyCertificate } from 'services/certificate';
+import { getUserRole } from 'services/identity';
 import { connectWallet, requestAccounts } from '../../utils/web3Provider';
 import LogoutButton from '../../components/LogoutButton';
 import {
@@ -148,8 +149,21 @@ export default function StudentDashboard() {
         return;
       }
 
-      const studentCertificates = await getCertificates(address);
-      setCertificates(studentCertificates);
+      const studentCertificates = await getStudentCertificates(address);
+      const certificates = await Promise.all(
+        studentCertificates.map(async (certId) => {
+          const certDetails = await verifyCertificate(certId);
+          return {
+            id: certId,
+            institution: certDetails.institution,
+            student: certDetails.student,
+            timestamp: certDetails.issuedAt.toString(),
+            isValid: certDetails.isValid,
+            ipfsHash: certDetails.ipfsHash
+          };
+        })
+      );
+      setCertificates(certificates);
 
     } catch (error: any) {
       console.error('Error in checkAccess:', error);
