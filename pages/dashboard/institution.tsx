@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef, use } from 'react';
 import {
   Box,
   Container,
@@ -56,28 +56,20 @@ import { ExamManagement } from '../../components/institution/ExamManagement';
 import { CertificateManagement } from '../../components/institution/CertificateManagement';
 import { ExamResults } from '../../components/institution/ExamResults';
 import { useInstitution } from '../../hooks/useInstitution';
-import { Certificate, Exam, ExamResult, ExamStatistics, Institution, Student, NewExam } from '../../types/institution';
+import { Institution, Student } from '../../types/institution';
+import { Certificate } from '../../types/certificate';
+import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
 import { useRouter } from 'next/router';
 import InstitutionProfile, { InstitutionData } from '../../components/institution/InstitutionProfile';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
 import { BsArrowUpCircle } from 'react-icons/bs';
 import { Connector, useAccount, useConnect } from 'wagmi';
-import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider, getContract } from '../../utils/ethersConfig';
-import { IdentityABI } from '../../constants/abis';
-import { getContracts } from '../../utils/contracts';
+import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider } from '../../utils/ethersConfig';
 import { ethers } from 'ethers';
 import Layout from '../../components/layout/Layout';
-
-const getIdentityContract = async () => {
-  const signer = await getSigner();
-  const identityContract = getContract(
-    process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS || '',
-    IdentityABI,
-    signer
-  );
-  return identityContract;
-};
+import { getIdentityContract } from 'services/identity';
+import { useContract } from 'hooks/useContract';
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
@@ -221,14 +213,15 @@ const InstitutionDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  const { isLoading: institutionLoading, institutionData, isVerified, error: institutionError } = useInstitution();
+  const unauthorizedToastShownRef = useRef(false);
 
   // 3. Get all values from useInstitution hook
   const {
     isLoading,
     hasAccess,
-    isInitialized,
     certificatesData,
+    isVerified,
+    error: institutionError,
     exams,
     createExam,
     updateExamStatus,
@@ -240,6 +233,8 @@ const InstitutionDashboard = () => {
     issueCertificate,
     saveInstitutionProfile,
   } = useInstitution();
+
+  const { isInitialized } = useContract();
 
   // 4. State hooks
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
@@ -290,11 +285,12 @@ const InstitutionDashboard = () => {
       checkNetwork();
     }
   }, [isWalletConnected, toast]);
-  
+
   useEffect(() => {
     const initContract = async () => {
       try {
-        const { identityContract } = await getContracts();
+        const signer = await getSigner();
+        const identityContract = await getIdentityContract(signer);
         setIdentityContract(identityContract);
       } catch (error: any) {
         console.error('Error initializing contract:', error);
@@ -312,20 +308,6 @@ const InstitutionDashboard = () => {
       initContract();
     }
   }, [isWalletConnected, networkError, toast]);
-
-  // Add verification check
-  useEffect(() => {
-    if (!isLoading && !institutionLoading && !isVerified) {
-      router.push('/dashboard/institution/profile');
-      toast({
-        title: 'غير مصرح | Unauthorized',
-        description: 'يرجى إكمال ملفك الشخصي وانتظار التحقق من قبل المسؤول | Please complete your profile and wait for admin verification',
-        status: 'warning',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  }, [isLoading, institutionLoading, isVerified, router, toast]);
 
   // 6. Memoized values
   const notificationVariants = useMemo(() => ({
@@ -393,34 +375,11 @@ const InstitutionDashboard = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  if (loading || institutionLoading) {
+  if (loading || isLoading) {
     return (
       <Container centerContent py={10}>
         <Spinner size="xl" />
         <Text mt={4}>جاري التحميل... | Loading...</Text>
-      </Container>
-    );
-  }
-
-  if (!isVerified) {
-    return (
-      <Container centerContent py={10}>
-        <Alert status="warning">
-          <AlertIcon />
-          <Box flex="1">
-            <AlertTitle>غير مصرح | Unauthorized</AlertTitle>
-            <AlertDescription display="block">
-              يرجى إكمال ملفك الشخصي وانتظار التحقق من قبل المسؤول | Please complete your profile and wait for admin verification
-            </AlertDescription>
-          </Box>
-        </Alert>
-        <Button
-          mt={4}
-          colorScheme="blue"
-          onClick={() => router.push('/dashboard/institution/profile')}
-        >
-          الذهاب إلى الملف الشخصي | Go to Profile
-        </Button>
       </Container>
     );
   }
@@ -717,7 +676,7 @@ const InstitutionDashboard = () => {
                     <ExamManagement
                       exams={exams?.map(exam => ({
                         ...exam,
-                        date: typeof exam.date === 'string' ? new Date(exam.date).getTime() : exam.date
+                        date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
                       })) || []}
                       onCreateExam={createExam}
                       onUpdateStatus={updateExamStatus}
@@ -729,7 +688,7 @@ const InstitutionDashboard = () => {
                     <ExamResults
                       exams={exams?.map(exam => ({
                         ...exam,
-                        date: typeof exam.date === 'string' ? new Date(exam.date).getTime() : exam.date
+                        date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
                       })) || []}
                       selectedExamId={selectedExamId}
                       onSelectExam={(examId) => {
@@ -793,7 +752,7 @@ const InstitutionDashboard = () => {
               <AnimatePresence>
                 {exams?.filter(exam => exam.status === 'pending').map(exam => (
                   <MotionBox
-                    key={exam.id}
+                    key={exam.address}
                     initial="hidden"
                     animate="visible"
                     exit="exit"

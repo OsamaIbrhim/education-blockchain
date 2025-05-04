@@ -42,7 +42,7 @@ const InstitutionProfilePage = () => {
       <Box minH="100vh" bg={bgColor}>
         <Container maxW="container.xl" py={8}>
           <VStack spacing={6} align="stretch">
-            {!isVerified && (
+            {/* {!isVerified && (
               <Alert status="warning" borderRadius="md">
                 <AlertIcon />
                 <Box flex="1">
@@ -52,7 +52,7 @@ const InstitutionProfilePage = () => {
                   </AlertDescription>
                 </Box>
               </Alert>
-            )}
+            )} */}
             <InstitutionProfile
               onSave={handleSaveProfile}
               loading={isLoading}
