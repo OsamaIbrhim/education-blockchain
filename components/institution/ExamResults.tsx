@@ -28,7 +28,7 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import ResultsModal from './ResultsModal';
-import { Exam, ExamResult, ExamStatistics } from '../../types/institution';
+import { Exam, ExamResult, ExamStatistics } from '../../types/examManagement';
 
 interface ExamResultsProps {
   exams: Exam[];
@@ -134,7 +134,7 @@ export function ExamResults({
               onChange={(e) => onSelectExam(e.target.value)}
             >
               {exams.map((exam) => (
-                <option key={exam.id} value={exam.id}>
+                <option key={exam.address} value={exam.address}>
                   {exam.title}
                 </option>
               ))}
@@ -214,7 +214,7 @@ export function ExamResults({
                             {result.grade}
                           </Badge>
                         </Td>
-                        <Td>{result.notes}</Td>
+                        {/* <Td>{result.notes}</Td> */}
                       </Tr>
                     ))}
                   </Tbody>

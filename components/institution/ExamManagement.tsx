@@ -34,7 +34,8 @@ import {
   useColorModeValue
 } from '@chakra-ui/react';
 import { AddIcon, ViewIcon } from '@chakra-ui/icons';
-import { Exam, NewExam } from '../../types/institution';
+import { Exam, NewExam } from '../../types/examManagement';
+import ExamList from './ExamList';
 
 interface ExamManagementProps {
   exams: Exam[];
@@ -149,7 +150,7 @@ export function ExamManagement({
   const completedExams = exams.filter(exam => exam.status === 'completed').length;
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
-  
+
   return (
     <Box>
       <VStack spacing={6} align="stretch">
@@ -188,64 +189,15 @@ export function ExamManagement({
 
           {/* Exams Table */}
           <Box overflowX="auto">
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>العنوان | Title</Th>
-                  <Th>التاريخ | Date</Th>
-                  <Th>المدة | Duration</Th>
-                  <Th>الحالة | Status</Th>
-                  <Th>الإجراءات | Actions</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {exams.map(exam => (
-                  <Tr key={exam.id}>
-                    <Td>{exam.title}</Td>
-                    <Td>{new Date(exam.date).toLocaleDateString()}</Td>
-                    <Td>{exam.duration} minutes</Td>
-                    <Td>
-                      <Badge
-                        colorScheme={
-                          exam.status === 'active'
-                            ? 'green'
-                            : exam.status === 'completed'
-                              ? 'blue'
-                              : 'gray'
-                        }
-                      >
-                        {exam.status}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <HStack spacing={2}>
-                        <Button
-                          size="sm"
-                          leftIcon={<ViewIcon />}
-                          onClick={() => {
-                            setSelectedExamId(exam.id);
-                            onEnrollOpen();
-                          }}
-                        >
-                          تسجيل طالب | Enroll Student
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            handleStatusUpdate(
-                              exam.id,
-                              exam.status === 'active' ? 'completed' : 'active'
-                            )
-                          }
-                        >
-                          {exam.status === 'active' ? 'إنهاء | Complete' : 'تنشيط | Activate'}
-                        </Button>
-                      </HStack>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+            <ExamList
+              exams={exams}
+              onUpdateStatus={handleStatusUpdate}
+              onSelectExam={(exam) => {
+                setSelectedExamId(exam.address);
+                onEnrollOpen();
+              }}
+              onOpenResultsModal={() => {}}
+            />
           </Box>
         </Box>
       </VStack>
