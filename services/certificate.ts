@@ -1,28 +1,27 @@
-import { ethers } from 'ethers';
+import { ethers, getAddress } from 'ethers';
 import { CertificatesABI } from '../constants/abis';
 import { getConfig } from '../utils/config';
-
-// Types
-interface CertificateResult {
-  certificateId: string;
-  txHash: string;
-}
+import { getSigner } from 'utils/ethersConfig';
+import { CertificateContractType, CertificateResult } from '../types/certificate';
 
 /**
- * Get the Certificates contract instance
- * @param signer - The signer to use
- * @returns The Certificates contract instance
+ * @param signer
+ * @returns
  */
 export const getCertificatesContract = async (signer: ethers.Signer) => {
+  const contractSigner = signer || await getSigner();
   const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS || getConfig('CERTIFICATES_CONTRACT_ADDRESS');
-  return new ethers.Contract(contractAddress, CertificatesABI, signer);
+  if (!contractAddress) {
+    throw new Error('Contract address not found');
+}
+const contract = new ethers.Contract(contractAddress, CertificatesABI, contractSigner);
+return contract as CertificateContractType;
 };
 
 /**
- * Issue a certificate for a student
- * @param studentAddress - The Ethereum address of the student
- * @param ipfsHash - The IPFS hash of the certificate data
- * @returns The certificateId and transaction hash
+ * @param studentAddress
+ * @param ipfsHash
+ * @returns
  */
 export const issueCertificate = async (
   studentAddress: string,
@@ -41,18 +40,18 @@ export const issueCertificate = async (
       throw new Error('Ethereum provider not found. Please make sure you have MetaMask or another Web3 provider installed.');
     }
 
-    // Get provider and signer
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     
-    // Get contract instance
     const certificatesContract = await getCertificatesContract(signer);
     
-    // Issue certificate
     const tx = await certificatesContract.issueCertificate(studentAddress, ipfsHash);
     const receipt = await tx.wait();
     
-    // Find the CertificateIssued event to get the certificateId
+    if (!receipt) {
+      throw new Error('Transaction receipt is null');
+    }
+
     const certificateIssuedEvent = receipt.logs
       .filter((log: any) => log.topics[0] === ethers.id("CertificateIssued(bytes32,address,address)"))
       .map((log: any) => {
@@ -71,9 +70,8 @@ export const issueCertificate = async (
 };
 
 /**
- * Get certificates for a student
- * @param studentAddress - The Ethereum address of the student
- * @returns Array of certificate IDs
+ * @param studentAddress
+ * @returns
  */
 export const getStudentCertificates = async (studentAddress: string): Promise<string[]> => {
   try {
@@ -85,14 +83,9 @@ export const getStudentCertificates = async (studentAddress: string): Promise<st
       throw new Error('Ethereum provider not found');
     }
 
-    // Get provider
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await getSigner();
+    const certificatesContract = await getCertificatesContract(signer);
     
-    // Get contract instance (read-only operations don't need signer)
-    const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS || getConfig('CERTIFICATES_CONTRACT_ADDRESS');
-    const certificatesContract = new ethers.Contract(contractAddress, CertificatesABI, provider);
-    
-    // Get certificates
     const certificates = await certificatesContract.getStudentCertificates(studentAddress);
     return certificates;
   } catch (error: any) {
@@ -102,9 +95,51 @@ export const getStudentCertificates = async (studentAddress: string): Promise<st
 };
 
 /**
- * Verify a certificate
- * @param certificateId - The ID of the certificate to verify
+ * @param certificateId 
  * @returns Certificate details
+ */
+// export const getStudentCertificates = async (address: string) => {
+//   if (!address || !getAddress(address)) {
+//     throw new Error('Invalid address');
+//   }
+
+//   try {
+//     const signer = await getSigner();
+//     const certificatesContract = await getCertificatesContract(signer);
+
+//     const certificateIds = await certificatesContract.getStudentCertificates(address);
+
+//     if (!certificateIds || certificateIds.length === 0) {
+//       console.log('No certificates found');
+//       return [];
+//     }
+
+//     const certificates = await Promise.all(
+//       certificateIds.map(async (id: string) => {
+//         const cert = await certificatesContract.verifyCertificate(id);
+//         return {
+//           id,
+//           ipfsHash: cert.ipfsHash,
+//           issuer: cert.institution,
+//           timestamp: cert.issuedAt.toString(),
+//           isValid: cert.isValid
+//         };
+//       })
+//     );
+
+//     return certificates;
+//   } catch (error: any) {
+//     console.error('Error in getCertificates:', error);
+//     if (error.reason) {
+//       throw new Error(`Contract error: ${error.reason}`);
+//     }
+//     throw error;
+//   }
+// };
+
+/**
+ * @param certificateId
+ * @returns
  */
 export const verifyCertificate = async (certificateId: string) => {
   try {
@@ -116,21 +151,17 @@ export const verifyCertificate = async (certificateId: string) => {
       throw new Error('Ethereum provider not found');
     }
 
-    // Get provider
     const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const certificatesContract = await getCertificatesContract(signer);
     
-    // Get contract instance
-    const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS || getConfig('CERTIFICATES_CONTRACT_ADDRESS');
-    const certificatesContract = new ethers.Contract(contractAddress, CertificatesABI, provider);
-    
-    // Verify certificate
     const [student, institution, ipfsHash, issuedAt, isValid] = await certificatesContract.verifyCertificate(certificateId);
     
     return {
       student,
       institution,
       ipfsHash,
-      issuedAt: new Date(Number(issuedAt) * 1000), // Convert timestamp to Date
+      issuedAt: new Date(Number(issuedAt) * 1000),
       isValid
     };
   } catch (error: any) {
