@@ -21,17 +21,13 @@ const pinataConfig = {
  */
 export const uploadToIPFS = async (data: any, name = 'education-data'): Promise<string> => {
   try {
-    // Convert data to JSON string
     const jsonData = JSON.stringify(data);
 
-    // Create a Blob from the JSON string
     const blob = new Blob([jsonData], { type: 'application/json' });
 
-    // Create FormData and append the file
     const formData = new FormData();
     formData.append('file', blob, `${name}.json`);
 
-    // Add metadata
     const metadata = JSON.stringify({
       name: `${name}`,
       keyvalues: {
