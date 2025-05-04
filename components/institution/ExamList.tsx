@@ -11,17 +11,7 @@ import {
   IconButton
 } from '@chakra-ui/react';
 import { UserIcon, BookIcon, CheckIcon, AwardIcon } from '../Icons';
-
-interface Exam {
-  id: string;
-  title: string;
-  description: string;
-  date: number;
-  duration: number;
-  status: string;
-  ipfsHash: string;
-  students: string[];
-}
+import { Exam } from '../../types/examManagement';
 
 interface ExamListProps {
   exams: Exam[];
@@ -50,7 +40,7 @@ export default function ExamList({
       </Thead>
       <Tbody>
         {exams.map((exam) => (
-          <Tr key={exam.id}>
+          <Tr key={exam.address}>
             <Td>{exam.title}</Td>
             <Td>{new Date(exam.date).toLocaleDateString()}</Td>
             <Td>{exam.duration} دقيقة</Td>
@@ -94,7 +84,7 @@ export default function ExamList({
                   icon={<BookIcon />}
                   size="sm"
                   colorScheme="blue"
-                  onClick={() => onUpdateStatus(exam.id, 'IN_PROGRESS')}
+                  onClick={() => onUpdateStatus(exam.address, 'IN_PROGRESS')}
                   isDisabled={exam.status !== 'PENDING'}
                 />
                 <IconButton
@@ -102,7 +92,7 @@ export default function ExamList({
                   icon={<CheckIcon />}
                   size="sm"
                   colorScheme="green"
-                  onClick={() => onUpdateStatus(exam.id, 'COMPLETED')}
+                  onClick={() => onUpdateStatus(exam.address, 'COMPLETED')}
                   isDisabled={exam.status !== 'IN_PROGRESS'}
                 />
               </HStack>
