@@ -185,7 +185,7 @@ export const useInstitution = () => {
   }, [account, certificates, isInitialized, isCorrectNetwork]);
 
   // create exam
-  const createExam = async (exam: NewExam): Promise<boolean> => {
+  const createExam = async (exam: NewExam): Promise<any> => {
     if (!account || !examManagement || !publicClient) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -199,9 +199,13 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
 
-      const hash = await createExamService(exam);
+      const examData = await createExamService(exam);
 
-      if (hash) {
+      if (!examData) {
+        throw new Error('Failed to create exam. Please try again.');
+      }
+
+      if (examData) {
         try {
           // await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
           toast({
@@ -230,7 +234,7 @@ export const useInstitution = () => {
 
       await loadExamsFromContract(account);
 
-      if (hash) {
+      if (examData) {
         toast({
           title: 'Exam Created & List Refreshed',
           description: 'Your exam has been created successfully',
@@ -239,7 +243,7 @@ export const useInstitution = () => {
         });
       }
 
-      return true;
+      return examData;
     } catch (err: any) {
       toast({
         title: 'Error creating exam',

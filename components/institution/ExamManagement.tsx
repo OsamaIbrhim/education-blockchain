@@ -39,7 +39,7 @@ import ExamList from './ExamList';
 
 interface ExamManagementProps {
   exams: Exam[];
-  onCreateExam: (exam: NewExam) => Promise<boolean>;
+  onCreateExam: (exam: NewExam) => Promise<any>;
   onUpdateStatus: (examId: string, status: string) => Promise<boolean>;
   onRegisterStudents: (examId: string, students: string[]) => Promise<boolean>;
   loading: boolean;
@@ -68,7 +68,7 @@ export function ExamManagement({
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const success = await onCreateExam({
+      const exam = await onCreateExam({
         title: newExam.title,
         description: newExam.description,
         date: new Date(newExam.date).getTime(),
@@ -76,7 +76,7 @@ export function ExamManagement({
         ipfsHash: newExam.ipfsHash
       });
 
-      if (success) {
+      if (exam) {
         toast({
           title: 'تم إنشاء الاختبار بنجاح | Exam created successfully',
           status: 'success',

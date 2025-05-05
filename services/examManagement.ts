@@ -80,8 +80,13 @@ export const createExam = async (exam: NewExam) => {
             duration,
             exam.ipfsHash
         );
+        await tx.wait();
 
-        return tx.hash;
+        if (!tx) {
+            throw new Error('Transaction failed');
+        }
+
+        return exam;
     } catch (error: any) {
         console.error('Error creating exam:', error);
 
