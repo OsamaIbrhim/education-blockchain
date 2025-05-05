@@ -204,17 +204,13 @@ const InstitutionDashboard = () => {
 
   // 2. External hooks
   const { address = undefined, isConnected: isWalletConnected = false } = useAccount() || {};
-  const { connect, connectors } = useConnect();
   const router = useRouter();
   const toast = useToast();
   const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
-  const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 100], [0, 1]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  const unauthorizedToastShownRef = useRef(false);
-
+  
   // 3. Get all values from useInstitution hook
   const {
     isLoading,
@@ -233,9 +229,7 @@ const InstitutionDashboard = () => {
     issueCertificate,
     saveInstitutionProfile,
   } = useInstitution();
-
-  const { isInitialized } = useContract();
-
+  
   // 4. State hooks
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -338,39 +332,6 @@ const InstitutionDashboard = () => {
   ], [exams?.length, certificatesData?.length, examStatistics]);
 
   // 7. Event handlers
-  const handleLogout = useCallback(() => {
-    toast({
-      title: "تم تسجيل الخروج بنجاح | Logged out successfully",
-      status: "success",
-      duration: 3000,
-    });
-    router.push('/');
-  }, [toast, router]);
-
-  const handleProfile = useCallback(() => {
-    router.push('/dashboard/institution/profile');
-  }, [router]);
-
-  const handleSaveProfile = useCallback(async (data: InstitutionData) => {
-    try {
-      await saveInstitutionProfile(data);
-      toast({
-        title: 'تم حفظ البيانات بنجاح | Profile saved successfully',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'خطأ في حفظ البيانات | Error saving profile',
-        description: error.message,
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [saveInstitutionProfile, toast]);
-
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -664,14 +625,6 @@ const InstitutionDashboard = () => {
                 </TabList>
 
                 <TabPanels>
-                  {/* <TabPanel>
-                    <InstitutionProfile
-                      onSave={handleSaveProfile}
-                      loading={isLoading}
-                      contract={identityContract}
-                      userAddress={address}
-                    />
-                  </TabPanel> */}
                   <TabPanel>
                     <ExamManagement
                       exams={exams?.map(exam => ({
@@ -726,6 +679,39 @@ const InstitutionDashboard = () => {
             </Box>
           </MotionBox>
         </Container>
+
+        {/* Scroll to Top Button */}
+        <AnimatePresence>
+          {showScrollTop && (
+            <MotionBox
+              position="fixed"
+              bottom="20px"
+              right="20px"
+              zIndex={99}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <IconButton
+                aria-label="Scroll to top"
+                icon={<BsArrowUpCircle />}
+                onClick={scrollToTop}
+                size="lg"
+                colorScheme="blue"
+                rounded="full"
+                shadow="lg"
+                _hover={{
+                  transform: "translateY(-2px)",
+                  shadow: "xl",
+                }}
+                sx={{
+                  animation: `${floatAnimation} 2s ease-in-out infinite`
+                }}
+              />
+            </MotionBox>
+          )}
+        </AnimatePresence>
 
         {/* Enhanced Notifications Drawer */}
         <Drawer
