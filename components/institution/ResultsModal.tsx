@@ -16,7 +16,7 @@ import {
   Textarea,
   VStack,
 } from '@chakra-ui/react';
-import { ExamResult } from '../../types/institution';
+import { ExamResult } from '../../types/examManagement'; // Adjust the import path as necessary
 
 interface ResultsModalProps {
   isOpen: boolean;
@@ -36,6 +36,8 @@ export default function ResultsModal({
     score: 0,
     grade: '',
     notes: '',
+    ipfsHash: '',
+    exists: false,
   });
 
   const handleSubmit = async () => {
@@ -46,6 +48,8 @@ export default function ResultsModal({
         score: 0,
         grade: '',
         notes: '',
+        ipfsHash: '',
+        exists: false,
       });
     }
   };
