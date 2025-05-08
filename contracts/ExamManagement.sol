@@ -180,24 +180,26 @@ contract ExamManagement is Ownable, Pausable {
     }
 
     // Student Management
-    function addStudent(
-        address studentAddress,
-        string memory name,
-        string memory email
-    ) external onlyVerifiedInstitution {
-        require(!students[studentAddress].exists, "Student already exists");
-        require(identityContract.getUserRole(studentAddress) == IIdentity.UserRole.STUDENT, "Address is not registered as a student");
-        
-        students[studentAddress] = Student({
-            name: name,
-            email: email,
-            enrollmentDate: block.timestamp,
-            status: "active",
-            exists: true
-        });
+    function addStudents(address[] memory studentAddresses) external onlyVerifiedInstitution {
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddress = studentAddresses[i];
+            require(!students[studentAddress].exists, "Student already exists");
+            require(
+                identityContract.getUserRole(studentAddress) == IIdentity.UserRole.STUDENT,
+                "Address is not registered as a student"
+            );
 
-        institutionStudents[msg.sender][studentAddress] = true;
-        emit StudentAdded(msg.sender, studentAddress);
+            students[studentAddress] = Student({
+                name: "", // You may want to add name/email as parameters if needed
+                email: "",
+                enrollmentDate: block.timestamp,
+                status: "active",
+                exists: true
+            });
+
+            institutionStudents[msg.sender][studentAddress] = true;
+            emit StudentAdded(msg.sender, studentAddress);
+        }
     }
 
     function updateStudentStatus(
