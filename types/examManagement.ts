@@ -103,6 +103,7 @@ export interface ExamResult {
     score: number;
     grade: string;
     ipfsHash: string;
+    notes: string;
     exists: boolean;
 }
 
