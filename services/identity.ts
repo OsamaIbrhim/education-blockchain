@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { getConfig } from '../utils/config';
 import { IdentityABI } from '../constants/abis';
 import { getAddress, getProvider, getSigner } from 'utils/ethersConfig';
+import { Toast } from '@chakra-ui/react';
 
 type RoleString = 'none' | 'student' | 'institution' | 'employer' | 'admin' | 'unknown';
 
@@ -14,9 +15,14 @@ type IdentityContractType = ethers.Contract & {
  * @param signer 
  * @returns 
 */
-export const getIdentityContract = async (signer: ethers.Signer | ethers.Provider) => {
+export const getIdentityContract = async (signer?: ethers.Signer) => {
+  const contractSigner = signer || await getSigner();
   const contractAddress = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS?.toString() || getConfig('IDENTITY_CONTRACT_ADDRESS');
-  return new ethers.Contract(contractAddress, IdentityABI, signer) as unknown as IdentityContractType;
+  if (!contractAddress) {
+    throw new Error('Contract address not found');
+  }
+  const contract = new ethers.Contract(contractAddress, IdentityABI, contractSigner) as unknown as IdentityContractType;
+  return contract as IdentityContractType;
 };
 
 /**
@@ -64,20 +70,39 @@ export const registerUser = async (role: string) => {
  * @param userAddress
  * @returns status
  */
-export const verifyUser = async (address: string) => {
-  if (!address || !getAddress(address)) {
+export const verifyUser = async (useraddress: string) => {
+  if (!useraddress || !getAddress(useraddress)) {
     throw new Error('Invalid address');
   }
 
   try {
     const signer = await getSigner();
-    const identityContract = await getIdentityContract(signer);
-    const tx = await identityContract.verifyUser(address);
+    const address = await signer.getAddress();
+    const contract = await getIdentityContract();
+    // check is the user admin
+    const isAdmin = await contract.isAdmin(address);
+    if (!isAdmin) {
+      throw new Error('Only admin can verify users');
+    }
+
+    // check if the user is institution
+    const isInstitution = await contract.isInstitution(useraddress);
+    if (!isInstitution) {
+      throw new Error('Only institution can be verified');
+    }
+
+    const tx = await contract.verifyUser(useraddress);
     await tx.wait();
     return { status: 'success' };
   } catch (error: any) {
-    console.error('Error verifying user:', error);
-    throw new Error(error.message || 'Failed to verify user');
+    Toast({
+      title: 'Error verifying user:',
+      description: error.message || error,
+      status: 'error',
+      duration: 3000,
+      isClosable: true,
+    });
+    throw error;
   }
 };
 
@@ -135,15 +160,14 @@ export const isOwner = async (address: string) => {
  */
 export const getUserData = async (userAddress: string) => {
   try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
+    const contract = await getIdentityContract();
     const signer = await getSigner();
-    
+
     const identityContract = contract.connect(signer) as unknown as IdentityContractType;
-    
+
     try {
       const userData = await identityContract.users(userAddress);
-      
+
       const result = {
         address: userAddress,
         ipfsHash: userData[1],
@@ -193,8 +217,7 @@ export const getUserRole = async (address: string): Promise<RoleString> => {
  */
 export const getUsersByRole = async (role: number) => {
   try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
+    const contract = await getIdentityContract();
 
     const filter = contract.filters.UserRegistered(null, role);
     const events = await contract.queryFilter(filter);
