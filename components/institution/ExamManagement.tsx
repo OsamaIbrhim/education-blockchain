@@ -62,7 +62,7 @@ export function ExamManagement({
     duration: '',
     ipfsHash: ''
   });
-  const [studentAddress, setStudentAddress] = useState('');
+  const [studentAddresses, setStudentAddresses] = useState<string>('');
   const toast = useToast();
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -100,16 +100,21 @@ export function ExamManagement({
   const handleEnrollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const success = await onRegisterStudents(selectedExamId, [studentAddress]);
+      const addresses = studentAddresses
+      .split('\n') // Split by newline
+      .map(addr => addr.trim()) // Trim whitespace
+      .filter(addr => addr !== ''); // Remove empty strings
+
+      const success = await onRegisterStudents(selectedExamId, addresses);
       if (success) {
         toast({
-          title: 'تم تسجيل الطالب بنجاح | Student enrolled successfully',
+          title: 'تم تسجيل الطلاب بنجاح | Students enrolled successfully',
           status: 'success',
           duration: 3000,
           isClosable: true,
         });
         onEnrollClose();
-        setStudentAddress('');
+        setStudentAddresses('');
       }
     } catch (error: any) {
       toast({
@@ -261,10 +266,10 @@ export function ExamManagement({
             <ModalBody>
               <FormControl isRequired>
                 <FormLabel>عنوان الطالب | Student Address</FormLabel>
-                <Input
-                  value={studentAddress}
-                  onChange={e => setStudentAddress(e.target.value)}
-                  placeholder="0x..."
+                <Textarea 
+                  value={studentAddresses}
+                  onChange={e => setStudentAddresses(e.target.value)}
+                  placeholder="0x...&#x0a;0x...&#x0a;..."
                 />
               </FormControl>
             </ModalBody>

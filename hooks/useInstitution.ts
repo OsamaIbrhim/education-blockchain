@@ -17,7 +17,7 @@ import {
   submitExamResult,
   createExam as createExamService,
   getInstitutionExams,
-  registerStudentForExam,
+  registerStudentsForExam,
   updateExamStatus as updateExamStatusUtil
 } from 'services/examManagement';
 import { getUserData } from 'services/identity';
@@ -299,12 +299,10 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      for (const student of students) {
-        const success = await registerStudentForExam(examId, student, null);
-        if (success) {
-          toast({ title: 'Student Registered', status: 'success' });
-          await loadExamsFromContract(account!);
-        }
+      const success = await registerStudentsForExam(examId, students, null);
+      if (success) {
+        toast({ title: 'Student Registered', status: 'success' });
+        await loadExamsFromContract(account!);
       }
       return true;
     } catch (err: any) {
@@ -385,6 +383,7 @@ export const useInstitution = () => {
         score: Number(entry.result[0]),
         grade: entry.result[1],
         ipfsHash: entry.result[2],
+        notes: '',
         exists: true,
       }));
 
@@ -436,7 +435,7 @@ export const useInstitution = () => {
     }
   };
 
-  const handleEnrollStudent = async (examId: string, studentAddress: string) => {
+  const handleEnrollStudents = async (examId: string, studentAddresses: string[]) => {
     if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -449,10 +448,10 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      const success = await registerStudentForExam(examId, studentAddress, null);
+      const success = await registerStudentsForExam(examId, studentAddresses, null);
       if (success) {
-          toast({ title: 'Student Registered', status: 'success' });
-          await loadExamsFromContract(account!);
+        toast({ title: 'Student Registered', status: 'success' });
+        await loadExamsFromContract(account!);
       }
       return true;
     } catch (err: unknown) {
@@ -585,7 +584,7 @@ export const useInstitution = () => {
     updateExamStatus,
     registerStudents,
     handleSubmitResults,
-    handleEnrollStudent,
+    handleEnrollStudents,
     loadExamResults,
     issueCertificate,
   };

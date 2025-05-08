@@ -31,7 +31,7 @@ export const ExamManagementABI = [
   "function students(address) view returns (string name, string email, uint256 enrollmentDate, string status, bool exists)",
 
   // Functions
-  "function addStudent(address studentAddress, string memory name, string memory email) external",
+  "function addStudents(address[] memory studentAddresses) external",
   "function createExam(string memory title, string memory description, uint256 date, uint256 duration, string memory ipfsHash) external returns (bytes32)",
   "function getExam(bytes32 examId) external view returns (tuple(string title, string description, uint256 date, uint256 duration, string status, string ipfsHash, address[] students, bool exists))", // Explicit function returns full struct
   "function getExamResult(bytes32 examId, address student) external view returns (uint256 score, string memory grade, string memory notes)",

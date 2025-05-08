@@ -2,9 +2,10 @@ import { ethers } from 'ethers';
 import { getConfig } from '../utils/config';
 import { ExamManagementABI } from '../constants/abis';
 import { getSigner } from 'utils/ethersConfig';
-import { getUserData } from './identity';
+import { getUserData, getUserRole } from './identity';
 import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
 import { Exam, ExamManagementContractType, ExamStructOutput, NewExam } from 'types/examManagement';
+import { Toast } from '@chakra-ui/react';
 
 /**
  * @param signer 
@@ -18,32 +19,6 @@ export const getExamManagementContract = async (signer?: ethers.Signer) => {
     }
     const contract = new ethers.Contract(contractAddress, ExamManagementABI, contractSigner);
     return contract as ExamManagementContractType;
-};
-
-
-export const checkInstitutionStatus = async () => {
-    try {
-        const signer = await getSigner();
-        const address = await signer.getAddress();
-        if (!address) {
-            return { exists: false, isVerified: false };
-        }
-
-        const institution = await getUserData(address);
-
-        if (!institution) {
-            return { exists: false, isVerified: false };
-        }
-
-        const isVerified = institution.isVerified;
-
-        const institutionData = await getFromIPFS(institution.ipfsHash);
-
-        return { exists: true, isVerified: isVerified, institution: institutionData };
-    } catch (error) {
-        console.error('Error checking institution status:', error);
-        return { exists: false, isVerified: false };
-    }
 };
 
 /**
@@ -88,34 +63,36 @@ export const createExam = async (exam: NewExam) => {
 
         return exam;
     } catch (error: any) {
-        console.error('Error creating exam:', error);
-
-        if (error.data) {
-            console.error('Error data:', error.data);
-        }
-
-        // More detailed error handling
-        if (error.reason) {
-            throw new Error(`Contract error: ${error.reason}`);
-        } else if (error.message) {
-            throw new Error(`Transaction error: ${error.message}`);
-        } else {
-            throw error;
-        }
+        Toast({
+            title: 'Error creating exam:',
+            description: error.message || error,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+        });
+        throw error;
     }
 };
 
 /**
- * @param exam 
- * @param student 
- * @returns 
+ * @param exam
+ * @param studentAddresses
+ * @param institutionAddress
+ * @returns
  */
-export const registerStudentForExam = async (exam: string, student: string, institutionAddress: string | null) => {
+export const registerStudentsForExam = async (exam: string, studentAddresses: string[], institutionAddress: string | null) => {
     if (!ethers.isBytesLike(exam) || ethers.getBytes(exam).length !== 32) {
         throw new Error(`Invalid exam ID format: ${exam}. Expected bytes32.`);
     }
-    if (!ethers.isAddress(student)) {
-        throw new Error(`Invalid student address format${student}.`);
+
+    if (!Array.isArray(studentAddresses) || studentAddresses.length === 0) {
+        throw new Error(`Invalid student addresses format: Expected non-empty array of addresses.`);
+    }
+
+    for (const studentAddress of studentAddresses) {
+        if (!ethers.isAddress(studentAddress)) {
+            throw new Error(`Invalid student address format: ${studentAddress}.`);
+        }
     }
 
     try {
@@ -126,32 +103,47 @@ export const registerStudentForExam = async (exam: string, student: string, inst
         const address = await signer.getAddress();
         const emContract = await getExamManagementContract(signer);
 
-        // check if the student is already added in the institution
+        // check if the institution address is valid
         if (!institutionAddress) {
             institutionAddress = address;
         }
         if (!ethers.isAddress(institutionAddress)) {
             throw new Error(`Invalid institution address format: ${institutionAddress}.`);
         }
-        const isStudentInInstitution = await emContract.institutionStudents(institutionAddress, student);
 
-        if (!isStudentInInstitution) {
-            // add the student to the institution
-            
+        // Validate each student address
+        for (const studentAddress of studentAddresses) {
+            // check if the user is student
+            const role = await getUserRole(studentAddress);
+            if (role !== 'student') {
+                throw new Error(`User ${studentAddress} is not a student.`);
+            }
+
+            // check if the student is already added in the institution
+            const isStudentInInstitution = await emContract.institutionStudents(institutionAddress, studentAddress);
+            if (!isStudentInInstitution) {
+                // add the student to the institution if not already added
+                await emContract.addStudents([studentAddress]);
+            }
+
+            // check if the student is already registered for the exam
+            const examData = await emContract.getExam(exam);
+            if (examData.students.includes(studentAddress)) {
+                throw new Error(`Student ${studentAddress} is already registered for this exam.`);
+            }
         }
 
-        // check if the student is already registered for the exam
-        const studentExams = await emContract.getStudentExamList(student);
-        if (studentExams.includes(exam)) {
-            throw new Error(`Student ${student} is already registered for the exam ${exam}.`);
-        }
-        // check if the exam is already started --- will be add
-
-        const tx = await emContract.registerStudentsForExam(exam, [student]);
+        const tx = await emContract.registerStudentsForExam(exam, studentAddresses);
         await tx.wait();
         return true;
-    } catch (error) {
-        console.error('Error enrolling student:', error);
+    } catch (error: any) {
+        Toast({
+            title: 'Error enrolling students:',
+            description: error.message || error,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+        });
         throw error;
     }
 };
@@ -166,7 +158,6 @@ export const getInstitutionExams = async (institutionAddress: string) => {
         const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
 
         const examAddresses = await emContract.getInstitutionExamList(institutionAddress);
-        // 0x5796d958fd1e8becef17daf225a1bfa7a312fd139f1c85cb9990c5b153eb575e
         const exams: Exam[] = [];
 
         for (const examAddress of examAddresses) {
@@ -208,7 +199,7 @@ export const getInstitutionStudents = async (institutionAddress: string | null) 
         if (!institutionAddress) {
             institutionAddress = address;
         }
-        
+
         if (!ethers.isAddress(institutionAddress)) {
             throw new Error(`Invalid institution address format: ${institutionAddress}.`);
         }
