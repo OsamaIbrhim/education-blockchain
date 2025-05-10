@@ -19,16 +19,16 @@ return contract as CertificateContractType;
 };
 
 /**
- * @param studentAddress
+ * @param address
  * @param ipfsHash
  * @returns
  */
 export const issueCertificate = async (
-  studentAddress: string,
+  address: string,
   ipfsHash: string
 ): Promise<CertificateResult> => {
   try {
-    if (!studentAddress || !ethers.isAddress(studentAddress)) {
+    if (!address || !ethers.isAddress(address)) {
       throw new Error('Invalid student address');
     }
 
@@ -45,7 +45,7 @@ export const issueCertificate = async (
     
     const certificatesContract = await getCertificatesContract(signer);
     
-    const tx = await certificatesContract.issueCertificate(studentAddress, ipfsHash);
+    const tx = await certificatesContract.issueCertificate(address, ipfsHash);
     const receipt = await tx.wait();
     
     if (!receipt) {
@@ -70,12 +70,12 @@ export const issueCertificate = async (
 };
 
 /**
- * @param studentAddress
- * @returns
+ * @param address
+ * @returns certificateIds
  */
-export const getStudentCertificates = async (studentAddress: string): Promise<string[]> => {
+export const getUserCertificates = async (address: string): Promise<string[]> => {
   try {
-    if (!studentAddress || !ethers.isAddress(studentAddress)) {
+    if (!address || !ethers.isAddress(address)) {
       throw new Error('Invalid student address');
     }
 
@@ -86,19 +86,13 @@ export const getStudentCertificates = async (studentAddress: string): Promise<st
     const signer = await getSigner();
     const certificatesContract = await getCertificatesContract(signer);
     
-    const certificates = await certificatesContract.getStudentCertificates(studentAddress);
+    const certificates = await certificatesContract.getStudentCertificates(address);
     return certificates;
   } catch (error: any) {
     console.error('Error getting student certificates:', error);
     throw new Error(`Failed to get student certificates: ${error.message || error}`);
   }
 };
-
-/**
- * @param certificateId 
- * @returns Certificate details
- */
-// export const getStudentCertificates = async (address: string) => {
 //   if (!address || !getAddress(address)) {
 //     throw new Error('Invalid address');
 //   }
