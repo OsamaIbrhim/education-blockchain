@@ -13,9 +13,16 @@ contract Identity is Ownable, Pausable {
         ADMIN
     }
 
+    struct Student {
+        address studentAddress;
+        uint256 enrollmentDate;
+        string status; // "active", "inactive", "graduated"
+        bool exists;
+    }
+
     struct User {
         address userAddress;
-        string ipfsHash; // IPFS hash containing user details
+        string ipfsHash;
         UserRole role;
         bool isVerified;
         uint256 createdAt;
@@ -24,6 +31,8 @@ contract Identity is Ownable, Pausable {
     mapping(address => User) public users;
     mapping(address => bool) public institutions;
     mapping(address => bool) public admins;
+    mapping(address => bool) public students;
+    mapping(address => mapping(address => bool)) public institutionStudents;
 
     event UserRegistered(address indexed userAddress, UserRole role);
     event UserVerified(address indexed userAddress);
@@ -31,12 +40,16 @@ contract Identity is Ownable, Pausable {
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
     event IPFSHashUpdated(address indexed user, string ipfsHash);
+    event StudentAdded(address indexed student);
+    event UserRoleUpdated(address indexed user, UserRole oldRole, UserRole newRole);
 
-    modifier onlyVerifiedInstitution() {
-        require(
-            institutions[msg.sender] && users[msg.sender].isVerified,
-            "Not a verified institution"
-        );
+    modifier onlyInstitution() {
+        require(users[msg.sender].role == UserRole.INSTITUTION, "Not an institution");
+        _;
+    }
+
+    modifier onlyVerified() {
+        require(users[msg.sender].isVerified, "Not a verified user");
         _;
     }
 
@@ -103,7 +116,10 @@ contract Identity is Ownable, Pausable {
 
         if (_role == UserRole.INSTITUTION) {
             institutions[msg.sender] = true;
-            emit InstitutionAdded(msg.sender); // Add this line
+            emit InstitutionAdded(msg.sender);
+        } else if (_role == UserRole.STUDENT) {
+            students[msg.sender] = true;
+            emit StudentAdded(msg.sender);
         }
 
         emit UserRegistered(msg.sender, _role);
@@ -118,6 +134,23 @@ contract Identity is Ownable, Pausable {
 
         users[_userAddress].isVerified = true;
         emit UserVerified(_userAddress);
+    }
+
+    function addStudents(address[] memory studentAddresses) external onlyVerified onlyInstitution {
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddress = studentAddresses[i];
+
+            require(users[studentAddress].userAddress != address(0), "User does not exist");
+
+            require(users[studentAddress].role == UserRole.STUDENT, "User is not a student");
+
+            if (institutionStudents[msg.sender][studentAddress]) {
+                continue;
+            }
+
+            institutionStudents[msg.sender][studentAddress] = true;
+            emit StudentAdded(studentAddress);
+        }
     }
 
     function getUserRole(
@@ -145,10 +178,10 @@ contract Identity is Ownable, Pausable {
         if (_newRole == UserRole.INSTITUTION) {
             institutions[_userAddress] = true;
         } else if (oldRole == UserRole.INSTITUTION) {
-            institutions[_userAddress] = false;
+            delete institutions[_userAddress];
         }
 
-        emit UserRegistered(_userAddress, _newRole);
+        emit UserRoleUpdated(_userAddress, oldRole, _newRole);
     }
 
     function updateUserIPFS(string memory _newIpfsHash) external whenNotPaused {
@@ -169,8 +202,12 @@ contract Identity is Ownable, Pausable {
         _unpause();
     }
 
-    // Add this function to check if an address is registered as an institution
-    function isInstitution(address _address) public view returns (bool) {
-        return institutions[_address];
+    function userExists(address _userAddress) external view returns (bool) {
+        return users[_userAddress].userAddress != address(0);
     }
+
+    function isStudentEnrolled(address _institution, address _student) external view returns (bool) {
+        return institutionStudents[_institution][_student];
+    }
+
 }
