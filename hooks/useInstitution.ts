@@ -10,13 +10,14 @@ import { useRouter } from 'next/router';
 
 // services
 import {
-  issueCertificate as issueCertificateUtil,
+  issueCertificate as issueCertificateService,
+  getUserCertificates
 } from 'services/certificate';
 import {
   getExamResults,
   submitExamResult,
   createExam as createExamService,
-  getInstitutionExams,
+  getUserExams,
   registerStudentsForExam,
   updateExamStatus as updateExamStatusUtil
 } from 'services/examManagement';
@@ -46,12 +47,9 @@ export const useInstitution = () => {
   const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [certificatesData, setCertificatesData] = useState<Certificate[]>([]);
-  const [hasAccess, setHasAccess] = useState(false);
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const unauthorizedToastShownRef = useRef(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -83,7 +81,6 @@ export const useInstitution = () => {
 
   }, [account, examManagement, certificates, isInitialized, isCorrectNetwork]);
 
-
   useEffect(() => {
     const checkVerificationStatus = async () => {
       if (!account || !examManagement || !isInitialized || !isCorrectNetwork) {
@@ -103,43 +100,12 @@ export const useInstitution = () => {
     checkVerificationStatus();
   }, [account, examManagement, isInitialized, isCorrectNetwork]);
 
-  // useEffect(() => {
-  //   // Only run redirection logic after initial loading is complete
-  //   if (isLoading) {
-  //     return;
-  //   }
-
-  //   const currentPath = router.pathname;
-  //   const profilePath = '/dashboard/institution/profile';
-
-  //   if (!isVerified) {
-  //     // If NOT verified and NOT already on the profile page...
-  //     if (currentPath !== profilePath) {
-  //       router.push(profilePath);
-
-  //       // Show toast only once using the ref
-  //       if (!unauthorizedToastShownRef.current) {
-  //         toast({
-  //           title: 'غير مصرح | Unauthorized',
-  //           description: 'يرجى إكمال ملفك الشخصي وانتظار التحقق من قبل المسؤول | Please complete your profile and wait for admin verification',
-  //           status: 'warning',
-  //           duration: 9000, // Longer duration
-  //           isClosable: true,
-  //           position: 'top', // Position at the top
-  //         });
-  //         unauthorizedToastShownRef.current = true; // Mark toast as shown
-  //       }
-  //     }
-  //   } else {
-  //     // If VERIFIED, reset the toast ref so it can show again if they become unverified later
-  //     unauthorizedToastShownRef.current = false;
-
-  //     // Optional: If verified and currently on the profile page, redirect to main dashboard
-  //     if (currentPath === profilePath) {
-  //        router.push('/dashboard/institution'); // Adjust target dashboard path if needed
-  //     }
-  //   }
-  // }, [isLoading, isVerified, router, toast]); 
+  // effect to load exams
+  useEffect(() => {
+    if (account && examManagement && isInitialized && isCorrectNetwork) {
+      loadExamsFromContract(account);
+    }
+  }, [account, examManagement, isInitialized, isCorrectNetwork]);
 
   const loadExamsFromContract = async (userAddress: `0x${string}`) => {
     if (!examManagement || !userAddress) {
@@ -147,7 +113,7 @@ export const useInstitution = () => {
     }
 
     try {
-      const updatedExams = await getInstitutionExams(userAddress) as unknown as Exam[];
+      const updatedExams = await getUserExams(userAddress) as unknown as Exam[];
       console.log("Loaded exams:", updatedExams);
       setExams(updatedExams || []);
     } catch (error) {
@@ -156,33 +122,26 @@ export const useInstitution = () => {
     }
   };
 
-  const loadCertificatesFromContract = async (userAddress: `0x${string}`) => {
-    if (!certificates || !userAddress) {
-      return [];
-    }
-
-    try {
-      const updatedCertificats = await certificates.getInstitutionCertificates([userAddress]) as unknown as Certificate[];
-      setCertificatesData(updatedCertificats || []);
-    } catch (error) {
-      console.error('Error loading certificates:', error);
-      return [];
-    }
-  };
-
-  // effect to load exams
-  useEffect(() => {
-    if (account && examManagement && isInitialized && isCorrectNetwork) {
-      loadExamsFromContract(account);
-    }
-  }, [account, examManagement, isInitialized, isCorrectNetwork]);
-
   // effect to load certificates
   useEffect(() => {
     if (account && examManagement && isInitialized && isCorrectNetwork) {
       loadCertificatesFromContract(account);
     }
   }, [account, certificates, isInitialized, isCorrectNetwork]);
+
+  const loadCertificatesFromContract = async (userAddress: `0x${string}`) => {
+    if (!certificates || !userAddress) {
+      return [];
+    }
+
+    try {
+      const updatedCertificats = getUserCertificates(userAddress) as unknown as Certificate[];
+      setCertificatesData(updatedCertificats || []);
+    } catch (error) {
+      console.error('Error loading certificates:', error);
+      return [];
+    }
+  };
 
   // create exam
   const createExam = async (exam: NewExam): Promise<any> => {
@@ -481,7 +440,7 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await issueCertificateUtil(studentAddress, JSON.stringify(certificate));
+      await issueCertificateService(studentAddress, JSON.stringify(certificate));
       await loadCertificatesFromContract(account);
       return true;
     } catch (err: any) {
@@ -548,24 +507,24 @@ export const useInstitution = () => {
   };
 
   // Add this to help with troubleshooting contract methods
-  const logContractMethods = (contract: any, name: string) => {
-    if (!contract) return;
+  // const logContractMethods = (contract: any, name: string) => {
+  //   if (!contract) return;
 
-    console.log(`Contract ${name} methods:`, {
-      contractExists: !!contract,
-      methods: Object.keys(contract),
-      hasCreateExam: typeof contract.createExam,
-      hasUpdateProfile: typeof contract.updateInstitutionProfile
-    });
-  };
+  //   console.log(`Contract ${name} methods:`, {
+  //     contractExists: !!contract,
+  //     methods: Object.keys(contract),
+  //     hasCreateExam: typeof contract.createExam,
+  //     hasUpdateProfile: typeof contract.updateInstitutionProfile
+  //   });
+  // };
 
-  // Call this function in useEffect to log contract methods when they load
-  useEffect(() => {
-    if (examManagement && certificates) {
-      logContractMethods(examManagement, 'examManagement');
-      logContractMethods(certificates, 'certificates');
-    }
-  }, [examManagement, certificates]);
+  // // Call this function in useEffect to log contract methods when they load
+  // useEffect(() => {
+  //   if (examManagement && certificates) {
+  //     logContractMethods(examManagement, 'examManagement');
+  //     logContractMethods(certificates, 'certificates');
+  //   }
+  // }, [examManagement, certificates]);
 
   return {
     institutionData,
@@ -576,7 +535,6 @@ export const useInstitution = () => {
     isCorrectNetwork,
     exams,
     certificatesData,
-    hasAccess,
     selectedExamResults,
     examStatistics,
     createExam,

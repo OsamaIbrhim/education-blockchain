@@ -210,13 +210,11 @@ const InstitutionDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  
+
   // 3. Get all values from useInstitution hook
   const {
     isLoading,
-    hasAccess,
-    certificatesData,
-    isVerified,
+    certificatesData = [],
     error: institutionError,
     exams,
     createExam,
@@ -227,9 +225,8 @@ const InstitutionDashboard = () => {
     handleSubmitResults,
     loadExamResults,
     issueCertificate,
-    saveInstitutionProfile,
   } = useInstitution();
-  
+
   // 4. State hooks
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -656,12 +653,12 @@ const InstitutionDashboard = () => {
                   </TabPanel>
                   <TabPanel>
                     <CertificateManagement
-                      certificates={certificatesData?.map((cert: Certificate) => ({
+                      certificates={Array.isArray(certificatesData) ? certificatesData?.map((cert: Certificate) => ({
                         ...cert,
                         studentAddress: cert.studentAddress,
                         issueDate: cert.issueDate || new Date().toISOString(),
                         status: cert.status || 'issued'
-                      })) || []}
+                      })) ?? [] : []}
                       onIssueCertificate={async (studentAddress, certificate) => {
                         try {
                           await issueCertificate(studentAddress, certificate);
