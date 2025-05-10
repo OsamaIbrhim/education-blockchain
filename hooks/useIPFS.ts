@@ -118,33 +118,6 @@ export const useIPFS = () => {
     setError(null);
     
     try {
-      const examManagementAddress = getConfig('EXAM_MANAGEMENT_CONTRACT_ADDRESS');
-      const signer = await getSigner();
-
-      // string memory name,
-      // string memory description,
-      // string memory physicalAddress,
-      // string memory email,
-      // string memory phone,
-      // string memory website,
-      // string memory logo,
-      // string memory ministry,
-      // string memory university,
-      // string memory college
-      // here register institution in the exam management contract
-      const examManagementContract = new ethers.Contract(examManagementAddress, ExamManagementABI, signer);
-      await examManagementContract.registerInstitution(
-        data.name || "",
-        data.description || "",
-        data.physicalAddress || "",
-        data.email || "",
-        data.phone || "",
-        data.website || "",
-        data.logo || "",
-        data.ministry || "",
-        data.university || "",
-        data.college || ""
-      );
       // First upload to IPFS
       const cid = await uploadToIPFS(data, userAddress);
       
