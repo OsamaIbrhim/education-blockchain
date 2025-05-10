@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Box,
     Flex,
@@ -25,6 +25,8 @@ import {
 import { motion } from 'framer-motion';
 import { FaUniversity, FaSearch, FaQuestionCircle, FaCog, FaBell, FaUser, FaSignOutAlt } from 'react-icons/fa';
 import { useRouter } from 'next/router';
+import { getUserRole } from 'services/identity';
+import { useAccount } from 'wagmi';
 
 const MotionFlex = motion(Flex);
 
@@ -37,6 +39,9 @@ interface NavbarProps {
 
 const Navbar = ({ address, exams = [], onNotificationsOpen, pageName = 'لوحة تحكم | Dashboard' }: NavbarProps) => {
     const router = useRouter();
+    const [ role, setRole ] = useState<string | null>(null);
+
+    // Chakra UI hooks
     const glassHeaderBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)');
     const glassHeaderHoverBg = useColorModeValue('rgba(255, 255, 255, 0.9)', 'rgba(26, 32, 44, 0.9)');
     const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -44,8 +49,40 @@ const Navbar = ({ address, exams = [], onNotificationsOpen, pageName = 'لوحة
     const searchHoverBg = useColorModeValue('gray.200', 'gray.600');
     const menuListBg = useColorModeValue('white', 'gray.800');
 
-    const handleProfile = () => {
-        router.push('/dashboard/institution/profile');
+    useEffect(() => {
+        const fetchRole = async () => {
+            if (address) {
+                const userRole = await getUserRole(address);
+                setRole(userRole);
+            }
+        };
+        fetchRole();
+    })
+
+    const handleDashboard = async () => {
+        if (role === 'student') {
+            router.push('/dashboard/student');
+            return;
+        } else if (role === 'employer') {
+            router.push('/dashboard/employer');
+            return;
+        } else if (role === 'institution') {
+            router.push('/dashboard/institution');
+            return;
+        }
+    }
+
+    const handleProfile = async () => {
+        if (role === 'student') {
+            router.push('/dashboard/student/profile');
+            return;
+        } else if (role === 'employer') {
+            router.push('/dashboard/employer/profile');
+            return;
+        } else if (role === 'institution') {
+            router.push('/dashboard/institution/profile');
+            return;
+        }
     };
 
     const handleLogout = () => {
@@ -195,38 +232,38 @@ const Navbar = ({ address, exams = [], onNotificationsOpen, pageName = 'لوحة
                                     <MenuItem
                                         icon={<FaUniversity />}
                                         _hover={{ bg: 'blue.50', color: 'blue.500' }}
-                                        onClick={() => router.push('/dashboard/institution')}
-                                        borderRadius="md"
-                                        mb={1}
+                                        onClick={handleDashboard}
+                                    borderRadius="md"
+                                    mb={1}
                                     >
-                                        لوحة التحكم | Dashboard
-                                    </MenuItem>
-                                    {/* Profile */}
-                                    <MenuItem
-                                        icon={<FaUser />}
-                                        _hover={{ bg: 'blue.50', color: 'blue.500' }}
-                                        onClick={handleProfile}
-                                        borderRadius="md"
-                                        mb={1}
-                                    >
-                                        الملف الشخصي | Profile
-                                    </MenuItem>
-                                    {/* Logout */}
-                                    <MenuItem
-                                        icon={<FaSignOutAlt />}
-                                        onClick={handleLogout}
-                                        _hover={{ bg: 'red.50', color: 'red.500' }}
-                                        borderRadius="md"
-                                    >
-                                        تسجيل الخروج | Logout
-                                    </MenuItem>
-                                </MenuList>
-                            </Portal>
-                        </Menu>
-                    </HStack>
+                                    لوحة التحكم | Dashboard
+                                </MenuItem>
+                                {/* Profile */}
+                                <MenuItem
+                                    icon={<FaUser />}
+                                    _hover={{ bg: 'blue.50', color: 'blue.500' }}
+                                    onClick={handleProfile}
+                                    borderRadius="md"
+                                    mb={1}
+                                >
+                                    الملف الشخصي | Profile
+                                </MenuItem>
+                                {/* Logout */}
+                                <MenuItem
+                                    icon={<FaSignOutAlt />}
+                                    onClick={handleLogout}
+                                    _hover={{ bg: 'red.50', color: 'red.500' }}
+                                    borderRadius="md"
+                                >
+                                    تسجيل الخروج | Logout
+                                </MenuItem>
+                            </MenuList>
+                        </Portal>
+                    </Menu>
                 </HStack>
-            </Flex>
-        </Box>
+            </HStack>
+        </Flex>
+        </Box >
     );
 };
 
