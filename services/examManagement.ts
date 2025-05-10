@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { getConfig } from '../utils/config';
 import { ExamManagementABI } from '../constants/abis';
 import { getSigner } from 'utils/ethersConfig';
-import { getUserData, getUserRole } from './identity';
+import { addStudents, getUserData, getUserRole, isStudentEnrolled } from './identity';
 import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
 import { Exam, ExamManagementContractType, ExamStructOutput, NewExam } from 'types/examManagement';
 import { Toast } from '@chakra-ui/react';
@@ -120,10 +120,14 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
             }
 
             // check if the student is already added in the institution
-            const isStudentInInstitution = await emContract.institutionStudents(institutionAddress, studentAddress);
+            const isStudentInInstitution = await isStudentEnrolled(institutionAddress, studentAddress);
             if (!isStudentInInstitution) {
                 // add the student to the institution if not already added
-                await emContract.addStudents([studentAddress]);
+                const  { status } = await addStudents([studentAddress]);
+                if (status !== 'success') {
+                    throw new Error(`Failed to add student ${studentAddress} to institution ${institutionAddress}.`);
+                }
+                continue;
             }
 
             // check if the student is already registered for the exam
@@ -149,15 +153,15 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
 };
 
 /**
- * @param institutionAddress 
+ * @param address 
  * @returns 
  */
-export const getInstitutionExams = async (institutionAddress: string) => {
+export const getUserExams = async (address: string) => {
     try {
         const signer = await getSigner();
         const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
 
-        const examAddresses = await emContract.getInstitutionExamList(institutionAddress);
+        const examAddresses = await emContract.getUserExams(address);
         const exams: Exam[] = [];
 
         for (const examAddress of examAddresses) {
@@ -185,7 +189,6 @@ export const getInstitutionExams = async (institutionAddress: string) => {
     }
 };
 
-// getInstitutionStudents
 /**
  * @param institutionAddress
  * @returns isntitution students
