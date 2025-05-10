@@ -96,171 +96,173 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
       console.warn("Warning: CID format doesn't match expected pattern for IPFS hash");
     }
 
-    if (!window.ethereum) {
-      throw new Error('Ethereum provider not found. Please make sure you have MetaMask or another Web3 provider installed.');
-    }
+    // Check if we're running on the client-side
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
 
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const signerAddress = await signer.getAddress();
+      let identityContract;
+      let contractAddress = "";
 
-    let identityContract;
-    let contractAddress = "";
-
-    if (typeof contractOrAddress === 'string') {
-      contractAddress = contractOrAddress;
-      identityContract = new ethers.Contract(contractAddress, IdentityABI, signer);
-    } else {
-      identityContract = contractOrAddress.connect(signer);
-      contractAddress = identityContract.target;
-    }
-
-    if (!identityContract || !identityContract.updateUserIPFS) {
-      throw new Error("Contract not initialized correctly or updateUserIPFS function not found");
-    }
-
-    try {
-      const userRole = await identityContract.getUserRole(signerAddress);
-
-      if (userRole === 0) {
-        throw new Error("User is not registered in the contract. Please register first.");
+      if (typeof contractOrAddress === 'string') {
+        contractAddress = contractOrAddress;
+        identityContract = new ethers.Contract(contractAddress, IdentityABI, signer);
+      } else {
+        identityContract = contractOrAddress.connect(signer);
+        contractAddress = identityContract.target;
       }
-    } catch (roleError) {
-      throw new Error("Failed to verify user registration status");
-    }
 
-    const txOptions = {
-      gasLimit: options.gas || 300000,
-      ...options
-    };
-
-    let receipt = null;
-    let attempts = 0;
-    const maxAttempts = 3;
-
-    while (attempts < maxAttempts && !receipt) {
-      try {
-        attempts++;
-
-        const tx = await identityContract.updateUserIPFS(cid, txOptions);
-
-        receipt = await tx.wait();
-
-        if (!receipt || !receipt.status) {
-          console.warn(`Transaction failed or status unknown. Status: ${receipt?.status}`);
-          receipt = null;
-
-          if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        }
-      } catch (txError) {
-        console.error(`Transaction attempt ${attempts} failed:`, txError);
-
-        if (attempts >= maxAttempts) {
-          throw new Error(`Failed to update IPFS hash after ${maxAttempts} attempts: ${txError instanceof Error ? txError.message : String(txError)}`);
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!identityContract || !identityContract.updateUserIPFS) {
+        throw new Error("Contract not initialized correctly or updateUserIPFS function not found");
       }
-    }
 
-    if (!receipt) {
-      throw new Error(`Failed to update IPFS hash after ${maxAttempts} attempts`);
-    }
-
-    const identityABI = (await import('../constants/abis')).IdentityABI;
-    const iface = new ethers.Interface(identityABI);
-    let ipfsHashUpdateFound = false;
-
-    for (let i = 0; i < receipt.logs.length; i++) {
-      const log = receipt.logs[i];
       try {
-        const parsed = iface.parseLog(log);
-        if (parsed) {
-          if (parsed.name === "IPFSHashUpdated") {
-            ipfsHashUpdateFound = true;
+        const userRole = await identityContract.getUserRole(signerAddress);
 
-            if (parsed.args[0].toLowerCase() === signerAddress.toLowerCase() &&
-              parsed.args[1] === cid) {
-            } else {
-              console.warn("⚠️ Event parameters don't match what we sent!");
+        if (userRole === 0) {
+          throw new Error("User is not registered in the contract. Please register first.");
+        }
+      } catch (roleError) {
+        throw new Error("Failed to verify user registration status");
+      }
+
+      const txOptions = {
+        gasLimit: options.gas || 300000,
+        ...options
+      };
+
+      let receipt = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (attempts < maxAttempts && !receipt) {
+        try {
+          attempts++;
+
+          const tx = await identityContract.updateUserIPFS(cid, txOptions);
+
+          receipt = await tx.wait();
+
+          if (!receipt || !receipt.status) {
+            console.warn(`Transaction failed or status unknown. Status: ${receipt?.status}`);
+            receipt = null;
+
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
-        } else {
-          console.log(`Log ${i} could not be parsed as a known event`);
+        } catch (txError) {
+          console.error(`Transaction attempt ${attempts} failed:`, txError);
+
+          if (attempts >= maxAttempts) {
+            throw new Error(`Failed to update IPFS hash after ${maxAttempts} attempts: ${txError instanceof Error ? txError.message : String(txError)}`);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
-      } catch (err) {
-        console.log(`Could not parse log ${i}:`, err);
       }
-    }
 
-    if (!ipfsHashUpdateFound) {
-      console.warn("⚠️ IPFSHashUpdated event not found in transaction logs!");
-    }
+      if (!receipt) {
+        throw new Error(`Failed to update IPFS hash after ${maxAttempts} attempts`);
+      }
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+      const identityABI = (await import('../constants/abis')).IdentityABI;
+      const iface = new ethers.Interface(identityABI);
+      let ipfsHashUpdateFound = false;
 
-    let verificationAttempts = 0;
-    const maxVerificationAttempts = 3;
-    let verificationSuccess = false;
+      for (let i = 0; i < receipt.logs.length; i++) {
+        const log = receipt.logs[i];
+        try {
+          const parsed = iface.parseLog(log);
+          if (parsed) {
+            if (parsed.name === "IPFSHashUpdated") {
+              ipfsHashUpdateFound = true;
 
-    while (verificationAttempts < maxVerificationAttempts && !verificationSuccess) {
-      try {
-        verificationAttempts++;
+              if (parsed.args[0].toLowerCase() === signerAddress.toLowerCase() &&
+                parsed.args[1] === cid) {
+              } else {
+                console.warn("⚠️ Event parameters don't match what we sent!");
+              }
+            }
+          } else {
+            console.log(`Log ${i} could not be parsed as a known event`);
+          }
+        } catch (err) {
+          console.log(`Could not parse log ${i}:`, err);
+        }
+      }
 
-        const updatedUserData = await identityContract.users(signerAddress);
+      if (!ipfsHashUpdateFound) {
+        console.warn("⚠️ IPFSHashUpdated event not found in transaction logs!");
+      }
 
-        if (updatedUserData && updatedUserData[1] === cid) {
-          verificationSuccess = true;
-        } else {
-          console.warn(`⚠️ IPFS hash in storage (${updatedUserData[1] || 'empty'}) doesn't match what we sent (${cid})!`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      let verificationAttempts = 0;
+      const maxVerificationAttempts = 3;
+      let verificationSuccess = false;
+
+      while (verificationAttempts < maxVerificationAttempts && !verificationSuccess) {
+        try {
+          verificationAttempts++;
+
+          const updatedUserData = await identityContract.users(signerAddress);
+
+          if (updatedUserData && updatedUserData[1] === cid) {
+            verificationSuccess = true;
+          } else {
+            console.warn(`⚠️ IPFS hash in storage (${updatedUserData[1] || 'empty'}) doesn't match what we sent (${cid})!`);
+
+            if (verificationAttempts < maxVerificationAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        } catch (verifyError) {
+          console.error(`Verification attempt ${verificationAttempts} failed:`, verifyError);
 
           if (verificationAttempts < maxVerificationAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
-      } catch (verifyError) {
-        console.error(`Verification attempt ${verificationAttempts} failed:`, verifyError);
-
-        if (verificationAttempts < maxVerificationAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
       }
-    }
 
-    if (!verificationSuccess) {
-      console.warn("⚠️ IPFS hash is still not correctly saved after multiple verification attempts!");
+      if (!verificationSuccess) {
+        console.warn("⚠️ IPFS hash is still not correctly saved after multiple verification attempts!");
 
-      if (!ipfsHashUpdateFound || !verificationSuccess) {
+        if (!ipfsHashUpdateFound || !verificationSuccess) {
 
-        try {
-          const freshProvider = new ethers.BrowserProvider(window.ethereum);
-          const freshSigner = await freshProvider.getSigner();
-          const identityABI = (await import('../constants/abis')).IdentityABI;
-          const freshContract = new ethers.Contract(contractAddress, identityABI, freshSigner);
+          try {
+            const freshProvider = new ethers.BrowserProvider(window.ethereum);
+            const freshSigner = await freshProvider.getSigner();
+            const identityABI = (await import('../constants/abis')).IdentityABI;
+            const freshContract = new ethers.Contract(contractAddress, identityABI, freshSigner);
 
-          const finalTx = await freshContract.updateUserIPFS(cid, {
-            gasLimit: 500000,
-            gasPrice: await freshProvider.getFeeData().then(data => data.gasPrice)
-          });
+            const finalTx = await freshContract.updateUserIPFS(cid, {
+              gasLimit: 500000,
+              gasPrice: await freshProvider.getFeeData().then(data => data.gasPrice)
+            });
 
-          const finalReceipt = await finalTx.wait();
+            const finalReceipt = await finalTx.wait();
 
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          const finalCheck = await freshContract.users(signerAddress);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            const finalCheck = await freshContract.users(signerAddress);
 
-          if (finalCheck && finalCheck[1] === cid) {
-            verificationSuccess = true;
-            receipt = finalReceipt;
+            if (finalCheck && finalCheck[1] === cid) {
+              verificationSuccess = true;
+              receipt = finalReceipt;
+            }
+          } catch (finalError) {
+            console.error("Final update attempt failed:", finalError);
           }
-        } catch (finalError) {
-          console.error("Final update attempt failed:", finalError);
         }
       }
-    }
 
-    return receipt;
+      return receipt;
+    } else {
+      // Handle the case where window.ethereum is not available (server-side)
+      throw new Error("Ethereum provider is not available on the server-side.");
+    }
   } catch (error: any) {
     console.error('Error setting CID in contract:', error);
     throw new Error(`Failed to set CID in contract: ${error.message}`);
