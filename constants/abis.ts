@@ -4,7 +4,6 @@ export const ExamManagementABI = [
   "constructor(address _identityContractAddress)",
 
   // Events
-  "event CertificateIssued(bytes32 indexed certificateId, address indexed student)",
   "event ExamCreated(bytes32 indexed examId, string title)",
   "event ExamStatusUpdated(bytes32 indexed examId, string status)",
   "event InstitutionProfileUpdated(address indexed institution, string name)",
@@ -19,7 +18,6 @@ export const ExamManagementABI = [
   "event Unpaused(address account)", // From Pausable
 
   // State Variable Getters
-  "function certificates(bytes32) view returns (address student, address issuer, string ipfsHash, uint256 issuedAt, bool exists)",
   "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, bool exists)",
   "function exams(bytes32) view returns (string title, string description, uint256 date, uint256 duration, string status, string ipfsHash, bool exists)", // Note: students array not directly returned by getter
   "function identityContract() view returns (address)",
@@ -29,24 +27,21 @@ export const ExamManagementABI = [
   "function owner() view returns (address)", // From Ownable
   "function paused() view returns (bool)", // From Pausable
   "function students(address) view returns (string name, string email, uint256 enrollmentDate, string status, bool exists)",
+  "function studentExams(address, uint256) view returns (bytes32)", // Add studentExams
 
   // Functions
-  "function addStudents(address[] memory studentAddresses) external",
   "function createExam(string memory title, string memory description, uint256 date, uint256 duration, string memory ipfsHash) external returns (bytes32)",
   "function getExam(bytes32 examId) external view returns (tuple(string title, string description, uint256 date, uint256 duration, string status, string ipfsHash, address[] students, bool exists))", // Explicit function returns full struct
   "function getExamResult(bytes32 examId, address student) external view returns (uint256 score, string memory grade, string memory notes)",
   "function getExamStatistics(bytes32 examId) external view returns (uint256 totalStudents, uint256 passRate, uint256 averageScore)",
-  "function getInstitution(address institution) external view returns (string memory name, string memory description, string memory physicalAddress, string memory email, string memory phone, string memory website, string memory logo, string memory ministry, string memory university, string memory college, bool isVerified)",
   "function getInstitutionExamList(address institution) external view returns (bytes32[] memory)",
   "function getStudent(address student) external view returns (string memory name, string memory email, uint256 enrollmentDate, string memory status)",
-  "function issueCertificate(address student, string memory ipfsHash) external",
-  "function registerInstitution(string memory name, string memory description, string memory physicalAddress, string memory email, string memory phone, string memory website, string memory logo, string memory ministry, string memory university, string memory college) external",
   "function registerStudentsForExam(bytes32 examId, address[] memory studentAddresses) external",
   "function submitResult(bytes32 examId, address student, uint256 score, string memory grade, string memory notes) external",
   "function updateExamStatus(bytes32 examId, string memory newStatus) external",
   "function updateInstitutionProfile(string memory name, string memory ministry, string memory university, string memory college, string memory description, string memory logo, string memory website, string memory email, string memory phone) external",
   "function updateStudentStatus(address studentAddress, string memory newStatus) external",
-  "function verifyInstitution(address institution) external" // Removed onlyOwner
+  "function getUserExams(address user) external view returns (bytes32[] memory)" // Add getUserExams
 ];
 
 // --- Identity ABI ---
@@ -61,9 +56,11 @@ export const IdentityABI = [
   "event InstitutionAdded(address indexed institution)",
   "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)", // From Ownable
   "event Paused(address account)", // From Pausable
+  "event StudentAdded(address indexed institution, address indexed student)", // Added institution
   "event Unpaused(address account)", // From Pausable
   "event UserRegistered(address indexed userAddress, uint8 role)", // UserRole enum maps to uint8
   "event UserVerified(address indexed userAddress)",
+  "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // Added UserRoleUpdated
 
   // State Variable Getters
   "function admins(address) view returns (bool)",
@@ -71,20 +68,23 @@ export const IdentityABI = [
   "function owner() view returns (address)", // From Ownable
   "function paused() view returns (bool)", // From Pausable
   "function users(address) view returns (address userAddress, string ipfsHash, uint8 role, bool isVerified, uint256 createdAt)", // UserRole enum maps to uint8
+  "function students(address) view returns (address studentAddress, uint256 enrollmentDate, string status, bool exists)", // Added student struct
 
   // Functions
   "function addAdmin(address _newAdmin) external", // Removed onlyOwner
+  "function addStudents(address[] memory studentAddresses) external", // Added addStudents
   "function getUserRole(address _userAddress) external view returns (uint8)", // UserRole enum maps to uint8
   "function isAdmin(address _address) public view returns (bool)",
   "function isInstitution(address _address) public view returns (bool)",
   "function isVerifiedUser(address _userAddress) external view returns (bool)",
-  "function pause() external", // Removed onlyAdmin
+  "function pause() external", 
   "function registerUser(uint8 _role, string memory _ipfsHash) external", // UserRole enum maps to uint8
   "function removeAdmin(address _admin) external", // Removed onlyOwner
-  "function unpause() external", // Removed onlyAdmin
+  "function unpause() external", 
   "function updateUserIPFS(string memory _newIpfsHash) external",
-  "function updateUserRole(address _userAddress, uint8 _newRole) external", // UserRole enum maps to uint8
-  "function verifyUser(address _userAddress) external" // Removed onlyAdmin
+  "function updateUserRole(address _userAddress, uint8 _newRole) external", //  UserRole enum maps to uint8
+  "function verifyUser(address _userAddress) external",
+  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)",// Added isStudentEnrolled
 ];
 
 // --- Examinations ABI ---
