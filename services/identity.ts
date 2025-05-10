@@ -86,7 +86,7 @@ export const verifyUser = async (useraddress: string) => {
     }
 
     // check if the user is institution
-    const isInstitution = await contract.isInstitution(useraddress);
+    const isInstitution = await getUserRole(useraddress);
     if (!isInstitution) {
       throw new Error('Only institution can be verified');
     }
@@ -150,6 +150,49 @@ export const isOwner = async (address: string) => {
     return { status: isOwner, owner };
   } catch (error: any) {
     console.error('Error checking owner status:', error);
+    throw error;
+  }
+};
+
+/**
+ * @param _institution
+ * @param _student
+ * @returns Boolean
+ */
+export const isStudentEnrolled = async (_institution: string, _student: string) => {
+  if (!_institution || !_student) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+    const isEnrolled = await identityContract.isStudentEnrolled(_institution, _student);
+    return isEnrolled;
+  } catch (error: any) {
+    console.error('Error checking enrollment status:', error);
+    throw error;
+  }
+};
+
+/**
+ * @param usersAddresses
+ * @returns Boolean
+ */
+export const addStudents = async (usersAddresses: string[]) => {
+  if (!usersAddresses || usersAddresses.length === 0) {
+    throw new Error('No users addresses provided');
+  }
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+
+    const tx = await identityContract.addStudents(usersAddresses);
+    await tx.wait();
+
+    return { status: 'success' };
+  }
+  catch (error: any) {
+    console.error('Error adding students:', error);
     throw error;
   }
 };
