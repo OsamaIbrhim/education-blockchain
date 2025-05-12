@@ -47,9 +47,10 @@ import {
   FormHelperText,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import { getUserRole, verifyCertificate, getCertificates } from '../../utils/contracts';
+import { verifyCertificate, getStudentCertificates } from 'services/certificate';
+import { getUserRole } from 'services/identity';
 import { connectWallet } from '../../utils/web3Provider';
-import LogoutButton from '../../frontend/components/LogoutButton';
+import LogoutButton from '../../components/LogoutButton';
 import {
   UserIcon,
   BriefcaseIcon,
@@ -60,7 +61,7 @@ import {
   SearchIcon,
   ActivityIcon,
   CalendarIcon,
-} from '../../frontend/components/Icons';
+} from '../../components/Icons';
 
 interface CertificateDetails {
   id: string;
@@ -162,19 +163,16 @@ export default function EmployerDashboard() {
         setVerificationProgress(prev => Math.min(prev + 15, 90));
       }, 500);
 
-      const isValid = await verifyCertificate(certificateId);
-      setVerificationProgress(95);
+      const certificateDetails = await verifyCertificate(certificateId);
       
-      const certificateDetails = await getCertificates(certificateId);
-      
-      if (certificateDetails && certificateDetails.length > 0) {
+      if (certificateDetails) {
         const certificate: CertificateDetails = {
           id: certificateId,
-          institution: certificateDetails[0].institution,
-          student: certificateDetails[0].student,
-          timestamp: certificateDetails[0].timestamp,
-          isValid: isValid,
-          ipfsHash: certificateDetails[0].ipfsHash
+          institution: certificateDetails.institution,
+          student: certificateDetails.student,
+          timestamp: certificateDetails.issuedAt.toString(),
+          isValid: certificateDetails.isValid,
+          ipfsHash: certificateDetails.ipfsHash
         };
 
         setVerifiedCertificates(prev => [certificate, ...prev]);
@@ -182,10 +180,10 @@ export default function EmployerDashboard() {
 
         toast({
           title: 'نجاح - Success',
-          description: isValid ? 
+          description: certificateDetails.isValid ? 
             'الشهادة صالحة وموثقة - Certificate is valid and verified' : 
             'الشهادة غير صالحة - Certificate is invalid',
-          status: isValid ? 'success' : 'warning',
+          status: certificateDetails.isValid ? 'success' : 'warning',
           duration: 5000,
           isClosable: true,
           position: 'top-right',

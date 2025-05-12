@@ -1,12 +1,135 @@
+// --- ExamManagement ABI ---
 export const ExamManagementABI = [
-  "function createExam(string memory _id, string memory _title, string memory _description, uint256 _date, uint256 _duration, string memory _ipfsHash) external",
-  "function submitExamResult(string memory _examId, address _student, uint256 _score, string memory _grade, string memory _ipfsHash) external",
-  "function updateExamStatus(string memory _examId, string memory _status) external",
-  "function getExam(string memory _examId) external view returns (string memory id, string memory title, string memory description, uint256 date, uint256 duration, string memory ipfsHash, string memory status)",
-  "function getExamResult(string memory _examId, address _student) external view returns (uint256 score, string memory grade, string memory ipfsHash)",
-  "function getInstitutionExams(address _institution) external view returns (string[] memory)",
-  "function getStudentExams(address _student) external view returns (string[] memory)",
-  "function enrollStudent(string memory _examId, address _studentAddress) external",
-  "function getExamStatistics(string memory _examId) external view returns (uint256 totalStudents, uint256 averageScore, uint256 passRate)",
-  "function getExamResults(string memory _examId) external view returns (address[] memory students, uint256[] memory scores, string[] memory grades)"
-]; 
+  // Constructor
+  "constructor(address _identityContractAddress)",
+
+  // Events
+  "event ExamCreated(bytes32 indexed examId, string title)",
+  "event ExamStatusUpdated(bytes32 indexed examId, string status)",
+  "event InstitutionProfileUpdated(address indexed institution, string name)",
+  "event InstitutionRegistered(address indexed institution, string name)",
+  "event InstitutionVerified(address indexed institution)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)", // From Ownable
+  "event Paused(address account)", // From Pausable
+  "event ResultSubmitted(bytes32 indexed examId, address indexed student)",
+  "event StudentAdded(address indexed institution, address indexed student)",
+  "event StudentStatusUpdated(address indexed student, string status)",
+  "event StudentsRegistered(bytes32 indexed examId, address[] students)",
+  "event Unpaused(address account)", // From Pausable
+
+  // State Variable Getters
+  "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, bool exists)",
+  "function exams(bytes32) view returns (string title, string description, uint256 date, uint256 duration, string status, string ipfsHash, bool exists)", // Note: students array not directly returned by getter
+  "function identityContract() view returns (address)",
+  "function institutionExams(address, uint256) view returns (bytes32)", // Getter for array element
+  "function institutionStudents(address, address) view returns (bool)",
+  "function institutions(address) view returns (string name, string description, string physicalAddress, string email, string phone, string website, string logo, string ministry, string university, string college, bool isVerified, bool exists)",
+  "function owner() view returns (address)", // From Ownable
+  "function paused() view returns (bool)", // From Pausable
+  "function students(address) view returns (string name, string email, uint256 enrollmentDate, string status, bool exists)",
+  "function studentExams(address, uint256) view returns (bytes32)", // Add studentExams
+
+  // Functions
+  "function createExam(string memory title, string memory description, uint256 date, uint256 duration, string memory ipfsHash) external returns (bytes32)",
+  "function getExam(bytes32 examId) external view returns (tuple(string title, string description, uint256 date, uint256 duration, string status, string ipfsHash, address[] students, bool exists))", // Explicit function returns full struct
+  "function getExamResult(bytes32 examId, address student) external view returns (uint256 score, string memory grade, string memory notes)",
+  "function getExamStatistics(bytes32 examId) external view returns (uint256 totalStudents, uint256 passRate, uint256 averageScore)",
+  "function getInstitutionExamList(address institution) external view returns (bytes32[] memory)",
+  "function getStudent(address student) external view returns (string memory name, string memory email, uint256 enrollmentDate, string memory status)",
+  "function registerStudentsForExam(bytes32 examId, address[] memory studentAddresses) external",
+  "function submitResult(bytes32 examId, address student, uint256 score, string memory grade, string memory notes) external",
+  "function updateExamStatus(bytes32 examId, string memory newStatus) external",
+  "function updateInstitutionProfile(string memory name, string memory ministry, string memory university, string memory college, string memory description, string memory logo, string memory website, string memory email, string memory phone) external",
+  "function updateStudentStatus(address studentAddress, string memory newStatus) external",
+  "function getUserExams(address user) external view returns (bytes32[] memory)" // Add getUserExams
+];
+
+// --- Identity ABI ---
+export const IdentityABI = [
+  // Constructor
+  "constructor()",
+
+  // Events
+  "event AdminAdded(address indexed admin)",
+  "event AdminRemoved(address indexed admin)",
+  "event IPFSHashUpdated(address indexed user, string ipfsHash)",
+  "event InstitutionAdded(address indexed institution)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)", // From Ownable
+  "event Paused(address account)", // From Pausable
+  "event StudentAdded(address indexed institution, address indexed student)", // Added institution
+  "event Unpaused(address account)", // From Pausable
+  "event UserRegistered(address indexed userAddress, uint8 role)", // UserRole enum maps to uint8
+  "event UserVerified(address indexed userAddress)",
+  "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // Added UserRoleUpdated
+
+  // State Variable Getters
+  "function admins(address) view returns (bool)",
+  "function institutions(address) view returns (bool)",
+  "function owner() view returns (address)", // From Ownable
+  "function paused() view returns (bool)", // From Pausable
+  "function users(address) view returns (address userAddress, string ipfsHash, uint8 role, bool isVerified, uint256 createdAt)", // UserRole enum maps to uint8
+  "function students(address) view returns (address studentAddress, uint256 enrollmentDate, string status, bool exists)", // Added student struct
+
+  // Functions
+  "function addAdmin(address _newAdmin) external", // Removed onlyOwner
+  "function addStudents(address[] memory studentAddresses) external", // Added addStudents
+  "function getUserRole(address _userAddress) external view returns (uint8)", // UserRole enum maps to uint8
+  "function isAdmin(address _address) public view returns (bool)",
+  "function isInstitution(address _address) public view returns (bool)",
+  "function isVerifiedUser(address _userAddress) external view returns (bool)",
+  "function pause() external", 
+  "function registerUser(uint8 _role, string memory _ipfsHash) external", // UserRole enum maps to uint8
+  "function removeAdmin(address _admin) external", // Removed onlyOwner
+  "function unpause() external", 
+  "function updateUserIPFS(string memory _newIpfsHash) external",
+  "function updateUserRole(address _userAddress, uint8 _newRole) external", //  UserRole enum maps to uint8
+  "function verifyUser(address _userAddress) external",
+  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)",// Added isStudentEnrolled
+];
+
+// --- Examinations ABI ---
+export const ExaminationsABI = [
+  // Constructor
+  "constructor(address _identityContract)",
+
+  // Events
+  "event AnswersSubmitted(bytes32 indexed examId, address indexed student)",
+  "event ExaminationCreated(bytes32 indexed examId, address indexed institution)",
+  "event GradeAssigned(bytes32 indexed examId, address indexed student, uint256 grade)",
+  "event StudentRegistered(bytes32 indexed examId, address indexed student)",
+
+  // State Variable Getters
+  "function examinations(bytes32) view returns (address institution, string ipfsHash, uint256 startTime, uint256 endTime, bool isActive)",
+  "function identityContract() view returns (address)",
+  "function institutionExams(address, uint256) view returns (bytes32)", // Getter for array element
+  "function studentExams(address, uint256) view returns (bytes32)", // Getter for array element
+
+  // Functions
+  "function assignGrade(bytes32 _examId, address _student, uint256 _grade) external", // Removed onlyVerifiedInstitution, nonReentrant
+  "function createExamination(string memory _ipfsHash, uint256 _startTime, uint256 _endTime) external returns (bytes32)", // Removed onlyVerifiedInstitution, nonReentrant
+  "function getExamDetails(bytes32 _examId) external view returns (address institution, string memory ipfsHash, uint256 startTime, uint256 endTime, bool isActive)",
+  "function getStudentGrade(bytes32 _examId, address _student) external view returns (uint256 grade, bool isGraded)",
+  "function registerForExam(bytes32 _examId) external", // Removed onlyVerifiedStudent, nonReentrant
+  "function submitAnswers(bytes32 _examId, string memory _answersIpfsHash) external" // Removed onlyVerifiedStudent, nonReentrant
+];
+
+// --- Certificates ABI ---
+export const CertificatesABI = [
+  // Constructor
+  "constructor(address _identityContract)",
+
+  // Events
+  "event CertificateIssued(bytes32 indexed certificateId, address indexed student, address indexed institution)",
+  "event CertificateRevoked(bytes32 indexed certificateId)",
+
+  // State Variable Getters
+  "function certificates(bytes32) view returns (address student, address institution, string ipfsHash, uint256 issuedAt, bool isValid)",
+  "function identityContract() view returns (address)",
+  "function studentCertificates(address, uint256) view returns (bytes32)", // Getter for array element
+
+  // Functions
+  "function getStudentCertificates(address _student) external view returns (bytes32[] memory)",
+  "function issueCertificate(address _student, string memory _ipfsHash) external returns (bytes32)", // Removed onlyVerifiedInstitution, nonReentrant
+  "function revokeCertificate(bytes32 _certificateId) external", // Removed nonReentrant
+  "function verifyCertificate(bytes32 _certificateId) external view returns (address student, address institution, string memory ipfsHash, uint256 issuedAt, bool isValid)"
+];

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -28,14 +28,20 @@ import {
   Flex,
   Icon,
   Tooltip,
+  Spinner,
 } from '@chakra-ui/react';
 import { DeleteIcon, PhoneIcon, EmailIcon, LinkIcon, InfoIcon } from '@chakra-ui/icons';
-import { FaUniversity, FaGraduationCap, FaBuilding } from 'react-icons/fa';
+import { FaUniversity, FaGraduationCap, FaBuilding, FaCloudUploadAlt } from 'react-icons/fa';
+import { useIPFS } from '../../hooks/useIPFS';
+import { getFromIPFS, getCIDFromContract, getImageUrlFromIPFS } from '../../utils/ipfsUtils';
+import { getUserData } from '../../services/identity';
 
 interface InstitutionProfileProps {
   onSave: (data: InstitutionData) => Promise<void>;
   initialData?: InstitutionData;
   loading?: boolean;
+  contract: any;
+  userAddress?: string;
 }
 
 export interface InstitutionData {
@@ -45,15 +51,19 @@ export interface InstitutionData {
   college: string;
   description: string;
   imageUrl: string;
+  imageIpfsCid?: string;
   website?: string;
   email: string;
   phone: string;
+  lastUpdated?: string;
 }
 
 export default function InstitutionProfile({
   onSave,
   initialData,
   loading = false,
+  contract,
+  userAddress,
 }: InstitutionProfileProps) {
   const [data, setData] = useState<InstitutionData>(
     initialData || {
@@ -69,14 +79,86 @@ export default function InstitutionProfile({
     }
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [originalData, setOriginalData] = useState<InstitutionData | null>(null);
   const toast = useToast();
+
+  // Initialize the IPFS hook with the contract instance
+  const { upload, setCID, getData, uploadAndSetCID, getDataFromContract, isLoading, error } = useIPFS();
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const labelColor = useColorModeValue('gray.600', 'gray.300');
   const cardBg = useColorModeValue('white', 'gray.800');
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Load profile data from IPFS if a CID exists for the user
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!contract || !userAddress) return;
+      
+      try {
+        setLoadingProfile(true);
+        const userData = await getUserData(userAddress);
+        
+        if (userData && userData.ipfsHash && userData.ipfsHash !== '') {
+          const profileData = await getFromIPFS(userData.ipfsHash);
+          if (profileData) {
+            // Ensure we don't display image if imageIpfsCid is removed
+            if (!profileData.imageIpfsCid) {
+              profileData.imageUrl = '';
+            }else{
+              profileData.imageUrl = getImageUrlFromIPFS(profileData.imageIpfsCid);
+            }
+            
+            setData(profileData);
+            setOriginalData(profileData);
+            setHasChanges(false);
+            toast({
+              title: 'تم تحميل البيانات | Data loaded',
+              description: 'تم تحميل بيانات المؤسسة من السلسلة | Institution data loaded from blockchain',
+              status: 'success',
+              duration: 3000,
+              isClosable: true,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('Error loading profile data:', err);
+        toast({
+          title: 'خطأ في تحميل البيانات | Error loading data',
+          description: err.message,
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [contract, userAddress, toast]);
+
+  // Check for changes when data changes
+  useEffect(() => {
+    if (originalData && Object.keys(originalData).length > 0) {
+      // Check if any field has changed
+      const isChanged = Object.keys(data).some(key => {
+        // Skip lastUpdated when comparing
+        if (key === 'lastUpdated') return false;
+        // @ts-ignore
+        return data[key] !== originalData[key];
+      });
+      setHasChanges(isChanged || imageFile !== null);
+    } else {
+      // If we don't have original data yet or it's empty, assume we're creating new data
+      setHasChanges(true);
+    }
+  }, [data, originalData, imageFile]);
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -89,21 +171,100 @@ export default function InstitutionProfile({
         });
         return;
       }
+
       setImageFile(file);
+      // Create temporary local URL for preview
       setData({ ...data, imageUrl: URL.createObjectURL(file) });
+      setHasChanges(true);
+
+      // Upload image to IPFS
+      try {
+        setImageLoading(true);
+        
+        // Convert image file to base64 for IPFS upload
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            // Upload image to IPFS
+            const imageData = {
+              filename: file.name,
+              mimetype: file.type,
+              content: reader.result
+            };
+            
+            const imageCid = await upload(imageData, `institution-logo-${Date.now()}`);
+            
+            // Update data with the IPFS CID
+            setData(prev => ({ 
+              ...prev, 
+              imageIpfsCid: imageCid,
+              // Keep the local URL for preview
+            }));
+            
+            toast({
+              title: 'تم رفع الصورة | Image uploaded',
+              description: 'تم رفع الصورة إلى IPFS بنجاح | Image uploaded to IPFS successfully',
+              status: 'success',
+              duration: 3000,
+              isClosable: true,
+            });
+          } catch (error: any) {
+            toast({
+              title: 'خطأ في رفع الصورة | Error uploading image',
+              description: error.message,
+              status: 'error',
+              duration: 3000,
+              isClosable: true,
+            });
+          } finally {
+            setImageLoading(false);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (error: any) {
+        setImageLoading(false);
+        toast({
+          title: 'خطأ في رفع الصورة | Error uploading image',
+          description: error.message,
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS) {
+      toast({
+        title: 'خطأ في الاتصال | Connection error',
+        description: 'لا يمكن الاتصال بالعقد الذكي | Cannot connect to smart contract',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
-      // Here you would typically upload the image first and get its URL
-      // For now we'll just use the local URL
-      await onSave(data);
+      // Prepare the data for IPFS storage
+      const profileData = {
+        ...data,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Upload complete profile data to IPFS and store the CID in the contract
+      const result = await uploadAndSetCID(profileData, userAddress ?? 'unknown-user');
+      
+      // Call the parent onSave callback with the updated data
+      await onSave(profileData);
+      
       toast({
         title: 'تم حفظ البيانات بنجاح | Data saved successfully',
+        description: `تم تخزين البيانات في IPFS ورمز CID: ${result.cid} | Data stored in IPFS with CID: ${result.cid}`,
         status: 'success',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     } catch (error: any) {
@@ -119,8 +280,37 @@ export default function InstitutionProfile({
 
   const removeImage = () => {
     setImageFile(null);
-    setData({ ...data, imageUrl: '' });
+    setData({ ...data, imageUrl: '', imageIpfsCid: undefined });
+    setHasChanges(true);
   };
+
+  // Display error message if IPFS operations fail
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'خطأ في عملية IPFS | IPFS operation error',
+        description: error,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [error, toast]);
+
+  const updateField = (field: string, value: string) => {
+    setData({ ...data, [field]: value });
+  };
+
+  if (loadingProfile) {
+    return (
+      <Container centerContent py={20}>
+        <VStack spacing={6}>
+          <Spinner size="xl" />
+          <Text>جاري تحميل بيانات المؤسسة... | Loading institution data...</Text>
+        </VStack>
+      </Container>
+    );
+  }
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -156,10 +346,15 @@ export default function InstitutionProfile({
                       transition="all 0.3s"
                       _hover={{ borderColor: 'blue.400' }}
                     >
-                      {data.imageUrl ? (
+                      {imageLoading ? (
+                        <VStack spacing={3}>
+                          <Spinner size="xl" />
+                          <Text>جاري رفع الصورة... | Uploading image...</Text>
+                        </VStack>
+                      ) : data.imageIpfsCid ? (
                         <Box position="relative">
                           <Image
-                            src={data.imageUrl}
+                            src={data.imageUrl || `https://ipfs.io/ipfs/${data.imageIpfsCid}`}
                             alt="Institution logo"
                             maxH="200px"
                             mx="auto"
@@ -176,6 +371,19 @@ export default function InstitutionProfile({
                             size="sm"
                             onClick={removeImage}
                           />
+                          {data.imageIpfsCid && (
+                            <Badge
+                              position="absolute"
+                              bottom={2}
+                              right={2}
+                              colorScheme="green"
+                              px={2}
+                              py={1}
+                              borderRadius="md"
+                            >
+                              IPFS: {data.imageIpfsCid.substring(0, 8)}...
+                            </Badge>
+                          )}
                         </Box>
                       ) : (
                         <VStack spacing={3}>
@@ -185,7 +393,7 @@ export default function InstitutionProfile({
                             htmlFor="image-upload"
                             colorScheme="blue"
                             variant="outline"
-                            leftIcon={<Icon as={FaBuilding} />}
+                            leftIcon={<Icon as={FaCloudUploadAlt} />}
                           >
                             اختر شعار المؤسسة | Choose Logo
                             <Input
@@ -197,7 +405,7 @@ export default function InstitutionProfile({
                             />
                           </Button>
                           <Text fontSize="sm" color={labelColor}>
-                            PNG, JPG حتى 5MB
+                            PNG, JPG حتى 5MB - سيتم رفع الصورة إلى IPFS
                           </Text>
                         </VStack>
                       )}
@@ -217,7 +425,7 @@ export default function InstitutionProfile({
                       </InputLeftElement>
                       <Input
                         value={data.name}
-                        onChange={(e) => setData({ ...data, name: e.target.value })}
+                        onChange={(e) => updateField('name', e.target.value)}
                         placeholder="أدخل اسم المؤسسة | Enter institution name"
                         bg={bgColor}
                         size="lg"
@@ -235,7 +443,7 @@ export default function InstitutionProfile({
                       </InputLeftElement>
                       <Select
                         value={data.ministry}
-                        onChange={(e) => setData({ ...data, ministry: e.target.value })}
+                        onChange={(e) => updateField('ministry', e.target.value)}
                         placeholder="اختر الوزارة | Select ministry"
                         bg={bgColor}
                         size="lg"
@@ -263,7 +471,7 @@ export default function InstitutionProfile({
                     </InputLeftElement>
                     <Input
                       value={data.university}
-                      onChange={(e) => setData({ ...data, university: e.target.value })}
+                      onChange={(e) => updateField('university', e.target.value)}
                       placeholder="أدخل اسم الجامعة | Enter university name"
                       bg={bgColor}
                       size="lg"
@@ -281,7 +489,7 @@ export default function InstitutionProfile({
                     </InputLeftElement>
                     <Input
                       value={data.college}
-                      onChange={(e) => setData({ ...data, college: e.target.value })}
+                      onChange={(e) => updateField('college', e.target.value)}
                       placeholder="أدخل اسم الكلية | Enter college name"
                       bg={bgColor}
                       size="lg"
@@ -296,7 +504,7 @@ export default function InstitutionProfile({
                 </FormLabel>
                 <Textarea
                   value={data.description}
-                  onChange={(e) => setData({ ...data, description: e.target.value })}
+                  onChange={(e) => updateField('description', e.target.value)}
                   placeholder="أدخل وصف المؤسسة | Enter institution description"
                   bg={bgColor}
                   size="lg"
@@ -326,7 +534,7 @@ export default function InstitutionProfile({
                       <Input
                         type="email"
                         value={data.email}
-                        onChange={(e) => setData({ ...data, email: e.target.value })}
+                        onChange={(e) => updateField('email', e.target.value)}
                         placeholder="example@institution.edu"
                         bg={bgColor}
                         size="lg"
@@ -343,7 +551,7 @@ export default function InstitutionProfile({
                       <Input
                         type="tel"
                         value={data.phone}
-                        onChange={(e) => setData({ ...data, phone: e.target.value })}
+                        onChange={(e) => updateField('phone', e.target.value)}
                         placeholder="5XXXXXXXX"
                         bg={bgColor}
                         size="lg"
@@ -362,7 +570,7 @@ export default function InstitutionProfile({
                       <Input
                         type="url"
                         value={data.website}
-                        onChange={(e) => setData({ ...data, website: e.target.value })}
+                        onChange={(e) => updateField('website', e.target.value)}
                         placeholder="https://www.example.edu"
                         bg={bgColor}
                         size="lg"
@@ -377,12 +585,13 @@ export default function InstitutionProfile({
                   type="submit"
                   colorScheme="blue"
                   size="lg"
-                  isLoading={loading}
+                  isLoading={loading || isLoading}
                   loadingText="جاري الحفظ... | Saving..."
                   leftIcon={<Icon as={FaUniversity} />}
                   px={8}
+                  isDisabled={!hasChanges}
                 >
-                  حفظ البيانات | Save Details
+                  حفظ البيانات على السلسلة | Save to Blockchain
                 </Button>
               </Flex>
             </VStack>

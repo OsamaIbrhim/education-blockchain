@@ -52,7 +52,7 @@ import {
   IconButton,
   createIcon,
 } from '@chakra-ui/react';
-import { getUserRole, verifyInstitution, isOwner } from '../../utils/contracts';
+import { getUserRole, verifyUser, isOwner } from 'services/identity';
 import { connectWallet } from '../../utils/web3Provider';
 import { IconType } from 'react-icons';
 import { 
@@ -361,7 +361,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleVerifyInstitution = async () => {
+  const handleverifyUser = async () => {
     if (!institutionAddress) {
       toast({
         title: 'خطأ - Error',
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
         setVerificationProgress(prev => Math.min(prev + 15, 90));
       }, 500);
 
-      await verifyInstitution(institutionAddress);
+      await verifyUser(institutionAddress);
       setVerificationProgress(95);
 
       await loadInstitutions();
@@ -799,7 +799,7 @@ export default function AdminDashboard() {
                       <Button
                         colorScheme="red"
                         size="lg"
-                        onClick={handleVerifyInstitution}
+                        onClick={handleverifyUser}
                         isLoading={loading}
                         loadingText="جاري التحقق... - Verifying..."
                         leftIcon={<Icon as={CheckIcon} w={5} h={5} />}

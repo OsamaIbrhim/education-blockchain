@@ -3,7 +3,8 @@ import {
   JsonRpcProvider, 
   formatUnits, 
   getAddress as _getAddress,
-  type JsonRpcSigner 
+  type JsonRpcSigner,
+  BrowserProvider as Web3Provider
 } from 'ethers';
 
 // Re-export the getAddress function
@@ -45,7 +46,7 @@ export const getProvider = async () => {
     throw new Error('No ethereum provider found');
   }
 
-  const provider = new JsonRpcProvider(EXPECTED_NETWORK.rpcUrl);
+  const provider = new Web3Provider(window.ethereum);
   await window.ethereum.request({ method: "eth_requestAccounts" });
   return provider;
 };

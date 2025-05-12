@@ -21,13 +21,19 @@ import {
   useDisclosure,
   Spinner
 } from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import { registerUser, getUserRole, issueCertificate, getCertificates, verifyCertificate, isVerifiedUser, isOwner, verifyInstitution, getOwnerAddress } from '../utils/contracts';
-import { uploadToIPFS, getFromIPFS } from '../utils/ipfs';
+import { registerUser, getUserRole, isVerifiedUser, isOwner, verifyUser } from 'services/identity';
+import { issueCertificate, verifyCertificate, getStudentCertificates } from 'services/certificate';
+import { uploadToIPFS } from '../utils/ipfs';
+import { getFromIPFS } from '../utils/ipfsUtils';
 import { useRouter } from 'next/router';
 import { connectWallet, getAccounts, requestAccounts } from '../utils/web3Provider';
 
-type RoleType = 'admin' | 'institution' | 'student' | 'employer' | '';
+type RoleType = 'admin' | 'institution' | 'student' | 'employer' | 'none';
+const redirectMap: { [key: string]: string } = {
+  student: '/dashboard/student',
+  institution: '/dashboard/institution/profile',
+  employer: '/dashboard/employer',
+};
 
 interface Certificate {
   id: string;
@@ -49,7 +55,7 @@ interface RegisterFormData {
 
 function WalletConnection() {
   const [account, setAccount] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<RoleType>('');
+  const [userRole, setUserRole] = useState<RoleType>('none');
   const toast = useToast();
   const router = useRouter();
 
@@ -67,7 +73,7 @@ function WalletConnection() {
         try {
           const role = await getUserRole(accounts[0]) as RoleType;
           setUserRole(role);
-          
+
           // Redirect based on role
           if (role === 'admin') {
             router.push('/dashboard/admin');
@@ -114,10 +120,10 @@ function WalletConnection() {
     try {
       // Clear local state
       setAccount(null);
-      setUserRole('');
+      setUserRole('none');
       // Clear any stored data
       localStorage.clear();
-      
+
       toast({
         title: 'Disconnected',
         description: 'Wallet disconnected successfully',
@@ -148,8 +154,8 @@ function WalletConnection() {
           </Button>
         </VStack>
       ) : (
-        <Button 
-          colorScheme="blue" 
+        <Button
+          colorScheme="blue"
           onClick={handleConnectWallet}
         >
           Connect with MetaMask
@@ -160,7 +166,7 @@ function WalletConnection() {
 }
 
 function RegisterForm({ account }: { account: string }) {
-  const [role, setRole] = useState<RoleType>('');
+  const [role, setRole] = useState<RoleType>('none');
   const toast = useToast();
 
   const handleRegister = async () => {
@@ -269,7 +275,7 @@ function IssueCertificateModal() {
 
       // Issue certificate on blockchain
       await issueCertificate(studentAddress, ipfsHash);
-      
+
       toast({
         title: 'Success',
         description: 'Certificate issued successfully',
@@ -330,8 +336,8 @@ function IssueCertificateModal() {
                     placeholder="Enter certificate details"
                   />
                 </FormControl>
-                <Button 
-                  colorScheme="blue" 
+                <Button
+                  colorScheme="blue"
                   onClick={handleIssueCertificate}
                   isLoading={loading}
                   isDisabled={!isVerified}
@@ -374,19 +380,19 @@ function ViewCertificatesModal() {
       const accounts = await requestAccounts();
       const currentAddress = accounts[0];
       console.log('Loading certificates for address:', currentAddress);
-      
+
       // Check user role first
       const role = await checkUserRole(currentAddress);
       console.log('User role for certificates:', role);
-      
+
       if (role !== 'student') {
         throw new Error(`Only students can view certificates. Current role: ${role}`);
       }
 
       console.log('Fetching certificates from contract...');
-      const certs = await getCertificates(currentAddress);
+      const certs = await getStudentCertificates(currentAddress);
       console.log('Raw certificates data:', certs);
-      
+
       if (!certs || certs.length === 0) {
         console.log('No certificates found');
         setCertificates([]);
@@ -407,7 +413,7 @@ function ViewCertificatesModal() {
           return cert;
         }
       }));
-      
+
       console.log('Formatted certificates:', formattedCerts);
       setCertificates(formattedCerts);
     } catch (error: any) {
@@ -462,11 +468,11 @@ function ViewCertificatesModal() {
                     Refresh Certificates
                   </Button>
                   {certificates.map((cert: any, index: number) => (
-                    <Box 
+                    <Box
                       key={index}
-                      p={4} 
-                      border="1px" 
-                      borderColor="gray.200" 
+                      p={4}
+                      border="1px"
+                      borderColor="gray.200"
                       borderRadius="md"
                       shadow="sm"
                     >
@@ -477,7 +483,7 @@ function ViewCertificatesModal() {
                         <Text><strong>Details:</strong> {JSON.stringify(cert.data)}</Text>
                       )}
                       <HStack mt={2} spacing={2}>
-                        <Button 
+                        <Button
                           size="sm"
                           colorScheme="blue"
                           onClick={() => window.open(`https://ipfs.io/ipfs/${cert.ipfsHash}`, '_blank')}
@@ -518,8 +524,8 @@ function VerifyCertificateModal() {
 
     try {
       setLoading(true);
-      const isValid = await verifyCertificate(certificateId);
-      setVerificationResult(isValid);
+      const certificate = await verifyCertificate(certificateId);
+      setVerificationResult(certificate.isValid);
     } catch (error) {
       console.error('Error verifying certificate:', error);
       toast({
@@ -552,8 +558,8 @@ function VerifyCertificateModal() {
                   placeholder="Enter certificate ID"
                 />
               </FormControl>
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 onClick={handleVerify}
                 isLoading={loading}
               >
@@ -603,7 +609,7 @@ function VerificationStatus() {
       </Button>
       {isVerified !== null && (
         <Text color={isVerified ? 'green.500' : 'red.500'}>
-          Your account is {isVerified ? 'verified' : 'not verified'}. 
+          Your account is {isVerified ? 'verified' : 'not verified'}.
           {!isVerified && ' Please contact the administrator for verification.'}
         </Text>
       )}
@@ -630,7 +636,7 @@ function AdminInterface() {
 
     try {
       setLoading(true);
-      await verifyInstitution(institutionAddress);
+      await verifyUser(institutionAddress);
       toast({
         title: 'Success',
         description: 'Institution verified successfully',
@@ -677,10 +683,10 @@ function AdminInterface() {
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<RoleType>('');
+  const [userRole, setUserRole] = useState<RoleType>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<RoleType>('');
+  const [selectedRole, setSelectedRole] = useState<RoleType>('none');
   const [currentRole, setCurrentRole] = useState<RoleType | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const toast = useToast();
@@ -697,10 +703,10 @@ export default function Home() {
         if (accounts.length > 0) {
           const currentAccount = accounts[0];
           setAccount(currentAccount);
-          
+
           // Check if user is admin first
           try {
-            const isAdminUser = await isOwner(currentAccount);
+            const { status: isAdminUser, owner: adminAddress } = await isOwner(currentAccount);
             if (isAdminUser) {
               setCurrentRole('admin');
               console.log('Admin account detected');
@@ -738,7 +744,7 @@ export default function Home() {
       try {
         const role = await getUserRole(accounts[0]) as RoleType;
         setUserRole(role);
-        
+
         // Redirect based on role
         if (role === 'admin') {
           router.push('/dashboard/admin');
@@ -749,8 +755,15 @@ export default function Home() {
         } else if (role === 'employer') {
           router.push('/dashboard/employer');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.log('User not registered yet');
+        toast({
+          title: 'Error',
+          description: error.message,
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
       }
 
       toast({
@@ -761,10 +774,9 @@ export default function Home() {
         isClosable: true,
       });
     } catch (error: any) {
-      console.error('Error connecting to MetaMask:', error);
       toast({
         title: 'Error',
-        description: 'Failed to connect wallet',
+        description: error.message,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -781,8 +793,14 @@ export default function Home() {
       setLoading(true);
       setError('');
 
+      const role = await getUserRole(account) as RoleType;
+
+      if (role === 'none') {
+        throw new Error('This account is not registered. Please register first.');
+      }
+
       // Check if user is admin first
-      const isAdminUser = await isOwner(account);
+      const { status: isAdminUser, owner: adminAddress } = await isOwner(account);
       if (isAdminUser) {
         console.log('Logging in as admin');
         setRedirecting(true);
@@ -790,12 +808,19 @@ export default function Home() {
         return;
       }
 
-      // If not admin, proceed with regular role check
-      const role = await getUserRole(account) as RoleType;
-      console.log('Logging in with role:', role);
-
-      if (role === '') {
-        throw new Error('This account is not registered. Please register first.');
+      // Add verification check for institutions
+      if (selectedRole === 'institution') {
+        const isVerified = await isVerifiedUser(account!);
+        if (!isVerified) {
+          toast({
+            title: 'غير مصرح | Unauthorized',
+            description: 'يرجى انتظار التحقق من قبل المسؤول | Please wait for admin verification',
+            status: 'warning',
+            duration: 9000,
+            isClosable: true,
+            position: 'top',
+          });
+        }
       }
 
       // Redirect based on role
@@ -813,8 +838,7 @@ export default function Home() {
         throw new Error('Invalid role or role not found');
       }
     } catch (error: any) {
-      console.error('Error logging in:', error);
-      setError(error.message);
+      // setError(error.message);
       toast({
         title: 'خطأ - Error',
         description: error.message,
@@ -851,7 +875,8 @@ export default function Home() {
       // Check if user is admin first
       let isAdminUser = false;
       try {
-        isAdminUser = await isOwner(account!);
+        const adminStatus = await isOwner(account!);
+        isAdminUser = adminStatus.status;
       } catch (error) {
         console.warn('Error checking admin status, proceeding with normal registration');
       }
@@ -863,22 +888,32 @@ export default function Home() {
         router.push('/dashboard/admin');
         return;
       }
-      
+
       // If not admin, proceed with regular registration
       if (!selectedRole) {
         throw new Error('Please select a role');
       }
 
+      // Register the user
       await registerUser(selectedRole);
       setCurrentRole(selectedRole);
-      
-      // After successful registration, redirect based on role
-      const redirectMap: { [key: string]: string } = {
-        'student': '/dashboard/student',
-        'institution': '/dashboard/institution',
-        'employer': '/dashboard/employer'
-      };
 
+      // Check verification status for institutions
+      if (selectedRole === 'institution') {
+        const isVerified = await isVerifiedUser(account!);
+        if (!isVerified) {
+          toast({
+            title: 'غير مصرح | Unauthorized',
+            description: 'يرجى انتظار التحقق من قبل المسؤول | Please wait for admin verification',
+            status: 'warning',
+            duration: 9000,
+            isClosable: true,
+            position: 'top',
+          });
+        }
+      }
+
+      // After successful registration, redirect based on role
       const redirectPath = redirectMap[selectedRole];
       if (redirectPath) {
         setRedirecting(true);
@@ -910,7 +945,7 @@ export default function Home() {
         <Box>
           <Text mb={2}>المحفظة المتصلة - Connected Account:</Text>
           <Text fontSize="sm" mb={4}>{account || 'Not connected'}</Text>
-          
+
           {!account ? (
             <Button
               colorScheme="blue"
@@ -933,10 +968,10 @@ export default function Home() {
 
         {account && (
           <VStack spacing={4}>
-            {currentRole ? (
+            {currentRole !== 'none' ? (
               <Box bg="yellow.100" p={4} borderRadius="md">
                 <Text>
-                  أنت مسجل حالياً كـ - You are currently registered as: {currentRole}
+                  You are currently registered as: {currentRole} أنت مسجل حالياً كـ
                 </Text>
                 <VStack spacing={4} width="full" mt={4}>
                   <Button
@@ -947,18 +982,18 @@ export default function Home() {
                   >
                     دخول للحساب - Login
                   </Button>
-                  {currentRole !== 'admin' && (
+                  {/* {currentRole !== 'admin' && (
                     <Button
                       colorScheme="blue"
                       onClick={() => {
                         setCurrentRole(null);
-                        setSelectedRole('');
+                        setSelectedRole('none');
                       }}
                       width="full"
                     >
                       تسجيل حساب جديد - Register New Account
                     </Button>
-                  )}
+                  )} */}
                 </VStack>
               </Box>
             ) : (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef, use } from 'react';
 import {
   Box,
   Container,
@@ -56,15 +56,20 @@ import { ExamManagement } from '../../components/institution/ExamManagement';
 import { CertificateManagement } from '../../components/institution/CertificateManagement';
 import { ExamResults } from '../../components/institution/ExamResults';
 import { useInstitution } from '../../hooks/useInstitution';
-import { Certificate, Exam, ExamResult, ExamStatistics, Institution, Student, NewExam } from '../../types/institution';
+import { Institution, Student } from '../../types/institution';
+import { Certificate } from '../../types/certificate';
+import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
 import { useRouter } from 'next/router';
 import InstitutionProfile, { InstitutionData } from '../../components/institution/InstitutionProfile';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
 import { BsArrowUpCircle } from 'react-icons/bs';
 import { Connector, useAccount, useConnect } from 'wagmi';
-import { validateNetwork, EXPECTED_NETWORK } from '../../utils/ethersConfig';
-import { getProvider } from '../../utils/ethersConfig';
+import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider } from '../../utils/ethersConfig';
+import { ethers } from 'ethers';
+import Layout from '../../components/layout/Layout';
+import { getIdentityContract } from 'services/identity';
+import { useContract } from 'hooks/useContract';
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
@@ -195,26 +200,22 @@ const InstitutionDashboard = () => {
   const textColor = useColorModeValue('gray.800', 'white');
   const subTextColor = useColorModeValue('gray.600', 'gray.300');
   const iconColor = useColorModeValue('gray.600', 'gray.400');
+  const pageName = 'لوحة تحكم المؤسسة | Institution Dashboard';
 
   // 2. External hooks
   const { address = undefined, isConnected: isWalletConnected = false } = useAccount() || {};
-  const { connect, connectors } = useConnect();
   const router = useRouter();
   const toast = useToast();
   const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
-  const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 100], [0, 1]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  const { isLoading: institutionLoading, institutionData, isVerified, error: institutionError } = useInstitution();
 
   // 3. Get all values from useInstitution hook
   const {
     isLoading,
-    hasAccess,
-    isInitialized,
-    certificatesData,
+    certificatesData = [],
+    error: institutionError,
     exams,
     createExam,
     updateExamStatus,
@@ -224,7 +225,6 @@ const InstitutionDashboard = () => {
     handleSubmitResults,
     loadExamResults,
     issueCertificate,
-    saveInstitutionProfile,
   } = useInstitution();
 
   // 4. State hooks
@@ -232,6 +232,7 @@ const InstitutionDashboard = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
+  const [identityContract, setIdentityContract] = useState<any>(null);
 
   // 5. Effect hooks
   useEffect(() => {
@@ -251,7 +252,8 @@ const InstitutionDashboard = () => {
       try {
         setLoading(true);
         const provider = await getProvider();
-        await validateNetwork(provider);
+        const jsonRpcProvider = new ethers.JsonRpcProvider(EXPECTED_NETWORK.rpcUrl);
+        await validateNetwork(jsonRpcProvider);
         setNetworkError(null);
       } catch (error: any) {
         console.error('Network error:', error);
@@ -274,6 +276,29 @@ const InstitutionDashboard = () => {
       checkNetwork();
     }
   }, [isWalletConnected, toast]);
+
+  useEffect(() => {
+    const initContract = async () => {
+      try {
+        const signer = await getSigner();
+        const identityContract = await getIdentityContract(signer);
+        setIdentityContract(identityContract);
+      } catch (error: any) {
+        console.error('Error initializing contract:', error);
+        toast({
+          title: 'خطأ في تهيئة العقد | Contract initialization error',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
+    if (isWalletConnected && !networkError) {
+      initContract();
+    }
+  }, [isWalletConnected, networkError, toast]);
 
   // 6. Memoized values
   const notificationVariants = useMemo(() => ({
@@ -304,40 +329,11 @@ const InstitutionDashboard = () => {
   ], [exams?.length, certificatesData?.length, examStatistics]);
 
   // 7. Event handlers
-  const handleLogout = useCallback(() => {
-    toast({
-      title: "تم تسجيل الخروج بنجاح | Logged out successfully",
-      status: "success",
-      duration: 3000,
-    });
-    router.push('/');
-  }, [toast, router]);
-
-  const handleSaveProfile = useCallback(async (data: InstitutionData) => {
-    try {
-      await saveInstitutionProfile(data);
-      toast({
-        title: 'تم حفظ البيانات بنجاح | Profile saved successfully',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'خطأ في حفظ البيانات | Error saving profile',
-        description: error.message,
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [saveInstitutionProfile, toast]);
-
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  if (loading || institutionLoading) {
+  if (loading || isLoading) {
     return (
       <Container centerContent py={10}>
         <Spinner size="xl" />
@@ -411,533 +407,372 @@ const InstitutionDashboard = () => {
   }
 
   return (
-    <Box minH="100vh" bg={bgColor}>
-      {/* Gradient Overlay */}
-      <Box
-        position="fixed"
-        top={0}
-        left={0}
-        right={0}
-        h="200px"
-        bgGradient="linear(to-b, blue.500, transparent)"
-        opacity={0.05}
-        pointerEvents="none"
-        zIndex={1}
-      />
-
-      {/* Progress Bar with Gradient */}
-      <Box
-        position="fixed"
-        top={0}
-        left={0}
-        right={0}
-        h="2px"
-        zIndex={100}
-      >
-        <Progress
-          value={scrollProgress}
-          size="xs"
-          bgGradient="linear(to-r, blue.400, purple.500, pink.500)"
-          sx={{
-            "& > div:first-of-type": {
-              transition: "all 0.3s ease-out",
-              background: "linear-gradient(to right, #3182ce, #805ad5, #d53f8c)"
-            }
-          }}
+    <Layout
+      address={address}
+      exams={exams}
+      onNotificationsOpen={onNotificationsOpen}
+      pageName={pageName}
+    >
+      <Box minH="100vh" bg={bgColor}>
+        {/* Gradient Overlay */}
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          h="200px"
+          bgGradient="linear(to-b, blue.500, transparent)"
+          opacity={0.05}
+          pointerEvents="none"
+          zIndex={1}
         />
-      </Box>
 
-      {/* Header with Glass Effect */}
-      <Box
-        bg={glassHeaderBg}
-        backdropFilter="blur(10px) saturate(180%)"
-        py={4}
-        px={8}
-        position="sticky"
-        top={0}
-        zIndex={10}
-        borderBottom="1px"
-        borderColor={borderColor}
-        transition="all 0.3s ease"
-        _hover={{
-          bg: glassHeaderHoverBg
-        }}
-      >
-        <Flex justify="space-between" align="center" maxW="container.xl" mx="auto">
-          <MotionFlex
-            spacing={8}
-            align="center"
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Heading
-              size="lg"
-              bgGradient="linear(to-r, blue.400, blue.600)"
-              bgClip="text"
-              display="flex"
-              alignItems="center"
-              cursor="pointer"
-              _hover={{ transform: 'scale(1.02)' }}
-              transition="all 0.2s"
-            >
-              <Icon as={FaUniversity} mr={3} />
-              لوحة تحكم المؤسسة | Institution Dashboard
-            </Heading>
-          </MotionFlex>
-
-          <HStack spacing={6}>
-            {/* Search Bar */}
-            <InputGroup
-              maxW="300px"
-              display={{ base: 'none', md: 'flex' }}
-              transition="all 0.3s"
-              _hover={{ transform: 'translateY(-1px)' }}
-            >
-              <InputLeftElement>
-                <Icon as={FaSearch} color="gray.400" />
-              </InputLeftElement>
-              <Input
-                placeholder="بحث... | Search..."
-                variant="filled"
-                bg={searchBg}
-                _hover={{ bg: searchHoverBg }}
-                borderRadius="full"
-              />
-            </InputGroup>
-
-            {/* Quick Actions */}
-            <HStack spacing={4}>
-              {/* Help */}
-              <Tooltip label="المساعدة | Help" hasArrow>
-                <IconButton
-                  aria-label="Help"
-                  icon={<FaQuestionCircle />}
-                  variant="ghost"
-                  colorScheme="blue"
-                  _hover={{ bg: 'blue.50', color: 'blue.500' }}
-                />
-              </Tooltip>
-
-              {/* Settings */}
-              <Tooltip label="الإعدادات | Settings" hasArrow>
-                <IconButton
-                  aria-label="Settings"
-                  icon={<FaCog />}
-                  variant="ghost"
-                  _hover={{ bg: 'purple.50', color: 'purple.500' }}
-                />
-              </Tooltip>
-
-              {/* Notifications */}
-              <Tooltip label="الإشعارات | Notifications" hasArrow>
-                <IconButton
-                  aria-label="Notifications"
-                  icon={<FaBell />}
-                  variant="ghost"
-                  position="relative"
-                  onClick={onNotificationsOpen}
-                  _hover={{ bg: 'orange.50', color: 'orange.500' }}
-                >
-                  {exams?.filter(exam => exam.status === 'pending')?.length > 0 && (
-                    <ScaleFade in={true}>
-                      <Badge
-                        colorScheme="red"
-                        variant="solid"
-                        borderRadius="full"
-                        position="absolute"
-                        top="-2px"
-                        right="-2px"
-                        fontSize="xs"
-                        transform="scale(0.8)"
-                      >
-                        {exams.filter(exam => exam.status === 'pending').length}
-                      </Badge>
-                    </ScaleFade>
-                  )}
-                </IconButton>
-              </Tooltip>
-
-              {/* Profile Menu */}
-              <Menu>
-                <Tooltip label="الملف الشخصي | Profile" hasArrow>
-                  <MenuButton
-                    as={Button}
-                    rounded="full"
-                    variant="link"
-                    cursor="pointer"
-                    minW={0}
-                    _hover={{ transform: 'scale(1.05)' }}
-                    transition="all 0.2s"
-                  >
-                    <Avatar
-                      size="sm"
-                      name={address || 'User'}
-                      bg="blue.500"
-                    />
-                  </MenuButton>
-                </Tooltip>
-                <Portal>
-                  <MenuList
-                    shadow="xl"
-                    border="1px"
-                    borderColor={borderColor}
-                    bg={menuListBg}
-                    p={2}
-                  >
-                    <MenuItem
-                      icon={<FaUser />}
-                      _hover={{ bg: 'blue.50', color: 'blue.500' }}
-                      borderRadius="md"
-                      mb={1}
-                    >
-                      الملف الشخصي | Profile
-                    </MenuItem>
-                    <MenuItem
-                      icon={<FaSignOutAlt />}
-                      onClick={handleLogout}
-                      _hover={{ bg: 'red.50', color: 'red.500' }}
-                      borderRadius="md"
-                    >
-                      تسجيل الخروج | Logout
-                    </MenuItem>
-                  </MenuList>
-                </Portal>
-              </Menu>
-            </HStack>
-          </HStack>
-        </Flex>
-      </Box>
-
-      {/* Scroll to Top Button */}
-      <AnimatePresence>
-        {showScrollTop && (
-          <MotionBox
-            position="fixed"
-            bottom="20px"
-            right="20px"
-            zIndex={99}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <IconButton
-              aria-label="Scroll to top"
-              icon={<BsArrowUpCircle />}
-              onClick={scrollToTop}
-              size="lg"
-              colorScheme="blue"
-              rounded="full"
-              shadow="lg"
-              _hover={{
-                transform: "translateY(-2px)",
-                shadow: "xl",
-              }}
-              sx={{
-                animation: `${floatAnimation} 2s ease-in-out infinite`
-              }}
-            />
-          </MotionBox>
-        )}
-      </AnimatePresence>
-
-      <Container maxW="container.xl" py={8}>
-        {/* Stats Section with Enhanced Animation */}
-        <SimpleGrid
-          columns={{ base: 1, md: 3 }}
-          spacing={6}
-          mb={8}
+        {/* Progress Bar with Gradient */}
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          h="2px"
+          zIndex={100}
         >
-          {statsData.map((stat, index) => (
-            <MotionBox
-              key={index}
-              whileHover={{
-                y: -8,
-                boxShadow: '2xl',
-                scale: 1.02
-              }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 20,
-                delay: index * 0.1
-              }}
-            >
-              <Box
-                bg={statCardBg}
-                backdropFilter="blur(8px)"
-                p={6}
-                borderRadius="2xl"
-                border="1px"
-                borderColor={borderColor}
-                position="relative"
-                overflow="hidden"
-                transition="all 0.3s ease"
+          <Progress
+            value={scrollProgress}
+            size="xs"
+            bgGradient="linear(to-r, blue.400, purple.500, pink.500)"
+            sx={{
+              "& > div:first-of-type": {
+                transition: "all 0.3s ease-out",
+                background: "linear-gradient(to right, #3182ce, #805ad5, #d53f8c)"
+              }
+            }}
+          />
+        </Box>
+
+        <Container maxW="container.xl" py={8}>
+          {/* Stats Section with Enhanced Animation */}
+          <SimpleGrid
+            columns={{ base: 1, md: 3 }}
+            spacing={6}
+            mb={8}
+          >
+            {statsData.map((stat, index) => (
+              <MotionBox
+                key={index}
+                whileHover={{
+                  y: -8,
+                  boxShadow: '2xl',
+                  scale: 1.02
+                }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 20,
+                  delay: index * 0.1
+                }}
               >
-                {/* Gradient Background */}
                 <Box
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  right={0}
-                  bottom={0}
-                  bgGradient={`linear(to-br, ${stat.color}10, transparent)`}
-                  opacity={0.5}
-                />
-
-                {/* Animated Border */}
-                <Box
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  right={0}
-                  h="4px"
-                  bgGradient={`linear(to-r, transparent, ${stat.color}, transparent)`}
-                  sx={{
-                    animation: `${pulseAnimation} 2s ease-in-out infinite`
-                  }}
-                />
-
-                <VStack spacing={4} align="start" position="relative">
-                  <Icon
-                    as={stat.icon}
-                    boxSize={10}
-                    color={stat.color}
-                    filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.2))"
-                    sx={{
-                      animation: `${floatAnimation} 3s ease-in-out infinite`
-                    }}
+                  bg={statCardBg}
+                  backdropFilter="blur(8px)"
+                  p={6}
+                  borderRadius="2xl"
+                  border="1px"
+                  borderColor={borderColor}
+                  position="relative"
+                  overflow="hidden"
+                  transition="all 0.3s ease"
+                >
+                  {/* Gradient Background */}
+                  <Box
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    right={0}
+                    bottom={0}
+                    bgGradient={`linear(to-br, ${stat.color}10, transparent)`}
+                    opacity={0.5}
                   />
-                  <Text
-                    fontSize="4xl"
-                    fontWeight="bold"
-                    bgGradient={`linear(to-r, ${stat.color}, ${stat.color})`}
-                    bgClip="text"
+
+                  {/* Animated Border */}
+                  <Box
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    right={0}
+                    h="4px"
+                    bgGradient={`linear(to-r, transparent, ${stat.color}, transparent)`}
                     sx={{
                       animation: `${pulseAnimation} 2s ease-in-out infinite`
                     }}
-                  >
-                    {stat.value}
-                  </Text>
-                  <Text
-                    color="gray.500"
-                    fontSize="lg"
-                    fontWeight="medium"
-                  >
-                    {stat.label}
-                  </Text>
-                </VStack>
-              </Box>
-            </MotionBox>
-          ))}
-        </SimpleGrid>
+                  />
 
-        {/* Main Content with Enhanced Animation */}
-        <MotionBox
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.5,
-            delay: 0.4,
-            type: "spring",
-            stiffness: 100
-          }}
-        >
-          <Box
-            bg={mainContentBg}
-            backdropFilter="blur(8px)"
-            borderRadius="2xl"
-            border="1px"
-            borderColor={borderColor}
-            overflow="hidden"
-            shadow="xl"
-            position="relative"
-            transition="all 0.3s ease"
-            _hover={{
-              shadow: "2xl",
-              transform: "translateY(-2px)"
+                  <VStack spacing={4} align="start" position="relative">
+                    <Icon
+                      as={stat.icon}
+                      boxSize={10}
+                      color={stat.color}
+                      filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.2))"
+                      sx={{
+                        animation: `${floatAnimation} 3s ease-in-out infinite`
+                      }}
+                    />
+                    <Text
+                      fontSize="4xl"
+                      fontWeight="bold"
+                      bgGradient={`linear(to-r, ${stat.color}, ${stat.color})`}
+                      bgClip="text"
+                      sx={{
+                        animation: `${pulseAnimation} 2s ease-in-out infinite`
+                      }}
+                    >
+                      {stat.value}
+                    </Text>
+                    <Text
+                      color="gray.500"
+                      fontSize="lg"
+                      fontWeight="medium"
+                    >
+                      {stat.label}
+                    </Text>
+                  </VStack>
+                </Box>
+              </MotionBox>
+            ))}
+          </SimpleGrid>
+
+          {/* Main Content with Enhanced Animation */}
+          <MotionBox
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.5,
+              delay: 0.4,
+              type: "spring",
+              stiffness: 100
             }}
           >
-            <Tabs isFitted variant="enclosed">
-              <TabList
-                bg={tabListBg}
-                px={4}
-                position="relative"
-                zIndex={1}
-              >
-                {[
-                  {
-                    icon: FaUniversity,
-                    text: "الملف الشخصي | Profile",
-                    color: 'blue'
-                  },
-                  {
-                    icon: FaGraduationCap,
-                    text: "الاختبارات | Exams",
-                    color: 'green'
-                  },
-                  {
-                    icon: FaChartBar,
-                    text: "النتائج | Results",
-                    color: 'purple'
-                  },
-                  {
-                    icon: FaCertificate,
-                    text: "الشهادات | Certificates",
-                    color: 'orange'
-                  }
-                ].map((tab, index) => (
-                  <Tab
-                    key={index}
-                    py={4}
-                    _selected={{
-                      color: `${tab.color}.500`,
-                      borderColor: `${tab.color}.500`,
-                      bg: cardBg,
-                      fontWeight: 'bold'
-                    }}
-                    _hover={{
-                      bg: tabHoverBg,
-                      color: `${tab.color}.400`
-                    }}
-                    transition="all 0.2s"
-                  >
-                    <HStack spacing={2}>
-                      <Icon as={tab.icon} />
-                      <Text>{tab.text}</Text>
-                    </HStack>
-                  </Tab>
-                ))}
-              </TabList>
-
-              <TabPanels>
-                <TabPanel p={0}>
-                  <InstitutionProfile
-                    onSave={handleSaveProfile}
-                    loading={isLoading}
-                  />
-                </TabPanel>
-                <TabPanel>
-                  <ExamManagement
-                    exams={exams?.map(exam => ({
-                      ...exam,
-                      date: typeof exam.date === 'string' ? new Date(exam.date).getTime() : exam.date
-                    })) || []}
-                    onCreateExam={createExam}
-                    onUpdateStatus={updateExamStatus}
-                    onRegisterStudents={registerStudents}
-                    loading={isLoading}
-                  />
-                </TabPanel>
-                <TabPanel>
-                  <ExamResults
-                    exams={exams?.map(exam => ({
-                      ...exam,
-                      date: typeof exam.date === 'string' ? new Date(exam.date).getTime() : exam.date
-                    })) || []}
-                    selectedExamId={selectedExamId}
-                    onSelectExam={(examId) => {
-                      setSelectedExamId(examId);
-                      loadExamResults(examId);
-                    }}
-                    results={selectedExamResults}
-                    statistics={examStatistics}
-                    onSubmitResults={handleSubmitResults}
-                    loading={isLoading}
-                  />
-                </TabPanel>
-                <TabPanel>
-                  <CertificateManagement
-                    certificates={certificatesData?.map((cert: Certificate) => ({
-                      ...cert,
-                      studentAddress: cert.studentAddress,
-                      issueDate: cert.issueDate || new Date().toISOString(),
-                      status: cert.status || 'issued'
-                    })) || []}
-                    onIssueCertificate={async (studentAddress, certificate) => {
-                      try {
-                        await issueCertificate(studentAddress, certificate);
-                        return true;
-                      } catch (error) {
-                        console.error('Error issuing certificate:', error);
-                        return false;
-                      }
-                    }}
-                    loading={isLoading}
-                  />
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </Box>
-        </MotionBox>
-      </Container>
-
-      {/* Enhanced Notifications Drawer */}
-      <Drawer
-        isOpen={isNotificationsOpen}
-        placement={isLargerThan768 ? "right" : "bottom"}
-        onClose={onNotificationsClose}
-      >
-        <DrawerOverlay backdropFilter="blur(10px)" />
-        <DrawerContent
-          bg={drawerContentBg}
-          backdropFilter="blur(10px)"
-        >
-          <DrawerHeader
-            borderBottomWidth="1px"
-            bgGradient="linear(to-r, blue.400, purple.500)"
-            color="white"
-          >
-            <HStack spacing={2}>
-              <RiNotification3Line />
-              <Text>الإشعارات | Notifications</Text>
-            </HStack>
-          </DrawerHeader>
-          <DrawerBody>
-            <AnimatePresence>
-              {exams?.filter(exam => exam.status === 'pending').map(exam => (
-                <MotionBox
-                  key={exam.id}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  variants={notificationVariants}
-                  transition={{ duration: 0.2 }}
+            <Box
+              bg={mainContentBg}
+              backdropFilter="blur(8px)"
+              borderRadius="2xl"
+              border="1px"
+              borderColor={borderColor}
+              overflow="hidden"
+              shadow="xl"
+              position="relative"
+              transition="all 0.3s ease"
+              _hover={{
+                shadow: "2xl",
+                transform: "translateY(-2px)"
+              }}
+            >
+              <Tabs isFitted variant="enclosed">
+                <TabList
+                  bg={tabListBg}
+                  px={4}
+                  position="relative"
+                  zIndex={1}
                 >
-                  <Box
-                    p={4}
-                    mb={4}
-                    bg={notificationBg}
-                    borderRadius="lg"
-                    borderLeft="4px"
-                    borderLeftColor="orange.400"
-                    _hover={{
-                      transform: 'translateX(-4px)',
-                      shadow: 'md'
-                    }}
-                    transition="all 0.2s"
+                  {[
+                    // {
+                    //   icon: FaUniversity,
+                    //   text: "الملف الشخصي | Profile",
+                    //   color: 'blue'
+                    // },
+                    {
+                      icon: FaGraduationCap,
+                      text: "الاختبارات | Exams",
+                      color: 'green'
+                    },
+                    {
+                      icon: FaChartBar,
+                      text: "النتائج | Results",
+                      color: 'purple'
+                    },
+                    {
+                      icon: FaCertificate,
+                      text: "الشهادات | Certificates",
+                      color: 'orange'
+                    }
+                  ].map((tab, index) => (
+                    <Tab
+                      key={index}
+                      py={4}
+                      _selected={{
+                        color: `${tab.color}.500`,
+                        borderColor: `${tab.color}.500`,
+                        bg: cardBg,
+                        fontWeight: 'bold'
+                      }}
+                      _hover={{
+                        bg: tabHoverBg,
+                        color: `${tab.color}.400`
+                      }}
+                      transition="all 0.2s"
+                    >
+                      <HStack spacing={2}>
+                        <Icon as={tab.icon} />
+                        <Text>{tab.text}</Text>
+                      </HStack>
+                    </Tab>
+                  ))}
+                </TabList>
+
+                <TabPanels>
+                  <TabPanel>
+                    <ExamManagement
+                      exams={exams?.map(exam => ({
+                        ...exam,
+                        date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
+                      })) || []}
+                      onCreateExam={createExam}
+                      onUpdateStatus={updateExamStatus}
+                      onRegisterStudents={registerStudents}
+                      loading={isLoading}
+                    />
+                  </TabPanel>
+                  <TabPanel>
+                    <ExamResults
+                      exams={exams?.map(exam => ({
+                        ...exam,
+                        date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
+                      })) || []}
+                      selectedExamId={selectedExamId}
+                      onSelectExam={(examId) => {
+                        setSelectedExamId(examId);
+                        loadExamResults(examId);
+                      }}
+                      results={selectedExamResults}
+                      statistics={examStatistics}
+                      onSubmitResults={handleSubmitResults}
+                      loading={isLoading}
+                    />
+                  </TabPanel>
+                  <TabPanel>
+                    <CertificateManagement
+                      certificates={Array.isArray(certificatesData) ? certificatesData?.map((cert: Certificate) => ({
+                        ...cert,
+                        studentAddress: cert.studentAddress,
+                        issueDate: cert.issueDate || new Date().toISOString(),
+                        status: cert.status || 'issued'
+                      })) ?? [] : []}
+                      onIssueCertificate={async (studentAddress, certificate) => {
+                        try {
+                          await issueCertificate(studentAddress, certificate);
+                          return true;
+                        } catch (error) {
+                          console.error('Error issuing certificate:', error);
+                          return false;
+                        }
+                      }}
+                      loading={isLoading}
+                    />
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </Box>
+          </MotionBox>
+        </Container>
+
+        {/* Scroll to Top Button */}
+        <AnimatePresence>
+          {showScrollTop && (
+            <MotionBox
+              position="fixed"
+              bottom="20px"
+              right="20px"
+              zIndex={99}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <IconButton
+                aria-label="Scroll to top"
+                icon={<BsArrowUpCircle />}
+                onClick={scrollToTop}
+                size="lg"
+                colorScheme="blue"
+                rounded="full"
+                shadow="lg"
+                _hover={{
+                  transform: "translateY(-2px)",
+                  shadow: "xl",
+                }}
+                sx={{
+                  animation: `${floatAnimation} 2s ease-in-out infinite`
+                }}
+              />
+            </MotionBox>
+          )}
+        </AnimatePresence>
+
+        {/* Enhanced Notifications Drawer */}
+        <Drawer
+          isOpen={isNotificationsOpen}
+          placement={isLargerThan768 ? "right" : "bottom"}
+          onClose={onNotificationsClose}
+        >
+          <DrawerOverlay backdropFilter="blur(10px)" />
+          <DrawerContent
+            bg={drawerContentBg}
+            backdropFilter="blur(10px)"
+          >
+            <DrawerHeader
+              borderBottomWidth="1px"
+              bgGradient="linear(to-r, blue.400, purple.500)"
+              color="white"
+            >
+              <HStack spacing={2}>
+                <RiNotification3Line />
+                <Text>الإشعارات | Notifications</Text>
+              </HStack>
+            </DrawerHeader>
+            <DrawerBody>
+              <AnimatePresence>
+                {exams?.filter(exam => exam.status === 'pending').map(exam => (
+                  <MotionBox
+                    key={exam.address}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    variants={notificationVariants}
+                    transition={{ duration: 0.2 }}
                   >
-                    <VStack align="start" spacing={1}>
-                      <Text fontWeight="bold">{exam.title}</Text>
-                      <Text fontSize="sm" color="gray.500">
-                        بانتظار الموافقة | Pending Approval
-                      </Text>
-                      <Text fontSize="xs" color="gray.400">
-                        {new Date(exam.date).toLocaleDateString()}
-                      </Text>
-                    </VStack>
-                  </Box>
-                </MotionBox>
-              ))}
-            </AnimatePresence>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
-    </Box>
+                    <Box
+                      p={4}
+                      mb={4}
+                      bg={notificationBg}
+                      borderRadius="lg"
+                      borderLeft="4px"
+                      borderLeftColor="orange.400"
+                      _hover={{
+                        transform: 'translateX(-4px)',
+                        shadow: 'md'
+                      }}
+                      transition="all 0.2s"
+                    >
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="bold">{exam.title}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          بانتظار الموافقة | Pending Approval
+                        </Text>
+                        <Text fontSize="xs" color="gray.400">
+                          {new Date(exam.date).toLocaleDateString()}
+                        </Text>
+                      </VStack>
+                    </Box>
+                  </MotionBox>
+                ))}
+              </AnimatePresence>
+            </DrawerBody>
+          </DrawerContent>
+        </Drawer>
+      </Box>
+    </Layout>
   );
 };
 

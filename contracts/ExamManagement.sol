@@ -1,12 +1,23 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+interface IIdentity {
+    enum UserRole { NONE, STUDENT, INSTITUTION, EMPLOYER, ADMIN }
+    
+    function getUserRole(address _userAddress) external view returns (UserRole);
+    function isVerifiedUser(address _userAddress) external view returns (bool);
+    function userExists(address _userAddress) external view returns (bool);
+    function isStudentEnrolled(address _institution, address _student) external view returns (bool);
+}
+
 contract ExamManagement is Ownable, Pausable {
     using Counters for Counters.Counter;
+
+    IIdentity public identityContract;
 
     struct Institution {
         string name;
@@ -42,14 +53,6 @@ contract ExamManagement is Ownable, Pausable {
         bool exists;
     }
 
-    struct Certificate {
-        address student;
-        address issuer;
-        string ipfsHash;
-        uint256 issuedAt;
-        bool exists;
-    }
-
     struct ExamResult {
         uint256 score;
         string grade;
@@ -58,16 +61,15 @@ contract ExamManagement is Ownable, Pausable {
     }
 
     // Mappings
-    mapping(address => Institution) public institutions;
     mapping(address => Student) public students;
     mapping(address => mapping(address => bool)) public institutionStudents;
     mapping(bytes32 => Exam) public exams;
     mapping(bytes32 => mapping(address => ExamResult)) public examResults;
-    mapping(bytes32 => Certificate) public certificates;
-    
+    mapping(address => bytes32[]) public institutionExams;
+    mapping(address => bytes32[]) public studentExams;
+
     // Counters
     Counters.Counter private _examIds;
-    Counters.Counter private _certificateIds;
 
     // Events
     event InstitutionRegistered(address indexed institution, string name);
@@ -78,13 +80,16 @@ contract ExamManagement is Ownable, Pausable {
     event ExamStatusUpdated(bytes32 indexed examId, string status);
     event StudentsRegistered(bytes32 indexed examId, address[] students);
     event ResultSubmitted(bytes32 indexed examId, address indexed student);
-    event CertificateIssued(bytes32 indexed certificateId, address indexed student);
     event InstitutionProfileUpdated(address indexed institution, string name);
+
+    constructor(address _identityContractAddress) {
+        identityContract = IIdentity(_identityContractAddress);
+    }
 
     // Modifiers
     modifier onlyVerifiedInstitution() {
-        require(institutions[msg.sender].exists, "Institution does not exist");
-        require(institutions[msg.sender].isVerified, "Institution is not verified");
+        require(identityContract.getUserRole(msg.sender) == IIdentity.UserRole.INSTITUTION, "Not a registered institution");
+        require(identityContract.isVerifiedUser(msg.sender), "Institution is not verified");
         _;
     }
 
@@ -96,101 +101,6 @@ contract ExamManagement is Ownable, Pausable {
     modifier onlyExistingStudent(address student) {
         require(students[student].exists, "Student does not exist");
         _;
-    }
-
-    // Institution Management
-    function registerInstitution(
-        string memory name,
-        string memory description,
-        string memory physicalAddress,
-        string memory email,
-        string memory phone,
-        string memory website,
-        string memory logo,
-        string memory ministry,
-        string memory university,
-        string memory college
-    ) external {
-        require(!institutions[msg.sender].exists, "Institution already registered");
-        
-        institutions[msg.sender] = Institution({
-            name: name,
-            description: description,
-            physicalAddress: physicalAddress,
-            email: email,
-            phone: phone,
-            website: website,
-            logo: logo,
-            ministry: ministry,
-            university: university,
-            college: college,
-            isVerified: false,
-            exists: true
-        });
-
-        emit InstitutionRegistered(msg.sender, name);
-    }
-
-    function verifyInstitution(address institution) external onlyOwner {
-        require(institutions[institution].exists, "Institution does not exist");
-        institutions[institution].isVerified = true;
-        emit InstitutionVerified(institution);
-    }
-
-    function updateInstitutionProfile(
-        string memory name,
-        string memory ministry,
-        string memory university,
-        string memory college,
-        string memory description,
-        string memory logo,
-        string memory website,
-        string memory email,
-        string memory phone
-    ) external {
-        require(institutions[msg.sender].exists, "Institution does not exist");
-        
-        Institution storage institution = institutions[msg.sender];
-        institution.name = name;
-        institution.ministry = ministry;
-        institution.university = university;
-        institution.college = college;
-        institution.description = description;
-        institution.logo = logo;
-        institution.website = website;
-        institution.email = email;
-        institution.phone = phone;
-
-        emit InstitutionProfileUpdated(msg.sender, name);
-    }
-
-    // Student Management
-    function addStudent(
-        address studentAddress,
-        string memory name,
-        string memory email
-    ) external onlyVerifiedInstitution {
-        require(!students[studentAddress].exists, "Student already exists");
-        
-        students[studentAddress] = Student({
-            name: name,
-            email: email,
-            enrollmentDate: block.timestamp,
-            status: "active",
-            exists: true
-        });
-
-        institutionStudents[msg.sender][studentAddress] = true;
-        emit StudentAdded(msg.sender, studentAddress);
-    }
-
-    function updateStudentStatus(
-        address studentAddress,
-        string memory newStatus
-    ) external onlyVerifiedInstitution onlyExistingStudent(studentAddress) {
-        require(institutionStudents[msg.sender][studentAddress], "Student not enrolled in this institution");
-        students[studentAddress].status = newStatus;
-        emit StudentStatusUpdated(studentAddress, newStatus);
     }
 
     // Exam Management
@@ -215,6 +125,8 @@ contract ExamManagement is Ownable, Pausable {
             exists: true
         });
 
+        institutionExams[msg.sender].push(examId);
+
         emit ExamCreated(examId, title);
         return examId;
     }
@@ -231,12 +143,29 @@ contract ExamManagement is Ownable, Pausable {
         bytes32 examId,
         address[] memory studentAddresses
     ) external onlyVerifiedInstitution onlyExistingExam(examId) {
+        require(studentAddresses.length > 0, "Student list cannot be empty");
+
         for (uint i = 0; i < studentAddresses.length; i++) {
-            require(
-                institutionStudents[msg.sender][studentAddresses[i]],
-                "One or more students not enrolled in this institution"
-            );
+            address studentAddress = studentAddresses[i];
+            require(identityContract.userExists(studentAddress), "Student does not exist in Identity");
+            require(identityContract.getUserRole(studentAddress) == IIdentity.UserRole.STUDENT, "User is not a student in Identity");
+            require(identityContract.isStudentEnrolled(msg.sender, studentAddress), "Student is not enrolled in this institution");
+
+            bool alreadyRegistered = false;
+            for (uint j = 0; j < studentExams[studentAddress].length; j++) {
+                if (studentExams[studentAddress][j] == examId) {
+                    alreadyRegistered = true;
+                    break;
+                }
+            }
+
+            if (!alreadyRegistered) {
+                studentExams[studentAddress].push(examId);
+            } else {
+                revert("Student already registered for this exam");
+            }
         }
+
         exams[examId].students = studentAddresses;
         emit StudentsRegistered(examId, studentAddresses);
     }
@@ -262,75 +191,6 @@ contract ExamManagement is Ownable, Pausable {
         });
 
         emit ResultSubmitted(examId, student);
-    }
-
-    // Certificate Management
-    function issueCertificate(
-        address student,
-        string memory ipfsHash
-    ) external onlyVerifiedInstitution onlyExistingStudent(student) {
-        require(
-            institutionStudents[msg.sender][student],
-            "Student not enrolled in this institution"
-        );
-
-        _certificateIds.increment();
-        bytes32 certificateId = keccak256(abi.encodePacked(_certificateIds.current(), msg.sender, student));
-        
-        certificates[certificateId] = Certificate({
-            student: student,
-            issuer: msg.sender,
-            ipfsHash: ipfsHash,
-            issuedAt: block.timestamp,
-            exists: true
-        });
-
-        emit CertificateIssued(certificateId, student);
-    }
-
-    // View Functions
-    function getInstitution(address institution) external view returns (
-        string memory name,
-        string memory description,
-        string memory physicalAddress,
-        string memory email,
-        string memory phone,
-        string memory website,
-        string memory logo,
-        string memory ministry,
-        string memory university,
-        string memory college,
-        bool isVerified
-    ) {
-        Institution memory inst = institutions[institution];
-        return (
-            inst.name,
-            inst.description,
-            inst.physicalAddress,
-            inst.email,
-            inst.phone,
-            inst.website,
-            inst.logo,
-            inst.ministry,
-            inst.university,
-            inst.college,
-            inst.isVerified
-        );
-    }
-
-    function getStudent(address student) external view returns (
-        string memory name,
-        string memory email,
-        uint256 enrollmentDate,
-        string memory status
-    ) {
-        Student memory stud = students[student];
-        return (
-            stud.name,
-            stud.email,
-            stud.enrollmentDate,
-            stud.status
-        );
     }
 
     function getExamResult(bytes32 examId, address student) external view returns (
@@ -373,4 +233,21 @@ contract ExamManagement is Ownable, Pausable {
             total > 0 ? scoreSum / total : 0
         );
     }
-} 
+
+    function getUserExams(address user) external view returns (bytes32[] memory) {
+        IIdentity.UserRole role = identityContract.getUserRole(user);
+
+        if (role == IIdentity.UserRole.INSTITUTION) {
+            return institutionExams[user];
+        } else if (role == IIdentity.UserRole.STUDENT) {
+            return studentExams[user];
+        } else {
+            revert("Unsupported role or user does not exist");
+        }
+    }
+
+    function getExam(bytes32 examId) external view returns (Exam memory) {
+        require(exams[examId].exists, "Exam does not exist");
+        return exams[examId];
+    }
+}

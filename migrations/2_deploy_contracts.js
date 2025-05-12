@@ -22,12 +22,7 @@ module.exports = async function(deployer, network, accounts) {
     const examinationsInstance = await Examinations.deployed();
     
     // Deploy ExamManagement contract with required addresses
-    await deployer.deploy(
-        ExamManagement, 
-        identityInstance.address,
-        certificatesInstance.address,
-        examinationsInstance.address
-    );
+    await deployer.deploy(ExamManagement, identityInstance.address);
     const examManagementInstance = await ExamManagement.deployed();
     
     // If we're on a testnet or mainnet, verify contracts on Etherscan
@@ -38,4 +33,4 @@ module.exports = async function(deployer, network, accounts) {
         console.log('Examinations contract deployed at:', examinationsInstance.address);
         console.log('ExamManagement contract deployed at:', examManagementInstance.address);
     }
-}; 
+};

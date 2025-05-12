@@ -19,7 +19,9 @@ contract Certificates is ReentrancyGuard {
     mapping(bytes32 => Certificate) public certificates;
     // student => certificateIds[]
     mapping(address => bytes32[]) public studentCertificates;
-    
+    // institution => certificateIds[]
+    mapping(address => bytes32[]) public institutionCertificates;
+
     event CertificateIssued(bytes32 indexed certificateId, address indexed student, address indexed institution);
     event CertificateRevoked(bytes32 indexed certificateId);
     
@@ -58,7 +60,8 @@ contract Certificates is ReentrancyGuard {
         );
         
         studentCertificates[_student].push(certificateId);
-        
+        institutionCertificates[msg.sender].push(certificateId);
+
         emit CertificateIssued(certificateId, _student, msg.sender);
         
         return certificateId;
@@ -96,4 +99,8 @@ contract Certificates is ReentrancyGuard {
     function getStudentCertificates(address _student) external view returns (bytes32[] memory) {
         return studentCertificates[_student];
     }
-} 
+
+    function getInstitutionCertificates(address _institution) external view returns (bytes32[] memory) {
+        return institutionCertificates[_institution];
+    }
+}

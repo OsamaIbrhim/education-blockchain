@@ -21,13 +21,3 @@ export const uploadToIPFS = async (data: any) => {
     throw error;
   }
 };
-
-export const getFromIPFS = async (hash: string) => {
-  try {
-    const response = await fetch(`${PINATA_GATEWAY}/ipfs/${hash}`);
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching from IPFS:', error);
-    throw error;
-  }
-}; 
