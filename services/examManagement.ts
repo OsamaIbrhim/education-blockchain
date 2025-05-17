@@ -3,9 +3,34 @@ import { getConfig } from '../utils/config';
 import { ExamManagementABI } from '../constants/abis';
 import { getSigner } from 'utils/ethersConfig';
 import { addStudents, getUserData, getUserRole, isStudentEnrolled } from './identity';
-import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
-import { Exam, ExamManagementContractType, ExamStructOutput, NewExam } from 'types/examManagement';
+import { getFromIPFS, uploadPdfToIPFS, uploadToIPFS } from 'utils/ipfsUtils';
+import { Exam, ExamData, ExamManagementContractType, ExamStructOutput, NewExam } from 'types/examManagement';
 import { Toast } from '@chakra-ui/react';
+
+
+export function toBytes32(value: string): string {
+    if (value.startsWith("0x") && value.length === 66) {
+        return value;
+    }
+    // Encode string to UTF-8 bytes
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(value);
+
+    if (bytes.length > 32) {
+        throw new Error("String is too long, must be <= 32 bytes");
+    }
+
+    // Create a 32-byte array and fill with zeros
+    const padded = new Uint8Array(32);
+    padded.set(bytes);
+
+    // Convert to hex string
+    let hex = "0x";
+    for (let i = 0; i < padded.length; i++) {
+        hex += padded[i].toString(16).padStart(2, "0");
+    }
+    return hex;
+}
 
 /**
  * @param signer 
@@ -31,6 +56,8 @@ export const createExam = async (exam: NewExam) => {
         const signer = await getSigner();
         const address = await signer.getAddress();
 
+        const pdfFile = await uploadPdfToIPFS(exam.pdfFile, exam.title || 'exam PDF');
+
         // Prepare exam data
         const examData = {
             title: exam.title,
@@ -38,6 +65,11 @@ export const createExam = async (exam: NewExam) => {
             date: exam.date,
             duration: exam.duration,
             institutionAddress: address,
+            ipfsHash: null,
+            pdfFile: pdfFile,
+            students: [],
+            status: 'IN_PROGRESS',
+            exists: true,
         };
 
         // Upload exam data to IPFS and get the hash
@@ -49,13 +81,27 @@ export const createExam = async (exam: NewExam) => {
         const duration = Number(exam.duration);
 
         const tx = await contract.createExam(
-            exam.title,
-            exam.description,
-            dateInSeconds,
-            duration,
             exam.ipfsHash
         );
-        await tx.wait();
+        const receipt = await tx.wait();
+
+        const events = (receipt?.logs || [])
+            .map(log => {
+                try {
+                    return contract.interface.parseLog(log);
+                } catch {
+                    return null;
+                }
+            })
+            .filter(e => e && e.name === "ExamCreated");
+
+        const examId = (events.length > 0 && events[0] !== null) ? events[0].args.examId : undefined;
+
+        if (!examId) {
+            throw new Error('Exam creation failed: ExamCreated event not found');
+        }
+
+        exam.address = examId;
 
         if (!tx) {
             throw new Error('Transaction failed');
@@ -110,6 +156,11 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
         if (!ethers.isAddress(institutionAddress)) {
             throw new Error(`Invalid institution address format: ${institutionAddress}.`);
         }
+        
+        const examData = await getExam(exam);
+        if (!examData) {
+            throw new Error(`Exam with ID ${exam} does not exist.`);
+        }
 
         // Validate each student address
         for (const studentAddress of studentAddresses) {
@@ -131,13 +182,14 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
             }
 
             // check if the student is already registered for the exam
-            const examData = await emContract.getExam(exam);
             if (examData.students.includes(studentAddress)) {
                 throw new Error(`Student ${studentAddress} is already registered for this exam.`);
             }
         }
 
-        const tx = await emContract.registerStudentsForExam(exam, studentAddresses);
+        const examIdBytes32 = toBytes32(exam);
+
+        const tx = await emContract.registerStudentsForExam(examIdBytes32, studentAddresses);
         await tx.wait();
         return true;
     } catch (error: any) {
@@ -162,7 +214,7 @@ export const getUserExams = async (address: string) => {
         const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
 
         const examAddresses = await emContract.getUserExams(address);
-        const exams: Exam[] = [];
+        const exams: ExamData[] = [];
 
         for (const examAddress of examAddresses) {
             try {
@@ -175,6 +227,7 @@ export const getUserExams = async (address: string) => {
                 exams.push({
                     ...exam,
                     ...examData,
+                    students: Array.from(exam.students),
                     address: examAddress,
                 });
             } catch (error) {
@@ -234,24 +287,32 @@ export const getExam = async (examId: string): Promise<Exam | null> => {
 
         const examResult: ExamStructOutput = await emContract.getExam(examId);
 
-        const examData: Exam = {
-            address: examId,
-            title: examResult.title,
-            description: examResult.description,
-            date: new Date(Number(examResult.date) * 1000),
-            duration: Number(examResult.duration),
-            ipfsHash: examResult.ipfsHash,
-            status: examResult.status,
-            students: examResult.students,
-            exists: examResult.exists,
-        };
+        // get exam data from IPFS
+        const examDataFromIPFS = await getFromIPFS(examResult.ipfsHash);
 
-        if (!examResult.exists) {
+        if (!examDataFromIPFS) {
+            console.error(`Failed to fetch exam data from IPFS for examId: ${examId}`);
+            return null;
+        }
+
+        if (!examDataFromIPFS.exists) {
             console.warn(`Exam with ID ${examId} reported as not existing by the contract.`);
             return null;
         }
 
-        return examResult.exists ? examData : null;
+        const examData: ExamData = {
+            address: examId,
+            title: examDataFromIPFS.title,
+            description: examDataFromIPFS.description,
+            date: new Date(Number(examDataFromIPFS.date) * 1000),
+            duration: Number(examDataFromIPFS.duration),
+            ipfsHash: examResult.ipfsHash,
+            status: examDataFromIPFS.status,
+            students: Array.from(examResult.students),
+            exists: examDataFromIPFS.exists,
+        };
+
+        return examData.exists ? examData : null;
 
     } catch (error) {
         console.error(`Error getting exam ${examId}:`, error);
@@ -328,10 +389,9 @@ export const submitExamResult = async (
         if (!window.ethereum) {
             throw new Error('No ethereum provider found');
         }
-        const signer = await getSigner();
-        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+        const emContract = await getExamManagementContract();
 
-        const tx = await emContract.submitExamResult(examId, student, score, grade, ipfsHash);
+        const tx = await emContract.submitResult(examId, student, score, grade, ipfsHash);
         await tx.wait();
         return true;
     } catch (error) {
@@ -341,19 +401,21 @@ export const submitExamResult = async (
 };
 
 /**
- * @param examId 
- * @param status 
+ * @param address
+ * @param exam object
  * @returns 
  */
-export const updateExamStatus = async (examId: string, status: string) => {
+export const updateExam = async (address: string, exam: any) => {
     try {
         if (!window.ethereum) {
             throw new Error('No ethereum provider found');
         }
-        const signer = await getSigner();
-        const emContract = await getExamManagementContract(signer) as unknown as ExamManagementContractType;
+        const emContract = await getExamManagementContract();
 
-        const tx = await emContract.updateExamStatus(examId, status);
+        const newIPFSHash = await uploadToIPFS({ ...exam }, 'examStatus.json');
+        const exist = exam.status === 'COMPLETED' ? false : true;
+
+        const tx = await emContract.updateExam(address, newIPFSHash, exist);
         await tx.wait();
         return true;
     } catch (error) {
