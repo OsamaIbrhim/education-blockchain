@@ -1,11 +1,6 @@
 import { ethers } from 'ethers';
 
 export type ExamStructOutput = {
-    title: string;
-    description: string;
-    date: number;
-    duration: number;
-    status: string;
     ipfsHash: string;
     students: string[];
     exists: boolean;
@@ -20,8 +15,8 @@ export type ExamResultStructOutput = {
 
 export type ExamStatisticsStructOutput = {
     totalStudents: number;
-    averageScore: number;
     passRate: number;
+    averageScore: number;
 } & ethers.Result;
 
 export type InstitutionStructOutput = {
@@ -40,11 +35,10 @@ export type InstitutionStructOutput = {
 } & ethers.Result;
 
 export type StudentStructOutput = {
-    name: string;
-    email: string;
-    enrollmentDate: bigint;
-    status: string;
-    exists: boolean;
+    userAddress: string;
+    ipfsHash: string;
+    role: number;
+    isVerified: boolean;
 } & ethers.Result;
 
 export type CertificateStructOutput = {
@@ -52,7 +46,7 @@ export type CertificateStructOutput = {
     issuer: string;
     ipfsHash: string;
     issuedAt: bigint;
-    exists: boolean;
+    isValid: boolean;
 } & ethers.Result;
 
 
@@ -62,40 +56,41 @@ export type ExamManagementContractType = ethers.Contract & {
     exams(examId: string): Promise<ExamStructOutput>;
     identityContract(): Promise<string>;
     institutionExams(institutionAddress: string, index: bigint | number): Promise<string>;
-    institutionStudents(institutionAddress: string, studentAddress: string): Promise<boolean>;
-    institutions(institutionAddress: string): Promise<InstitutionStructOutput>;
     owner(): Promise<string>; // From Ownable
     paused(): Promise<boolean>; // From Pausable
-    students(studentAddress: string): Promise<StudentStructOutput>;
+    studentExams(studentAddress: string, index: bigint | number): Promise<string>;
     addStudent(studentAddress: string, name: string, email: string): Promise<ethers.ContractTransactionResponse>;
-    createExam(title: string, description: string, date: bigint | number, duration: bigint | number, ipfsHash: string): Promise<ethers.ContractTransactionResponse>;
+    createExam(ipfsHash: string): Promise<ethers.ContractTransactionResponse>;
     getExam(examId: string): Promise<ExamStructOutput>;
-    getExamResult(examId: string, student: string): Promise<[bigint, string, string]>;
+    getExamResult(examId: string, student: string): Promise<ExamResultStructOutput>;
     getExamStatistics(examId: string): Promise<ExamStatisticsStructOutput>;
-    getInstitution(institution: string): Promise<[string, string, string, string, string, string, string, string, string, string, boolean]>;
     getInstitutionExamList(institution: string): Promise<string[]>;
-    getStudent(student: string): Promise<[string, string, bigint, string]>;
-    issueCertificate(student: string, ipfsHash: string): Promise<ethers.ContractTransactionResponse>;
-    registerInstitution(name: string, description: string, physicalAddress: string, email: string, phone: string, website: string, logo: string, ministry: string, university: string, college: string): Promise<ethers.ContractTransactionResponse>;
+    getUserExams(user: string): Promise<string[]>;
+    isStudentEnrolled(institution: string, student: string): Promise<boolean>;
     registerStudentsForExam(examId: string, studentAddresses: string[]): Promise<ethers.ContractTransactionResponse>;
     submitResult(examId: string, student: string, score: bigint | number, grade: string, notes: string): Promise<ethers.ContractTransactionResponse>;
-    updateExamStatus(examId: string, newStatus: string): Promise<ethers.ContractTransactionResponse>;
-    updateInstitutionProfile(name: string, ministry: string, university: string, college: string, description: string, logo: string, website: string, email: string, phone: string): Promise<ethers.ContractTransactionResponse>;
-    updateStudentStatus(studentAddress: string, newStatus: string): Promise<ethers.ContractTransactionResponse>;
+    updateExam(examId: string, newIpfsHash: string, newExists: boolean): Promise<ethers.ContractTransactionResponse>;
     verifyInstitution(institution: string): Promise<ethers.ContractTransactionResponse>;
 };
 
 // Interface
 export interface Exam {
     address: string; // Exam ID
+    ipfsHash: string;
+    students: string[];
+    exists: boolean;
+}
+
+export interface ExamData {
+    address: string;
     title: string;
     description: string;
     date: Date;
     duration: number;
-    status: string;
     ipfsHash: string;
     students: string[];
     exists: boolean;
+    status: 'COMPLETED' | 'IN_PROGRESS' | 'UPCOMING';
 }
 
 export interface ExamResult {
@@ -121,9 +116,11 @@ export interface ExamStatistics {
 }
 
 export interface NewExam {
+    address: string;
     title: string;
     description: string;
     date: number;
     duration: number;
     ipfsHash: string;
+    pdfFile: any;
 } 
