@@ -34,13 +34,14 @@ import {
   useColorModeValue
 } from '@chakra-ui/react';
 import { AddIcon, ViewIcon } from '@chakra-ui/icons';
-import { Exam, NewExam } from '../../types/examManagement';
+import { Exam, ExamData, NewExam } from '../../types/examManagement';
 import ExamList from './ExamList';
+import { uploadPdfToIPFS } from 'utils/ipfsUtils';
 
 interface ExamManagementProps {
-  exams: Exam[];
+  exams: ExamData[];
   onCreateExam: (exam: NewExam) => Promise<any>;
-  onUpdateStatus: (examId: string, status: string) => Promise<boolean>;
+  onUpdateStatus: (examId: string, exam: any) => Promise<boolean>;
   onRegisterStudents: (examId: string, students: string[]) => Promise<boolean>;
   loading: boolean;
 }
@@ -60,7 +61,8 @@ export function ExamManagement({
     description: '',
     date: '',
     duration: '',
-    ipfsHash: ''
+    ipfsHash: '',
+    pdfFile: null as unknown as File
   });
   const [studentAddresses, setStudentAddresses] = useState<string>('');
   const toast = useToast();
@@ -69,11 +71,13 @@ export function ExamManagement({
     e.preventDefault();
     try {
       const exam = await onCreateExam({
+        address: '',
         title: newExam.title,
         description: newExam.description,
         date: new Date(newExam.date).getTime(),
         duration: parseInt(newExam.duration),
-        ipfsHash: newExam.ipfsHash
+        ipfsHash: newExam.ipfsHash,
+        pdfFile: newExam.pdfFile,
       });
 
       if (exam) {
@@ -84,7 +88,7 @@ export function ExamManagement({
           isClosable: true,
         });
         onCreateClose();
-        setNewExam({ title: '', description: '', date: '', duration: '', ipfsHash: '' });
+        setNewExam({ title: '', description: '', date: '', duration: '', ipfsHash: '', pdfFile: null as unknown as File });
       }
     } catch (error: any) {
       toast({
@@ -101,9 +105,9 @@ export function ExamManagement({
     e.preventDefault();
     try {
       const addresses = studentAddresses
-      .split('\n') // Split by newline
-      .map(addr => addr.trim()) // Trim whitespace
-      .filter(addr => addr !== ''); // Remove empty strings
+        .split('\n') // Split by newline
+        .map(addr => addr.trim()) // Trim whitespace
+        .filter(addr => addr !== ''); // Remove empty strings
 
       const success = await onRegisterStudents(selectedExamId, addresses);
       if (success) {
@@ -127,9 +131,9 @@ export function ExamManagement({
     }
   };
 
-  const handleStatusUpdate = async (examId: string, newStatus: string) => {
+  const handleStatusUpdate = async (examId: string, exam: any) => {
     try {
-      const success = await onUpdateStatus(examId, newStatus);
+      const success = await onUpdateStatus(examId, exam);
       if (success) {
         toast({
           title: 'تم تحديث حالة الاختبار بنجاح | Exam status updated successfully',
@@ -151,8 +155,8 @@ export function ExamManagement({
 
   // Statistics
   const totalExams = exams.length;
-  const activeExams = exams.filter(exam => exam.status === 'active').length;
-  const completedExams = exams.filter(exam => exam.status === 'completed').length;
+  const activeExams = exams.filter(exam => exam.status === 'IN_PROGRESS').length;
+  const completedExams = exams.filter(exam => exam.status === 'COMPLETED').length;
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
@@ -201,7 +205,7 @@ export function ExamManagement({
                 setSelectedExamId(exam.address);
                 onEnrollOpen();
               }}
-              onOpenResultsModal={() => {}}
+              onOpenResultsModal={() => { }}
             />
           </Box>
         </Box>
@@ -220,6 +224,20 @@ export function ExamManagement({
                   <Input
                     value={newExam.title}
                     onChange={e => setNewExam({ ...newExam, title: e.target.value })}
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>ملف PDF للاختبار | Exam PDF File</FormLabel>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      const file = target.files?.[0];
+                      if (file) {
+                        setNewExam((prev) => ({ ...prev, pdfFile: file }));
+                      }
+                    }}
                   />
                 </FormControl>
                 <FormControl isRequired>
@@ -266,7 +284,7 @@ export function ExamManagement({
             <ModalBody>
               <FormControl isRequired>
                 <FormLabel>عنوان الطالب | Student Address</FormLabel>
-                <Textarea 
+                <Textarea
                   value={studentAddresses}
                   onChange={e => setStudentAddresses(e.target.value)}
                   placeholder="0x...&#x0a;0x...&#x0a;..."

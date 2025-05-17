@@ -28,10 +28,10 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import ResultsModal from './ResultsModal';
-import { Exam, ExamResult, ExamStatistics } from '../../types/examManagement';
+import { Exam, ExamData, ExamResult, ExamStatistics } from '../../types/examManagement';
 
 interface ExamResultsProps {
-  exams: Exam[];
+  exams: ExamData[];
   selectedExamId: string | null;
   onSelectExam: (examId: string) => void;
   results: ExamResult[];
