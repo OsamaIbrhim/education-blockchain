@@ -218,7 +218,7 @@ const InstitutionDashboard = () => {
     error: institutionError,
     exams,
     createExam,
-    updateExamStatus,
+    updateExam,
     registerStudents,
     selectedExamResults,
     examStatistics,
@@ -629,7 +629,7 @@ const InstitutionDashboard = () => {
                         date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
                       })) || []}
                       onCreateExam={createExam}
-                      onUpdateStatus={updateExamStatus}
+                      onUpdateStatus={updateExam}
                       onRegisterStudents={registerStudents}
                       loading={isLoading}
                     />
@@ -733,7 +733,7 @@ const InstitutionDashboard = () => {
             </DrawerHeader>
             <DrawerBody>
               <AnimatePresence>
-                {exams?.filter(exam => exam.status === 'pending').map(exam => (
+                {exams?.filter(exam => exam.status === 'IN_PROGRESS').map(exam => (
                   <MotionBox
                     key={exam.address}
                     initial="hidden"
