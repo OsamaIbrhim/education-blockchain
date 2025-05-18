@@ -8,7 +8,7 @@ import { CertificateContractType, CertificateResult } from '../types/certificate
  * @param signer
  * @returns
  */
-export const getCertificatesContract = async (signer: ethers.Signer) => {
+export const getCertificatesContract = async (signer?: ethers.Signer) => {
   const contractSigner = signer || await getSigner();
   const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS || getConfig('CERTIFICATES_CONTRACT_ADDRESS');
   if (!contractAddress) {
@@ -83,10 +83,9 @@ export const getUserCertificates = async (address: string): Promise<string[]> =>
       throw new Error('Ethereum provider not found');
     }
 
-    const signer = await getSigner();
-    const certificatesContract = await getCertificatesContract(signer);
+    const cContract = await getCertificatesContract();
     
-    const certificates = await certificatesContract.getStudentCertificates(address);
+    const certificates = await cContract.getStudentCertificates(address);
     return certificates;
   } catch (error: any) {
     console.error('Error getting student certificates:', error);
