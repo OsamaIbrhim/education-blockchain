@@ -22,6 +22,7 @@ import {
   updateExam as updateExamService,
 } from 'services/examManagement';
 import { getUserData } from 'services/identity';
+import { uploadToIPFS } from 'utils/ipfsUtils';
 
 interface InstitutionResponse {
   name: string;
@@ -46,7 +47,7 @@ export const useInstitution = () => {
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamData[]>([]);
-  const [certificatesData, setCertificatesData] = useState<Certificate[]>([]);
+  const [certificatesData, setCertificatesData] = useState<any[]>([]);
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -135,10 +136,13 @@ export const useInstitution = () => {
     }
 
     try {
-      const updatedCertificats = getUserCertificates(userAddress) as unknown as Certificate[];
-      setCertificatesData(updatedCertificats || []);
+      setIsLoading(true);
+      const updatedCertificats = await getUserCertificates(userAddress);
+      setCertificatesData(updatedCertificats);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading certificates:', error);
+      setIsLoading(false);
       return [];
     }
   };
@@ -427,7 +431,7 @@ export const useInstitution = () => {
     }
   };
 
-  const issueCertificate = async (studentAddress: string, certificate: { title: string; description: string }): Promise<boolean> => {
+  const issueCertificate = async (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?:string; institutionAddress?: string }): Promise<boolean> => {
     if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -440,7 +444,13 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await issueCertificateService(studentAddress, JSON.stringify(certificate));
+      certificate.studentAddress = studentAddress;
+      certificate.institutionAddress = account;
+      const ipfsHash = await uploadToIPFS({
+        data: certificate,
+        timestamp: new Date().toISOString()
+      });
+      await issueCertificateService(studentAddress, ipfsHash);
       await loadCertificatesFromContract(account);
       return true;
     } catch (err: any) {

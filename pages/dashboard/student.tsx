@@ -87,7 +87,6 @@ export default function StudentDashboard() {
     const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
   const { address = undefined } = useAccount() || {};
   const [account, setAccount] = useState<string | null>(null);
-  const [certificates, setCertificates] = useState<CertificateType[]>([]);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const router = useRouter();
@@ -103,6 +102,7 @@ export default function StudentDashboard() {
   const borderColor = useColorModeValue('blue.100', 'blue.700');
   const textColor = useColorModeValue('gray.800', 'white');
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+  const sidebarBg = useColorModeValue('blue.50', 'blue.900');
 
   const handleDownload = (cert: CertificateType) => async () => {
     try {
@@ -318,7 +318,7 @@ export default function StudentDashboard() {
                 {/* System Info Box with Icons */}
                 <ScaleFade initialScale={0.9} in={true} delay={0.1}>
                   <Box
-                    bg={useColorModeValue('blue.50', 'blue.900')}
+                    bg={sidebarBg}
                     p={6}
                     borderRadius="xl"
                     shadow="md"
@@ -403,7 +403,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('blue.600', 'blue.300')}
                           fontWeight="bold"
                         >
-                          {certificates.length}
+                          {certificatesData.length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Total Certificates
@@ -446,7 +446,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('green.600', 'green.300')}
                           fontWeight="bold"
                         >
-                          {certificates.filter(cert => cert.isValid).length}
+                          {certificatesData.filter(cert => cert.isValid).length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Valid Certificates
@@ -489,7 +489,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('orange.600', 'orange.300')}
                           fontWeight="bold"
                         >
-                          {new Set(certificates.map(cert => cert.institutionAddress)).size}
+                          {new Set(certificatesData.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Issuing Institutions
@@ -507,7 +507,7 @@ export default function StudentDashboard() {
 
                 {/* Enhanced Certificates List */}
                 <Certificate
-                  certificates={certificates}
+                  certificatesData={certificatesData}
                   onDownload={handleDownload}
                   loading={loading}
                 />

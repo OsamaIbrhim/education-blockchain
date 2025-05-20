@@ -22,7 +22,7 @@ import {
   Spinner
 } from '@chakra-ui/react';
 import { registerUser, getUserRole, isVerifiedUser, isOwner, verifyUser } from 'services/identity';
-import { issueCertificate, verifyCertificate, getStudentCertificates } from 'services/certificate';
+import { issueCertificate, verifyCertificate, getUserCertificates } from 'services/certificate';
 import { uploadToIPFS } from '../utils/ipfs';
 import { getFromIPFS } from '../utils/ipfsUtils';
 import { useRouter } from 'next/router';
@@ -390,7 +390,7 @@ function ViewCertificatesModal() {
       }
 
       console.log('Fetching certificates from contract...');
-      const certs = await getStudentCertificates(currentAddress);
+      const certs = await getUserCertificates(currentAddress);
       console.log('Raw certificates data:', certs);
 
       if (!certs || certs.length === 0) {

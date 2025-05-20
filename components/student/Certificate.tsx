@@ -20,19 +20,22 @@ import {
   Link,
   Container,
   Spinner,
+  useClipboard,
 } from '@chakra-ui/react';
-import { InfoIcon, CheckCircleIcon } from '@chakra-ui/icons';
-import type { Certificate as CertificateType } from '../../types/certificate';
+import { InfoIcon, CheckCircleIcon, CopyIcon } from '@chakra-ui/icons';
+import type { Certificate, Certificate as CertificateType } from '../../types/certificate';
 import { AlertCircleIcon, DownloadIcon } from 'components/Icons';
+import { CertificateManagement } from 'components/institution/CertificateManagement';
+import { issueCertificate } from 'services/certificate';
 
 interface CertificateManagementProps {
-  certificates: CertificateType[];
+  certificatesData: any[];
   onDownload: (cert: CertificateType) => () => void;
   loading: boolean;
 }
 
 export function Certificate({
-  certificates,
+  certificatesData,
   onDownload,
   loading,
 }: CertificateManagementProps) {
@@ -78,7 +81,7 @@ export function Certificate({
               List of all your academic certificates and their details
             </Text>
             <Box overflowX="auto">
-              {certificates.length === 0 ? (
+              {certificatesData.length === 0 ? (
                 <Center p={8}>
                   <VStack spacing={3}>
                     <InfoIcon boxSize="40px" color="blue.500" />
@@ -100,7 +103,7 @@ export function Certificate({
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {certificates.map((cert, index) => (
+                    {certificatesData.map((cert, index) => (
                       <Tr
                         key={index}
                         _hover={{
@@ -108,12 +111,29 @@ export function Certificate({
                           transition: 'all 0.2s',
                         }}
                       >
-                        <Td fontSize="sm">
-                          <Link color="blue.500" href={`/certificate/${cert.id}`}>
-                            {cert.id}
-                          </Link>
+                        <Td 
+                        fontSize="sm" 
+                        maxW="180px" 
+                        overflow="hidden" 
+                        textOverflow="ellipsis" 
+                        whiteSpace="nowrap" 
+                        title={cert.address}>
+                          <HStack spacing={1}>
+                            <span>{cert.address}</span>
+                          </HStack>
                         </Td>
-                        <Td fontSize="sm">{cert.institutionAddress}</Td>
+                        <Td
+                          fontSize="sm"
+                          maxW="180px"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          whiteSpace="nowrap"
+                          title={cert.institutionAddress}
+                        >
+                          <HStack spacing={1}>
+                            <span>{cert.institutionAddress}</span>
+                          </HStack>
+                        </Td>
                         <Td fontSize="sm">
                           {new Date(cert.issueDate).toLocaleDateString()}
                         </Td>
@@ -145,21 +165,21 @@ export function Certificate({
                                 size="sm"
                                 colorScheme="blue"
                                 variant="ghost"
-                                onClick={() => window.open(`/certificate/${cert.id}`, '_blank')}
+                                onClick={() => window.open(`https://fuchsia-abundant-bobcat-831.mypinata.cloud/ipfs/${cert.ipfsHash}`, '_blank')}
                               >
                                 عرض - View
                               </Button>
                             </Tooltip>
-                            <Tooltip label="تحميل الشهادة - Download Certificate">
-                              <Button
-                                leftIcon={<DownloadIcon />}
-                                colorScheme="blue"
-                                size="sm"
-                                onClick={onDownload(cert)}
-                              >
-                                تحميل - Download
-                              </Button>
-                            </Tooltip>
+                            {/* <Tooltip label="تحميل الشهادة - Download Certificate">
+                                <Button
+                                  leftIcon={<DownloadIcon />}
+                                  colorScheme="blue"
+                                  size="sm"
+                                  onClick={onDownload(cert)}
+                                >
+                                  تحميل - Download
+                                </Button>
+                              </Tooltip> */}
                           </HStack>
                         </Td>
                       </Tr>

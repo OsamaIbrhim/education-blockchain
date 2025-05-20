@@ -2,7 +2,8 @@ import { ethers, getAddress } from 'ethers';
 import { CertificatesABI } from '../constants/abis';
 import { getConfig } from '../utils/config';
 import { getSigner } from 'utils/ethersConfig';
-import { CertificateContractType, CertificateResult } from '../types/certificate';
+import { Certificate, CertificateContractType, CertificateResult } from '../types/certificate';
+import { getFromIPFS } from 'utils/ipfsUtils';
 
 /**
  * @param signer
@@ -13,9 +14,9 @@ export const getCertificatesContract = async (signer?: ethers.Signer) => {
   const contractAddress = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS || getConfig('CERTIFICATES_CONTRACT_ADDRESS');
   if (!contractAddress) {
     throw new Error('Contract address not found');
-}
-const contract = new ethers.Contract(contractAddress, CertificatesABI, contractSigner);
-return contract as CertificateContractType;
+  }
+  const contract = new ethers.Contract(contractAddress, CertificatesABI, contractSigner);
+  return contract as CertificateContractType;
 };
 
 /**
@@ -26,7 +27,7 @@ return contract as CertificateContractType;
 export const issueCertificate = async (
   address: string,
   ipfsHash: string
-): Promise<CertificateResult> => {
+): Promise<boolean> => {
   try {
     if (!address || !ethers.isAddress(address)) {
       throw new Error('Invalid student address');
@@ -42,12 +43,12 @@ export const issueCertificate = async (
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
-    
+
     const certificatesContract = await getCertificatesContract(signer);
-    
+
     const tx = await certificatesContract.issueCertificate(address, ipfsHash);
     const receipt = await tx.wait();
-    
+
     if (!receipt) {
       throw new Error('Transaction receipt is null');
     }
@@ -58,11 +59,8 @@ export const issueCertificate = async (
         const certificateId = log.topics[1];
         return certificateId;
       })[0];
-    
-    return {
-      certificateId: certificateIssuedEvent,
-      txHash: receipt.hash
-    };
+
+    return true;
   } catch (error: any) {
     console.error('Error issuing certificate:', error);
     throw new Error(`Failed to issue certificate: ${error.message || error}`);
@@ -73,7 +71,7 @@ export const issueCertificate = async (
  * @param address
  * @returns certificateIds
  */
-export const getUserCertificates = async (address: string): Promise<string[]> => {
+export const getUserCertificates = async (address: string): Promise<any[]> => {
   try {
     if (!address || !ethers.isAddress(address)) {
       throw new Error('Invalid student address');
@@ -84,51 +82,81 @@ export const getUserCertificates = async (address: string): Promise<string[]> =>
     }
 
     const cContract = await getCertificatesContract();
-    
-    const certificates = await cContract.getStudentCertificates(address);
-    return certificates;
+    const certificatesData: Certificate[] = [];
+
+    const certificates: CertificateResult[] = await cContract.getUserCertificates(address);
+
+    if (!certificates || certificates.length === 0) {
+      console.log('No certificates found');
+      return [];
+    }
+
+    for (const certificate of certificates) {
+      const certificateAddress = certificate.certificate;
+      const ipfsHash = certificate.ipfsHash;
+      const exists = certificate.exist;
+
+      if (!exists) {
+        console.log(`Certificate ${certificateAddress} does not exist`);
+        continue;
+      }
+
+      if (!ipfsHash || ipfsHash.trim() === '') {
+        console.log(`Certificate ${certificateAddress} has no IPFS hash`);
+        continue;
+      }
+
+      const certificateDataFromIPFS = await getCertificateData(ipfsHash);
+      if (!certificateDataFromIPFS) {
+        console.log(`Certificate ${certificateAddress} has no data`);
+        continue;
+      }
+
+      certificatesData.push({
+        address: certificateAddress,
+        title: certificateDataFromIPFS.data.title,
+        ipfsHash: ipfsHash,
+        isValid: exists,
+        issueDate: new Date(certificateDataFromIPFS.timestamp),
+        studentAddress: certificateDataFromIPFS.data.studentAddress,
+        institutionAddress: certificateDataFromIPFS.data.institutionAddress,
+        metadata: { ...certificateDataFromIPFS.data.metadata },
+        status: certificateDataFromIPFS.isValid ? 'Valid' : 'Invalid'
+      });
+    }
+
+    return certificatesData;
   } catch (error: any) {
     console.error('Error getting student certificates:', error);
     throw new Error(`Failed to get student certificates: ${error.message || error}`);
   }
 };
-//   if (!address || !getAddress(address)) {
-//     throw new Error('Invalid address');
-//   }
 
-//   try {
-//     const signer = await getSigner();
-//     const certificatesContract = await getCertificatesContract(signer);
+/**
+ * @param certificateId
+ * @returns certificateData
+ */
+export const getCertificateData = async (certificateIPFS: string): Promise<any> => {
+  try {
+    if (!certificateIPFS) {
+      throw new Error('No certificate IPFS hash provided');
+    }
 
-//     const certificateIds = await certificatesContract.getStudentCertificates(address);
+    if (!window.ethereum) {
+      throw new Error('Ethereum provider not found');
+    }
 
-//     if (!certificateIds || certificateIds.length === 0) {
-//       console.log('No certificates found');
-//       return [];
-//     }
+    const certificateData = await getFromIPFS(certificateIPFS);
+    if (!certificateData) {
+      throw new Error('No certificate data found');
+    }
 
-//     const certificates = await Promise.all(
-//       certificateIds.map(async (id: string) => {
-//         const cert = await certificatesContract.verifyCertificate(id);
-//         return {
-//           id,
-//           ipfsHash: cert.ipfsHash,
-//           issuer: cert.institution,
-//           timestamp: cert.issuedAt.toString(),
-//           isValid: cert.isValid
-//         };
-//       })
-//     );
-
-//     return certificates;
-//   } catch (error: any) {
-//     console.error('Error in getCertificates:', error);
-//     if (error.reason) {
-//       throw new Error(`Contract error: ${error.reason}`);
-//     }
-//     throw error;
-//   }
-// };
+    return certificateData;
+  } catch (error: any) {
+    console.error('Error getting certificate data:', error);
+    throw new Error(`Failed to get certificate data: ${error.message || error}`);
+  }
+};
 
 /**
  * @param certificateId
@@ -147,9 +175,9 @@ export const verifyCertificate = async (certificateId: string) => {
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const certificatesContract = await getCertificatesContract(signer);
-    
+
     const [student, institution, ipfsHash, issuedAt, isValid] = await certificatesContract.verifyCertificate(certificateId);
-    
+
     return {
       student,
       institution,
