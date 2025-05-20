@@ -19,7 +19,7 @@ export const useStudent = () => {
     const { examManagement, certificates, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
     const [error, setError] = useState<string | null>(null);
     const [exams, setExams] = useState<Exam[]>([]);
-    const [certificatesData, setCertificatesData] = useState<Certificate[]>([]);
+    const [certificatesData, setCertificatesData] = useState<any[]>([]);
     const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
     const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -95,8 +95,8 @@ export const useStudent = () => {
 
         try {
             setIsLoading(true);
-            const updatedCertificats = await getUserCertificates(userAddress) as unknown as Certificate[];
-            setCertificatesData(updatedCertificats || []);
+            const updatedCertificats = await getUserCertificates(userAddress);
+            setCertificatesData(updatedCertificats);
             setIsLoading(false);
         } catch (error: any) {
             console.error('Error loading certificates:', error);

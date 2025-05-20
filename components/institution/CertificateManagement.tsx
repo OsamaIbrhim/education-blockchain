@@ -36,7 +36,7 @@ import { Certificate } from '../../types/certificate';
 
 interface CertificateManagementProps {
   certificates: Certificate[];
-  onIssueCertificate: (studentAddress: string, certificate: { title: string; description: string }) => Promise<boolean>;
+  onIssueCertificate: (studentAddress: string, certificate: { title: string; metadata: any }) => Promise<boolean>;
   loading: boolean;
 }
 
@@ -57,19 +57,20 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
 
   const handleSubmit = async () => {
     const title = `شهادة ${degree} في تقنية المعلومات`;
-    const description = `
-      اسم الطالب: ${studentName}
-      الدرجة العلمية: ${degree}
-      التقدير العام: ${grade}
-      النسبة المئوية: ${percentage}%
-      مجموع الدرجات: ${totalScore} من ${maxScore}
-      الأختام: ${stamps}
-    `;
+    const metadata = {
+      studentName,
+      degree,
+      grade,
+      stamps,
+      totalScore,
+      maxScore,
+      percentage,
+    };
 
     // I should make the data ipfs hash and save it
     // const ipfsHash = await saveToIPFS({ title, description });
 
-    await onIssueCertificate(studentAddress, { title, description });
+    await onIssueCertificate(studentAddress, { title, metadata });
     onClose();
     // Reset form
     setStudentAddress('');
@@ -87,11 +88,11 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
   return (
     <Box>
       <VStack spacing={6} align="stretch">
-        <Box 
-          p={6} 
-          bg={bgColor} 
-          borderRadius="xl" 
-          borderWidth="1px" 
+        <Box
+          p={6}
+          bg={bgColor}
+          borderRadius="xl"
+          borderWidth="1px"
           borderColor={borderColor}
           shadow="sm"
         >
@@ -99,8 +100,8 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
             <Text fontSize="xl" fontWeight="bold">
               إجمالي الشهادات المصدرة | Total Certificates: {certificates.length}
             </Text>
-            <Button 
-              colorScheme="blue" 
+            <Button
+              colorScheme="blue"
               onClick={onOpen}
               isLoading={loading}
             >
@@ -122,13 +123,21 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
             <Tbody>
               {certificates.map((cert, index) => (
                 <Tr key={index}>
-                  <Td fontSize="sm">{cert.studentAddress}</Td>
-                  <Td>{cert.title.split(' ')[1]}</Td>
-                  <Td>{cert.title.split(' ')[0]}</Td>
-                  <Td>{cert.description.split('\n')[2].split(': ')[1]}</Td>
+                  <Td maxW="180px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" title={cert.studentAddress}>
+                    {cert.studentAddress}
+                  </Td>
+                  <Td maxW="180px" title={cert.metadata?.studentName}>
+                    {cert.metadata?.studentName || '-'}
+                  </Td>
+                  <Td maxW="180px" title={cert.metadata?.degree}>
+                    {cert.metadata?.degree || '-'}
+                  </Td>
+                  <Td maxW="180px" title={cert.metadata?.grade}>
+                  {cert.metadata?.grade || '-'}
+                  </Td>
                   <Td>{new Date(cert.issueDate).toLocaleDateString()}</Td>
                   <Td>
-                    <Badge 
+                    <Badge
                       colorScheme={cert.status === 'issued' ? 'green' : 'yellow'}
                     >
                       {cert.status === 'issued' ? 'تم الإصدار | Issued' : 'معلق | Pending'}
@@ -252,8 +261,8 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
             <Button variant="ghost" mr={3} onClick={onClose}>
               إلغاء | Cancel
             </Button>
-            <Button 
-              colorScheme="blue" 
+            <Button
+              colorScheme="blue"
               onClick={handleSubmit}
               isLoading={loading}
             >

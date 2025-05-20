@@ -110,11 +110,10 @@ export const CertificatesABI = [
   // State Variable Getters
   "function certificates(bytes32) view returns (address student, address institution, string ipfsHash, uint256 issuedAt, bool isValid)",
   "function identityContract() view returns (address)",
-  "function studentCertificates(address, uint256) view returns (bytes32)", // Getter for array element
 
   // Functions
-  "function getStudentCertificates(address _student) external view returns (bytes32[] memory)",
-  "function issueCertificate(address _student, string memory _ipfsHash) external returns (bytes32)", // Removed onlyVerifiedInstitution, nonReentrant
-  "function revokeCertificate(bytes32 _certificateId) external", // Removed nonReentrant
+  "function getUserCertificates(address _user) external view returns (tuple(bytes32 certificate, string ipfsHash, bool exist)[] memory)",
+  "function issueCertificate(address _student, string memory _ipfsHash) external returns (bytes32)",
+  "function revokeCertificate(bytes32 _certificateId) external",
   "function verifyCertificate(bytes32 _certificateId) external view returns (address student, address institution, string memory ipfsHash, uint256 issuedAt, bool isValid)"
 ];
