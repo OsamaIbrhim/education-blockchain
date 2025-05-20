@@ -48,8 +48,8 @@ export default function ExamList({
               <Badge
                 colorScheme={
                   exam.status === 'COMPLETED' ? 'green' :
-                  exam.status === 'IN_PROGRESS' ? 'yellow' :
-                  'blue'
+                    exam.status === 'IN_PROGRESS' ? 'yellow' :
+                      'blue'
                 }
               >
                 {exam.status}
@@ -63,6 +63,7 @@ export default function ExamList({
                   icon={<UserIcon />}
                   size="sm"
                   colorScheme="teal"
+                  disabled={exam.status === 'COMPLETED'}
                   onClick={() => onSelectExam(exam)}
                 />
               </HStack>
@@ -74,6 +75,7 @@ export default function ExamList({
                   icon={<AwardIcon />}
                   size="sm"
                   colorScheme="purple"
+                  disabled={exam.status === 'COMPLETED'}
                   onClick={() => {
                     onSelectExam(exam);
                     onOpenResultsModal();
@@ -84,7 +86,7 @@ export default function ExamList({
                   icon={<BookIcon />}
                   size="sm"
                   colorScheme="blue"
-                  onClick={() => onUpdateStatus(exam.address, {...exam, status: 'IN_PROGRESS'})}
+                  onClick={() => onUpdateStatus(exam.address, { ...exam, status: 'IN_PROGRESS' })}
                   isDisabled={exam.status !== 'UPCOMING'}
                 />
                 <IconButton
@@ -92,7 +94,7 @@ export default function ExamList({
                   icon={<CheckIcon />}
                   size="sm"
                   colorScheme="green"
-                  onClick={() => onUpdateStatus(exam.address, {...exam, status: 'COMPLETED'})}
+                  onClick={() => onUpdateStatus(exam.address, { ...exam, status: 'COMPLETED' })}
                   isDisabled={exam.status !== 'IN_PROGRESS'}
                 />
               </HStack>

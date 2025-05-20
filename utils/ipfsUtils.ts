@@ -281,7 +281,7 @@ export const getFromIPFS = async (cid: string): Promise<any> => {
     }
 
     // const gatewayUrl = `${pinataConfig.gateway}/ipfs/${cid}`;
-    const gatewayUrl = `https://ipfs.io/ipfs/${cid}`;
+    const gatewayUrl = `${pinataConfig.gateway}/ipfs/${cid}`;
     const response = await axios.get(gatewayUrl, { responseType: 'json' }); // add responseType based on your expectation
 
     if (response.status !== 200) {
