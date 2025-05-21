@@ -23,6 +23,7 @@ import {
 } from '@chakra-ui/react';
 import { FaBuilding, FaUpload, FaCheckCircle, FaTimesCircle, FaGraduationCap, FaCertificate, FaUsers } from 'react-icons/fa';
 import { useIPFS } from '../../hooks/useIPFS';
+import { uploadToIPFS } from 'utils/ipfsUtils';
 
 interface InstitutionData {
   name: string;
@@ -59,7 +60,6 @@ export const InstitutionRegistration: React.FC<Props> = ({ onSubmit, isLoading, 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const toast = useToast();
-  const { uploadToIPFS } = useIPFS();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
