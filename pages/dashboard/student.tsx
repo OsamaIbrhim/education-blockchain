@@ -403,7 +403,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('blue.600', 'blue.300')}
                           fontWeight="bold"
                         >
-                          {certificates.length}
+                          {certificatesData.length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Total Certificates
@@ -446,7 +446,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('green.600', 'green.300')}
                           fontWeight="bold"
                         >
-                          {certificates.filter(cert => cert.isValid).length}
+                          {certificatesData.filter(cert => cert.isValid).length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Valid Certificates
@@ -489,7 +489,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('orange.600', 'orange.300')}
                           fontWeight="bold"
                         >
-                          {new Set(certificates.map(cert => cert.institutionAddress)).size}
+                          {new Set(certificatesData.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Issuing Institutions
@@ -507,7 +507,11 @@ export default function StudentDashboard() {
 
                 {/* Enhanced Certificates List */}
                 <Certificate
+<<<<<<< HEAD
+                  certificatesData={certificatesData}
+=======
                   certificatesData={certificates}
+>>>>>>> 3a672c6acd6168d4ed929b815b1ab50d0f0cf870
                   onDownload={handleDownload}
                   loading={isLoading}
                 />
