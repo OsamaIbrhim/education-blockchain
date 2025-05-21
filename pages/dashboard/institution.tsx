@@ -55,12 +55,11 @@ import { FaGraduationCap, FaCertificate, FaChartBar, FaSignOutAlt, FaUser, FaBel
 import { ExamManagement } from '../../components/institution/ExamManagement';
 import { CertificateManagement } from '../../components/institution/CertificateManagement';
 import { ExamResults } from '../../components/institution/ExamResults';
-import { useInstitution } from '../../hooks/useInstitution';
+import { useAppData } from '../../hooks/useAppData';
 import { Institution, Student } from '../../types/institution';
 import { Certificate } from '../../types/certificate';
 import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
 import { useRouter } from 'next/router';
-import InstitutionProfile, { InstitutionData } from '../../components/institution/InstitutionProfile';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
 import { BsArrowUpCircle } from 'react-icons/bs';
@@ -214,25 +213,24 @@ const InstitutionDashboard = () => {
   // 3. Get all values from useInstitution hook
   const {
     isLoading,
-    certificatesData = [],
+    certificates = [],
     error: institutionError,
     exams,
-    createExam,
-    updateExam,
+    createNewExam,
+    updateExamData,
     registerStudents,
     selectedExamResults,
     examStatistics,
     handleSubmitResults,
     loadExamResults,
-    issueCertificate,
-  } = useInstitution();
+    issueNewCertificate,
+  } = useAppData();
 
   // 4. State hooks
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
-  const [identityContract, setIdentityContract] = useState<any>(null);
 
   // 5. Effect hooks
   useEffect(() => {
@@ -277,29 +275,6 @@ const InstitutionDashboard = () => {
     }
   }, [isWalletConnected, toast]);
 
-  useEffect(() => {
-    const initContract = async () => {
-      try {
-        const signer = await getSigner();
-        const identityContract = await getIdentityContract(signer);
-        setIdentityContract(identityContract);
-      } catch (error: any) {
-        console.error('Error initializing contract:', error);
-        toast({
-          title: 'خطأ في تهيئة العقد | Contract initialization error',
-          description: error.message,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
-
-    if (isWalletConnected && !networkError) {
-      initContract();
-    }
-  }, [isWalletConnected, networkError, toast]);
-
   // 6. Memoized values
   const notificationVariants = useMemo(() => ({
     hidden: { opacity: 0, y: 20 },
@@ -316,7 +291,7 @@ const InstitutionDashboard = () => {
     },
     {
       label: 'الشهادات المصدرة | Issued Certificates',
-      value: certificatesData?.length || '0',
+      value: certificates?.length || '0',
       icon: FaCertificate,
       color: 'green.500'
     },
@@ -326,7 +301,7 @@ const InstitutionDashboard = () => {
       icon: FaChartBar,
       color: 'purple.500'
     },
-  ], [exams?.length, certificatesData?.length, examStatistics]);
+  ], [exams?.length, certificates?.length, examStatistics]);
 
   // 7. Event handlers
   const scrollToTop = useCallback(() => {
@@ -628,8 +603,8 @@ const InstitutionDashboard = () => {
                         ...exam,
                         date: typeof exam.date === 'number' ? new Date(exam.date) : exam.date
                       })) || []}
-                      onCreateExam={createExam}
-                      onUpdateStatus={updateExam}
+                      onCreateExam={createNewExam}
+                      onUpdateStatus={updateExamData}
                       onRegisterStudents={registerStudents}
                       loading={isLoading}
                     />
@@ -653,7 +628,7 @@ const InstitutionDashboard = () => {
                   </TabPanel>
                   <TabPanel>
                     <CertificateManagement
-                      certificates={Array.isArray(certificatesData) ? certificatesData?.map((cert: Certificate) => ({
+                      certificates={Array.isArray(certificates) ? certificates?.map((cert: Certificate) => ({
                         ...cert,
                         studentAddress: cert.studentAddress,
                         issueDate: cert.issueDate || new Date().toISOString(),
@@ -661,7 +636,7 @@ const InstitutionDashboard = () => {
                       })) ?? [] : []}
                       onIssueCertificate={async (studentAddress, certificate) => {
                         try {
-                          await issueCertificate(studentAddress, certificate);
+                          await issueNewCertificate(studentAddress, certificate);
                           return true;
                         } catch (error) {
                           console.error('Error issuing certificate:', error);

@@ -47,7 +47,7 @@ import {
   FormHelperText,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import { verifyCertificate, getStudentCertificates } from 'services/certificate';
+import { verifyCertificate } from 'services/certificate';
 import { getUserRole } from 'services/identity';
 import { connectWallet } from '../../utils/web3Provider';
 import LogoutButton from '../../components/LogoutButton';

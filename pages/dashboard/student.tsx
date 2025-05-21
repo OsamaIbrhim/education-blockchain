@@ -66,7 +66,7 @@ import {
   AwardIcon,
   CalendarIcon
 } from '../../components/Icons';
-import { useStudent } from 'hooks/useStudent';
+import { useAppData } from 'hooks/useAppData';
 import { ExamManagement } from 'components/student/ExamManagement';
 import { Certificate } from 'components/student/Certificate';
 import { Certificate as CertificateType } from 'types/certificate';
@@ -75,14 +75,14 @@ import { useAccount } from 'wagmi';
 
 export default function StudentDashboard() {
   const {
-    loading,
+    isLoading,
     error,
     exams,
-    certificatesData,
+    certificates,
     selectedExamResults,
     examStatistics,
     checkAccess,
-  } = useStudent();
+  } = useAppData();
 
     const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
   const { address = undefined } = useAccount() || {};
@@ -164,7 +164,7 @@ export default function StudentDashboard() {
     </Modal>
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <VStack spacing={4}>
@@ -403,7 +403,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('blue.600', 'blue.300')}
                           fontWeight="bold"
                         >
-                          {certificatesData.length}
+                          {certificates.length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Total Certificates
@@ -446,7 +446,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('green.600', 'green.300')}
                           fontWeight="bold"
                         >
-                          {certificatesData.filter(cert => cert.isValid).length}
+                          {certificates.filter(cert => cert.isValid).length}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Valid Certificates
@@ -489,7 +489,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('orange.600', 'orange.300')}
                           fontWeight="bold"
                         >
-                          {new Set(certificatesData.map(cert => cert.institutionAddress)).size}
+                          {new Set(certificates.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
                         <StatHelpText color={mutedTextColor}>
                           Issuing Institutions
@@ -502,14 +502,14 @@ export default function StudentDashboard() {
                 {/* Enhanced Certificates List */}
                 <ExamManagement
                   exams={exams}
-                  loading={loading}
+                  loading={isLoading}
                 />
 
                 {/* Enhanced Certificates List */}
                 <Certificate
-                  certificatesData={certificatesData}
+                  certificatesData={certificates}
                   onDownload={handleDownload}
-                  loading={loading}
+                  loading={isLoading}
                 />
               </VStack>
             </GridItem>

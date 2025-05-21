@@ -44,7 +44,7 @@ export const IdentityABI = [
   "event Paused(address account)", // From Pausable
   "event StudentAdded(address indexed institution, address indexed student)", // Added institution
   "event Unpaused(address account)", // From Pausable
-  "event UserRegistered(address indexed userAddress, uint8 role)", // UserRole enum maps to uint8
+  "event UserRegistered(address indexed userAddress, uint8 indexed role)", // UserRole enum maps to uint8
   "event UserVerified(address indexed userAddress)",
   "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // Added UserRoleUpdated
 

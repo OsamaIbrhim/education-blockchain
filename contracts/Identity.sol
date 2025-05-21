@@ -25,7 +25,7 @@ contract Identity is Ownable, Pausable {
     mapping(address => bool) public admins;
     mapping(address => mapping(address => bool)) public institutionStudents;
 
-    event UserRegistered(address indexed userAddress, UserRole role);
+    event UserRegistered(address indexed userAddress, UserRole indexed role);
     event UserVerified(address indexed userAddress);
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
