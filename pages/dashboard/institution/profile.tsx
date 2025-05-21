@@ -10,21 +10,22 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import InstitutionProfile, { InstitutionData } from '../../../components/institution/InstitutionProfile';
-import { useInstitution } from '../../../hooks/useInstitution';
+import InstitutionProfile from '../../../components/institution/InstitutionProfile';
 import { useAccount } from 'wagmi';
 import { useContract } from '../../../hooks/useContract';
 import Layout from '../../../components/layout/Layout';
+import { Institution } from 'types/institution';
+import { useAppData } from 'hooks/useAppData';
 
 const InstitutionProfilePage = () => {
   const router = useRouter();
   const bgColor = useColorModeValue('gray.50', 'gray.800');
   const { address } = useAccount();
-  const { saveInstitutionProfile, isLoading, exams, isVerified } = useInstitution();
-  const { examManagement } = useContract();
+  const { saveInstitutionProfile, isLoading, exams, isVerified } = useAppData();
+  const { examManagementContract } = useContract();
   const pageName = 'الملف الشخصي للمؤسسة | Institution Profile';
 
-  const handleSaveProfile = async (data: InstitutionData) => {
+  const handleSaveProfile = async (data: Institution) => {
     try {
       await saveInstitutionProfile(data);
       if (!isVerified) {
@@ -56,7 +57,7 @@ const InstitutionProfilePage = () => {
             <InstitutionProfile
               onSave={handleSaveProfile}
               loading={isLoading}
-              contract={examManagement}
+              contract={examManagementContract}
               userAddress={address}
             />
           </VStack>
