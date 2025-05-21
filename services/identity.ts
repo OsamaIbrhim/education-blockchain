@@ -3,6 +3,8 @@ import { getConfig } from '../utils/config';
 import { IdentityABI } from '../constants/abis';
 import { getAddress, getProvider, getSigner } from 'utils/ethersConfig';
 import { Toast } from '@chakra-ui/react';
+import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
+import { Institution } from 'types/institution';
 
 type RoleString = 'none' | 'student' | 'institution' | 'employer' | 'admin' | 'unknown';
 
@@ -91,9 +93,44 @@ export const verifyUser = async (useraddress: string) => {
       throw new Error('Only institution can be verified');
     }
 
-    const tx = await contract.verifyUser(useraddress);
-    await tx.wait();
-    return { status: 'success' };
+    await isVerifiedUser(useraddress);
+    const isVerified = await contract.isVerifiedUser(useraddress);
+
+    if (!isVerified) {
+      const tx = await contract.verifyUser(useraddress);
+      await tx.wait();
+      
+      const institution = await getUserData(useraddress);
+
+      const { ipfsHash } = institution;
+      if (!ipfsHash) {
+        throw new Error('No IPFS hash found for institution');
+      }
+
+      const institutionData = await getFromIPFS(ipfsHash);
+      if (!institutionData) {
+        throw new Error('No data found for institution');
+      }
+
+      institutionData.verificationDate = new Date().toISOString();
+      institutionData.address = useraddress;
+
+      const newIPFS = await uploadToIPFS(institutionData, useraddress);
+
+      await updateUserIPFS(useraddress, newIPFS);
+      
+      return { status: 'success' };
+    }
+
+    Toast({
+      title: 'User already verified',
+      description: 'User is already verified',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+    return { status: 'already verified' };
+
   } catch (error: any) {
     Toast({
       title: 'Error verifying user:',
@@ -198,10 +235,62 @@ export const addStudents = async (usersAddresses: string[]) => {
 };
 
 /**
+ * @param 
+ * @returns Array of user addresses
+ */
+export const getAllInstitutions = async () => {
+  try {
+    const contract = await getIdentityContract();
+    const filter = contract.filters.UserRegistered(null, 2);
+    const events = await contract.queryFilter(filter);
+
+    const addresses = events.map(event => {
+      const eventData = event as ethers.EventLog;
+      if (eventData && eventData.args && eventData.args.length > 0) {
+        return eventData.args[0];
+      }
+      return null;
+    }).filter(address => address !== null);
+
+    // get institution data
+    const confirmedAddresses: Institution[] = [];
+    for (const address of addresses) {
+      try {
+        const { ipfsHash, isVerified } = await getUserData(address);
+        if (!ipfsHash) {
+          console.warn(`No IPFS hash found for address: ${address}`);
+          continue;
+        }
+        const institutionData = await getFromIPFS(ipfsHash);
+        if (institutionData) {
+          const institution = {
+            ...institutionData,
+          };
+          institution.address = address;
+          institution.isVerified = isVerified;
+          confirmedAddresses.push(institution);
+        } else {
+          console.warn(`No data found for address: ${address}`);
+        }
+
+      } catch (error) {
+        console.error(`Error checking user ${address}:`, error);
+      }
+    }
+
+    return confirmedAddresses;
+  }
+  catch (error) {
+    console.error('Error in getAllInstitutions:', error);
+    throw error;
+  }
+};
+
+/**
  * @param userAddress
  * @returns User data
  */
-export const getUserData = async (userAddress: string) => {
+export const getUserData = async (userAddress: string): Promise<Institution> => {
   try {
     const contract = await getIdentityContract();
     const signer = await getSigner();
@@ -211,7 +300,7 @@ export const getUserData = async (userAddress: string) => {
     try {
       const userData = await identityContract.users(userAddress);
 
-      const result = {
+      const result: Institution = {
         address: userAddress,
         ipfsHash: userData[1],
         role: userData[2],
@@ -313,3 +402,25 @@ export const getUserRoleText = (roleId: number): RoleString => {
       return 'unknown';
   }
 };
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const updateUserIPFS = async (userAddress: string, data: any = {}) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.updateUserIPFS(data);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error updating user IPFS:', error);
+    throw error;
+  }
+}
