@@ -19,15 +19,15 @@ export function useContract() {
   const toast = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [examManagement, setExamManagement] = useState<ContractType | null>(null);
-  const [identity, setIdentity] = useState<ContractType | null>(null);
-  const [certificates, setCertificates] = useState<ContractType | null>(null);
+  const [isLoadingContract, setIsLoadingContract] = useState(true);
+  const [examManagementContract, setExamManagementContract] = useState<ContractType | null>(null);
+  const [identityContract, setIdentityContract] = useState<ContractType | null>(null);
+  const [certificateContract, setCertificateContract] = useState<ContractType | null>(null);
 
   useEffect(() => {
     const initializeContracts = async () => {
       try {
-        setIsLoading(true);
+        setIsLoadingContract(true);
 
         if (!publicClient) {
           console.log('Waiting for public client...');
@@ -70,7 +70,7 @@ export function useContract() {
           });
           
           // Initialize state first with basic contract data
-          setExamManagement(examManagementContract);
+          setExamManagementContract(examManagementContract);
           
           const identityContract = getContract({
             address: IDENTITY_CONTRACT_ADDRESS as `0x${string}`,
@@ -78,7 +78,7 @@ export function useContract() {
             client: publicClient,
           });
           
-          setIdentity(identityContract);
+          setIdentityContract(identityContract);
   
           const certificatesContract = getContract({
             address: CERTIFICATES_CONTRACT_ADDRESS as `0x${string}`,
@@ -86,7 +86,7 @@ export function useContract() {
             client: publicClient,
           });
           
-          setCertificates(certificatesContract);
+          setCertificateContract(certificatesContract);
           setIsInitialized(true);
         } catch (contractError: any) {
           console.error('Error creating contract instances:', contractError);
@@ -102,7 +102,7 @@ export function useContract() {
           isClosable: true,
         });
       } finally {
-        setIsLoading(false);
+        setIsLoadingContract(false);
       }
     };
 
@@ -110,11 +110,11 @@ export function useContract() {
   }, [publicClient, walletClient, account, toast]);
 
   return {
-    examManagement,
-    identity,
-    certificates,
+    examManagementContract,
+    identityContract,
+    certificateContract,
     isInitialized,
     isCorrectNetwork,
-    isLoading
+    isLoadingContract
   };
 }

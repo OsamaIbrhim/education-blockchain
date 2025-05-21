@@ -80,9 +80,7 @@ export const createExam = async (exam: NewExam) => {
         const dateInSeconds = Math.floor(Number(exam.date) / 1000);
         const duration = Number(exam.duration);
 
-        const tx = await contract.createExam(
-            exam.ipfsHash
-        );
+        const tx = await contract.createExam(exam.ipfsHash);
         const receipt = await tx.wait();
 
         const events = (receipt?.logs || [])
@@ -156,7 +154,7 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
         if (!ethers.isAddress(institutionAddress)) {
             throw new Error(`Invalid institution address format: ${institutionAddress}.`);
         }
-        
+
         const examData = await getExam(exam);
         if (!examData) {
             throw new Error(`Exam with ID ${exam} does not exist.`);
@@ -174,7 +172,7 @@ export const registerStudentsForExam = async (exam: string, studentAddresses: st
             const isStudentInInstitution = await isStudentEnrolled(institutionAddress, studentAddress);
             if (!isStudentInInstitution) {
                 // add the student to the institution if not already added
-                const  { status } = await addStudents([studentAddress]);
+                const { status } = await addStudents([studentAddress]);
                 if (status !== 'success') {
                     throw new Error(`Failed to add student ${studentAddress} to institution ${institutionAddress}.`);
                 }

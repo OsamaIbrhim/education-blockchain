@@ -35,27 +35,14 @@ import { FaUniversity, FaGraduationCap, FaBuilding, FaCloudUploadAlt } from 'rea
 import { useIPFS } from '../../hooks/useIPFS';
 import { getFromIPFS, getCIDFromContract, getImageUrlFromIPFS } from '../../utils/ipfsUtils';
 import { getUserData } from '../../services/identity';
+import { Institution } from '../../types/institution';
 
 interface InstitutionProfileProps {
-  onSave: (data: InstitutionData) => Promise<void>;
-  initialData?: InstitutionData;
+  onSave: (data: Institution) => Promise<void>;
+  initialData?: Institution;
   loading?: boolean;
   contract: any;
   userAddress?: string;
-}
-
-export interface InstitutionData {
-  name: string;
-  ministry: string;
-  university: string;
-  college: string;
-  description: string;
-  imageUrl: string;
-  imageIpfsCid?: string;
-  website?: string;
-  email: string;
-  phone: string;
-  lastUpdated?: string;
 }
 
 export default function InstitutionProfile({
@@ -65,9 +52,12 @@ export default function InstitutionProfile({
   contract,
   userAddress,
 }: InstitutionProfileProps) {
-  const [data, setData] = useState<InstitutionData>(
+  const [data, setData] = useState<Institution>(
     initialData || {
       name: '',
+      address: '',
+      imageIpfsCid: undefined,
+      logo: '',
       ministry: '',
       university: '',
       college: '',
@@ -82,7 +72,7 @@ export default function InstitutionProfile({
   const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [originalData, setOriginalData] = useState<InstitutionData | null>(null);
+  const [originalData, setOriginalData] = useState<Institution | null>(null);
   const toast = useToast();
 
   // Initialize the IPFS hook with the contract instance

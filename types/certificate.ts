@@ -24,23 +24,27 @@ export type CertificateContractType = ethers.Contract & {
 };
 
 export interface Certificate {
-    id: string;
+    address: string;
     title: string;
-    description: string;
     studentAddress: string;
     institutionAddress: string;
     ipfsHash: string;
     issueDate: Date;
     isValid: boolean;
     status?: string;
-    metadata?: { 
+    metadata: {
         studentName?: string;
         degree?: string;
         grade?: string;
+        stamps?: string;
+        totalScore?: string;
+        maxScore?: string;
+        percentage?: string;
     };
 }
 
 export interface CertificateResult {
-  certificateId: string;
-  txHash: string;
+    certificate: string;
+    ipfsHash: string;
+    exist: boolean;
 }

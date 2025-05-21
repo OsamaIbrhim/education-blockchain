@@ -66,7 +66,7 @@ import {
   AwardIcon,
   CalendarIcon
 } from '../../components/Icons';
-import { useStudent } from 'hooks/useStudent';
+import { useAppData } from 'hooks/useAppData';
 import { ExamManagement } from 'components/student/ExamManagement';
 import { Certificate } from 'components/student/Certificate';
 import { Certificate as CertificateType } from 'types/certificate';
@@ -75,14 +75,14 @@ import { useAccount } from 'wagmi';
 
 export default function StudentDashboard() {
   const {
-    loading,
+    isLoading,
     error,
     exams,
-    certificatesData,
+    certificates,
     selectedExamResults,
     examStatistics,
     checkAccess,
-  } = useStudent();
+  } = useAppData();
 
     const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
   const { address = undefined } = useAccount() || {};
@@ -164,7 +164,7 @@ export default function StudentDashboard() {
     </Modal>
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <VStack spacing={4}>
@@ -502,14 +502,18 @@ export default function StudentDashboard() {
                 {/* Enhanced Certificates List */}
                 <ExamManagement
                   exams={exams}
-                  loading={loading}
+                  loading={isLoading}
                 />
 
                 {/* Enhanced Certificates List */}
                 <Certificate
+<<<<<<< HEAD
                   certificatesData={certificatesData}
+=======
+                  certificatesData={certificates}
+>>>>>>> 3a672c6acd6168d4ed929b815b1ab50d0f0cf870
                   onDownload={handleDownload}
-                  loading={loading}
+                  loading={isLoading}
                 />
               </VStack>
             </GridItem>
