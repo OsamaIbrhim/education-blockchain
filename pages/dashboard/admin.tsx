@@ -52,14 +52,14 @@ import {
   IconButton,
   createIcon,
 } from '@chakra-ui/react';
-import { getUserRole, verifyUser, isOwner } from 'services/identity';
+import { getUserRole, isOwner } from 'services/identity';
 import { connectWallet } from '../../utils/web3Provider';
 import { IconType } from 'react-icons';
-import { 
+import {
   FiUserCheck,
-  FiCheckCircle, 
-  FiAlertCircle, 
-  FiInfo, 
+  FiCheckCircle,
+  FiAlertCircle,
+  FiInfo,
   FiUser,
   FiShield,
   FiDatabase,
@@ -70,9 +70,11 @@ import {
 } from 'react-icons/fi';
 import React from 'react';
 import { getConfig } from '../../utils/config';
+import { useAppData } from 'hooks/useAppData';
 
 // Import the new SimpleLogoutButton
 import SimpleLogoutButton from '../../components/SimpleLogoutButton';
+import { Institution } from 'types/institution';
 
 // Lazy load components
 const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {
@@ -191,13 +193,6 @@ const SettingsIcon = createIcon({
   ),
 });
 
-interface Institution {
-  address: string;
-  name: string;
-  isVerified: boolean;
-  verificationDate?: string;
-}
-
 interface IconComponentProps extends BoxProps {
   icon: IconType;
 }
@@ -245,11 +240,12 @@ const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 );
 
 export default function AdminDashboard() {
+  const { allInstitutions, verifyUser } = useAppData();
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState('');
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [institutionAddress, setInstitutionAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
@@ -267,6 +263,10 @@ export default function AdminDashboard() {
   const borderColor = useColorModeValue('red.100', 'red.700');
   const textColor = useColorModeValue('gray.800', 'white');
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+
+  useEffect(() => {
+    setInstitutions(allInstitutions);
+  }, [allInstitutions]);
 
   useEffect(() => {
     checkAccess();
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
 
       // الحصول على عنوان المشرف من نظام التكوين
       const adminAddress = getConfig('ADMIN_ADDRESS');
-      
+
       console.log('Admin Check:', {
         userAddress: address.toLowerCase(),
         adminAddress: adminAddress.toLowerCase(),
@@ -327,37 +327,16 @@ export default function AdminDashboard() {
       setIsAdmin(true);
       setLoading(false);
 
-      await loadInstitutions();
-
     } catch (error: any) {
       console.error('Access Check Error:', error);
       setError(error.message);
       setLoading(false);
       setIsAdmin(false);
-      
+
       // تأخير التوجيه للصفحة الرئيسية
       setTimeout(() => {
         router.push('/');
       }, 2000);
-    }
-  };
-
-  const loadInstitutions = async () => {
-    try {
-      // For now, we'll initialize with an empty array
-      // You'll need to implement a proper way to fetch institutions
-      // This could be through events or a separate contract method
-      setInstitutions([]);
-    } catch (error: any) {
-      console.error('Error loading institutions:', error);
-      toast({
-        title: 'خطأ - Error',
-        description: 'فشل في تحميل المؤسسات - Failed to load institutions',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
     }
   };
 
@@ -383,24 +362,34 @@ export default function AdminDashboard() {
         setVerificationProgress(prev => Math.min(prev + 15, 90));
       }, 500);
 
-      await verifyUser(institutionAddress);
+      const { status } = await verifyUser(institutionAddress);
       setVerificationProgress(95);
 
-      await loadInstitutions();
       setInstitutionAddress('');
 
-      toast({
-        title: 'نجاح - Success',
-        description: 'تم التحقق من المؤسسة بنجاح - Institution verified successfully',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-        position: 'top-right',
-      });
+      if (status === 'success') {
+        toast({
+          title: 'نجاح - Success',
+          description: 'تم التحقق من المؤسسة بنجاح - Institution verified successfully',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+          position: 'top-right',
+        });
+      } else if (status === 'already verified') {
+        toast({
+          title: 'تحذير - Warning',
+          description: 'المؤسسة تم التحقق منها مسبقاً - Institution already verified',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+          position: 'top-right',
+        });
+      }
 
       clearInterval(progressInterval);
       setVerificationProgress(100);
-      
+
       // Reset progress after completion
       setTimeout(() => {
         setVerificationProgress(0);
@@ -475,9 +464,9 @@ export default function AdminDashboard() {
   return (
     <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
       {isOpen && <TutorialModal isOpen={isOpen} onClose={onClose} />}
-      
+
       {/* Enhanced Header with Animation */}
-      <Box 
+      <Box
         bgGradient={bgGradient}
         color="white"
         py={8}
@@ -501,9 +490,9 @@ export default function AdminDashboard() {
         <Container maxW="container.xl">
           <ScaleFade initialScale={0.9} in={true}>
             <VStack spacing={4} align="center">
-              <Heading 
-                size="xl" 
-                bgGradient="linear(to-r, white, red.100)" 
+              <Heading
+                size="xl"
+                bgGradient="linear(to-r, white, red.100)"
                 bgClip="text"
                 letterSpacing="tight"
               >
@@ -528,7 +517,7 @@ export default function AdminDashboard() {
           <GridItem colSpan={{ base: 12, lg: 3 }}>
             <VStack spacing={6} align="stretch">
               <ScaleFade initialScale={0.9} in={true}>
-                <Box 
+                <Box
                   bg={cardBg}
                   p={6}
                   borderRadius="xl"
@@ -636,7 +625,7 @@ export default function AdminDashboard() {
                     position="relative"
                     overflow="hidden"
                     transition="all 0.2s"
-                    _hover={{ 
+                    _hover={{
                       transform: 'translateY(-4px)',
                       shadow: '2xl',
                       borderColor: 'red.400'
@@ -656,7 +645,7 @@ export default function AdminDashboard() {
                       <StatLabel fontSize="lg" color={mutedTextColor}>
                         إجمالي المؤسسات
                       </StatLabel>
-                      <StatNumber 
+                      <StatNumber
                         fontSize="4xl"
                         color={useColorModeValue('red.600', 'red.300')}
                         fontWeight="bold"
@@ -679,7 +668,7 @@ export default function AdminDashboard() {
                     position="relative"
                     overflow="hidden"
                     transition="all 0.2s"
-                    _hover={{ 
+                    _hover={{
                       transform: 'translateY(-4px)',
                       shadow: '2xl',
                       borderColor: 'green.400'
@@ -699,7 +688,7 @@ export default function AdminDashboard() {
                       <StatLabel fontSize="lg" color={mutedTextColor}>
                         المؤسسات المعتمدة
                       </StatLabel>
-                      <StatNumber 
+                      <StatNumber
                         fontSize="4xl"
                         color={useColorModeValue('green.600', 'green.300')}
                         fontWeight="bold"
@@ -722,7 +711,7 @@ export default function AdminDashboard() {
                     position="relative"
                     overflow="hidden"
                     transition="all 0.2s"
-                    _hover={{ 
+                    _hover={{
                       transform: 'translateY(-4px)',
                       shadow: '2xl',
                       borderColor: 'orange.400'
@@ -742,7 +731,7 @@ export default function AdminDashboard() {
                       <StatLabel fontSize="lg" color={mutedTextColor}>
                         المؤسسات قيد التحقق
                       </StatLabel>
-                      <StatNumber 
+                      <StatNumber
                         fontSize="4xl"
                         color={useColorModeValue('orange.600', 'orange.300')}
                         fontWeight="bold"
@@ -862,7 +851,7 @@ export default function AdminDashboard() {
                             </Thead>
                             <Tbody>
                               {institutions.map((inst, index) => (
-                                <Tr 
+                                <Tr
                                   key={index}
                                   _hover={{
                                     bg: useColorModeValue('gray.50', 'gray.700'),
@@ -891,7 +880,7 @@ export default function AdminDashboard() {
                                   <Td fontSize="sm">{inst.name}</Td>
                                   <Td fontSize="sm">
                                     {inst.verificationDate ? 
-                                      new Date(inst.verificationDate).toLocaleDateString() :
+                                      "inst.verificationDate.toDateString()" :
                                       '-'
                                     }
                                   </Td>
@@ -904,7 +893,7 @@ export default function AdminDashboard() {
                                       borderRadius="full"
                                     >
                                       <HStack spacing={2}>
-                                        <Icon 
+                                        <Icon
                                           as={inst.isVerified ? CheckIcon : InfoIcon}
                                           w={4}
                                           h={4}
@@ -964,4 +953,4 @@ export default function AdminDashboard() {
       </Box>
     </Box>
   );
-} 
+}

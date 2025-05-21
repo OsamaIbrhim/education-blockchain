@@ -14,13 +14,15 @@ contract Certificates is ReentrancyGuard {
         uint256 issuedAt;
         bool isValid;
     }
+
+    struct CertificateInfo {
+        bytes32 certificate;
+        string ipfsHash;
+        bool exist;
+    }
     
-    // certificateId => Certificate
     mapping(bytes32 => Certificate) public certificates;
-    // student => certificateIds[]
-    mapping(address => bytes32[]) public studentCertificates;
-    // institution => certificateIds[]
-    mapping(address => bytes32[]) public institutionCertificates;
+    mapping(address => CertificateInfo[]) public userCertificates;
 
     event CertificateIssued(bytes32 indexed certificateId, address indexed student, address indexed institution);
     event CertificateRevoked(bytes32 indexed certificateId);
@@ -33,7 +35,7 @@ contract Certificates is ReentrancyGuard {
         require(
             identityContract.getUserRole(msg.sender) == Identity.UserRole.INSTITUTION &&
             identityContract.isVerifiedUser(msg.sender),
-            "Not a verified institution"
+            "Not a verified institution Or user is not Institution"
         );
         _;
     }
@@ -42,7 +44,7 @@ contract Certificates is ReentrancyGuard {
         address _student,
         string memory _ipfsHash
     ) external onlyVerifiedInstitution nonReentrant returns (bytes32) {
-        require(_student != address(0), "Invalid student address");
+        require(identityContract.getUserRole(_student) == Identity.UserRole.STUDENT, "The address you are trying to give the certificate is not a student address.");
         require(bytes(_ipfsHash).length > 0, "Invalid IPFS hash");
         
         bytes32 certificateId = keccak256(
@@ -59,8 +61,16 @@ contract Certificates is ReentrancyGuard {
             true
         );
         
-        studentCertificates[_student].push(certificateId);
-        institutionCertificates[msg.sender].push(certificateId);
+        userCertificates[_student].push(CertificateInfo({
+            certificate: certificateId,
+            ipfsHash: _ipfsHash,
+            exist: true
+        }));
+        userCertificates[msg.sender].push(CertificateInfo({
+            certificate: certificateId,
+            ipfsHash: _ipfsHash,
+            exist: true
+        }));
 
         emit CertificateIssued(certificateId, _student, msg.sender);
         
@@ -95,12 +105,8 @@ contract Certificates is ReentrancyGuard {
             cert.isValid
         );
     }
-    
-    function getStudentCertificates(address _student) external view returns (bytes32[] memory) {
-        return studentCertificates[_student];
-    }
 
-    function getInstitutionCertificates(address _institution) external view returns (bytes32[] memory) {
-        return institutionCertificates[_institution];
+    function getUserCertificates(address _user) external view returns (CertificateInfo[] memory) {
+        return userCertificates[_user];
     }
 }
