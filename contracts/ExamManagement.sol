@@ -19,35 +19,7 @@ contract ExamManagement is Ownable, Pausable {
 
     IIdentity public identityContract;
 
-    struct Institution {
-        string name;
-        string description;
-        string physicalAddress;
-        string email;
-        string phone;
-        string website;
-        string logo;
-        string ministry;
-        string university;
-        string college;
-        bool isVerified;
-        bool exists;
-    }
-
-    struct Student {
-        string name;
-        string email;
-        uint256 enrollmentDate;
-        string status; // "active", "inactive", "graduated"
-        bool exists;
-    }
-
     struct Exam {
-        string title;
-        string description;
-        uint256 date;
-        uint256 duration;
-        string status; // "pending", "active", "completed"
         string ipfsHash;
         address[] students;
         bool exists;
@@ -61,8 +33,6 @@ contract ExamManagement is Ownable, Pausable {
     }
 
     // Mappings
-    mapping(address => Student) public students;
-    mapping(address => mapping(address => bool)) public institutionStudents;
     mapping(bytes32 => Exam) public exams;
     mapping(bytes32 => mapping(address => ExamResult)) public examResults;
     mapping(address => bytes32[]) public institutionExams;
@@ -72,15 +42,10 @@ contract ExamManagement is Ownable, Pausable {
     Counters.Counter private _examIds;
 
     // Events
-    event InstitutionRegistered(address indexed institution, string name);
-    event InstitutionVerified(address indexed institution);
-    event StudentAdded(address indexed institution, address indexed student);
-    event StudentStatusUpdated(address indexed student, string status);
     event ExamCreated(bytes32 indexed examId, string title);
-    event ExamStatusUpdated(bytes32 indexed examId, string status);
+    event ExamUpdated(bytes32 indexed examId, string ipfsHash, bool exists);
     event StudentsRegistered(bytes32 indexed examId, address[] students);
     event ResultSubmitted(bytes32 indexed examId, address indexed student);
-    event InstitutionProfileUpdated(address indexed institution, string name);
 
     constructor(address _identityContractAddress) {
         identityContract = IIdentity(_identityContractAddress);
@@ -97,29 +62,15 @@ contract ExamManagement is Ownable, Pausable {
         require(exams[examId].exists, "Exam does not exist");
         _;
     }
-
-    modifier onlyExistingStudent(address student) {
-        require(students[student].exists, "Student does not exist");
-        _;
-    }
-
+    
     // Exam Management
     function createExam(
-        string memory title,
-        string memory description,
-        uint256 date,
-        uint256 duration,
         string memory ipfsHash
     ) external onlyVerifiedInstitution returns (bytes32) {
         _examIds.increment();
         bytes32 examId = keccak256(abi.encodePacked(_examIds.current(), msg.sender));
         
         exams[examId] = Exam({
-            title: title,
-            description: description,
-            date: date,
-            duration: duration,
-            status: "pending",
             ipfsHash: ipfsHash,
             students: new address[](0),
             exists: true
@@ -127,16 +78,18 @@ contract ExamManagement is Ownable, Pausable {
 
         institutionExams[msg.sender].push(examId);
 
-        emit ExamCreated(examId, title);
+        emit ExamCreated(examId, ipfsHash);
         return examId;
     }
 
-    function updateExamStatus(
+    function updateExam(
         bytes32 examId,
-        string memory newStatus
+        string memory newIpfsHash,
+        bool newExists
     ) external onlyVerifiedInstitution onlyExistingExam(examId) {
-        exams[examId].status = newStatus;
-        emit ExamStatusUpdated(examId, newStatus);
+        exams[examId].ipfsHash = newIpfsHash;
+        exams[examId].exists = newExists;
+        emit ExamUpdated(examId, newIpfsHash, newExists);
     }
 
     function registerStudentsForExam(
@@ -161,12 +114,12 @@ contract ExamManagement is Ownable, Pausable {
 
             if (!alreadyRegistered) {
                 studentExams[studentAddress].push(examId);
+                exams[examId].students.push(studentAddress);
             } else {
                 revert("Student already registered for this exam");
             }
         }
 
-        exams[examId].students = studentAddresses;
         emit StudentsRegistered(examId, studentAddresses);
     }
 
@@ -178,10 +131,8 @@ contract ExamManagement is Ownable, Pausable {
         string memory grade,
         string memory notes
     ) external onlyVerifiedInstitution onlyExistingExam(examId) {
-        require(
-            institutionStudents[msg.sender][student],
-            "Student not enrolled in this institution"
-        );
+        require(identityContract.isStudentEnrolled(msg.sender, student), "Student is not enrolled in this institution");
+
         
         examResults[examId][student] = ExamResult({
             score: score,
@@ -247,7 +198,7 @@ contract ExamManagement is Ownable, Pausable {
     }
 
     function getExam(bytes32 examId) external view returns (Exam memory) {
-        require(exams[examId].exists, "Exam does not exist");
+        // require(exams[examId].exists, "Exam does not exist");
         return exams[examId];
     }
 }

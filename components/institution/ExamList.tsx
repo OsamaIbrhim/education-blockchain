@@ -11,12 +11,12 @@ import {
   IconButton
 } from '@chakra-ui/react';
 import { UserIcon, BookIcon, CheckIcon, AwardIcon } from '../Icons';
-import { Exam } from '../../types/examManagement';
+import { ExamData } from '../../types/examManagement';
 
 interface ExamListProps {
-  exams: Exam[];
-  onUpdateStatus: (examId: string, status: string) => void;
-  onSelectExam: (exam: Exam) => void;
+  exams: ExamData[];
+  onUpdateStatus: (examId: string, exam: any) => void;
+  onSelectExam: (exam: ExamData) => void;
   onOpenResultsModal: () => void;
 }
 
@@ -48,8 +48,8 @@ export default function ExamList({
               <Badge
                 colorScheme={
                   exam.status === 'COMPLETED' ? 'green' :
-                  exam.status === 'IN_PROGRESS' ? 'yellow' :
-                  'blue'
+                    exam.status === 'IN_PROGRESS' ? 'yellow' :
+                      'blue'
                 }
               >
                 {exam.status}
@@ -63,6 +63,7 @@ export default function ExamList({
                   icon={<UserIcon />}
                   size="sm"
                   colorScheme="teal"
+                  disabled={exam.status === 'COMPLETED'}
                   onClick={() => onSelectExam(exam)}
                 />
               </HStack>
@@ -74,6 +75,7 @@ export default function ExamList({
                   icon={<AwardIcon />}
                   size="sm"
                   colorScheme="purple"
+                  disabled={exam.status === 'COMPLETED'}
                   onClick={() => {
                     onSelectExam(exam);
                     onOpenResultsModal();
@@ -84,15 +86,15 @@ export default function ExamList({
                   icon={<BookIcon />}
                   size="sm"
                   colorScheme="blue"
-                  onClick={() => onUpdateStatus(exam.address, 'IN_PROGRESS')}
-                  isDisabled={exam.status !== 'PENDING'}
+                  onClick={() => onUpdateStatus(exam.address, { ...exam, status: 'IN_PROGRESS' })}
+                  isDisabled={exam.status !== 'UPCOMING'}
                 />
                 <IconButton
                   aria-label="Complete exam"
                   icon={<CheckIcon />}
                   size="sm"
                   colorScheme="green"
-                  onClick={() => onUpdateStatus(exam.address, 'COMPLETED')}
+                  onClick={() => onUpdateStatus(exam.address, { ...exam, status: 'COMPLETED' })}
                   isDisabled={exam.status !== 'IN_PROGRESS'}
                 />
               </HStack>

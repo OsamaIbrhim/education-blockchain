@@ -13,34 +13,23 @@ contract Identity is Ownable, Pausable {
         ADMIN
     }
 
-    struct Student {
-        address studentAddress;
-        uint256 enrollmentDate;
-        string status; // "active", "inactive", "graduated"
-        bool exists;
-    }
-
     struct User {
         address userAddress;
         string ipfsHash;
         UserRole role;
         bool isVerified;
-        uint256 createdAt;
     }
 
     mapping(address => User) public users;
     mapping(address => bool) public institutions;
     mapping(address => bool) public admins;
-    mapping(address => bool) public students;
     mapping(address => mapping(address => bool)) public institutionStudents;
 
     event UserRegistered(address indexed userAddress, UserRole role);
     event UserVerified(address indexed userAddress);
-    event InstitutionAdded(address indexed institution);
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
     event IPFSHashUpdated(address indexed user, string ipfsHash);
-    event StudentAdded(address indexed student);
     event UserRoleUpdated(address indexed user, UserRole oldRole, UserRole newRole);
 
     modifier onlyInstitution() {
@@ -64,7 +53,7 @@ contract Identity is Ownable, Pausable {
     }
 
     function _setupAdmin(address _admin) private {
-        users[_admin] = User(_admin, "", UserRole.ADMIN, true, block.timestamp);
+        users[_admin] = User(_admin, "", UserRole.ADMIN, true);
         admins[_admin] = true;
         emit AdminAdded(_admin);
         emit UserRegistered(_admin, UserRole.ADMIN);
@@ -89,6 +78,10 @@ contract Identity is Ownable, Pausable {
         return admins[_address] || _address == owner();
     }
 
+    function isInstitution(address _address) public view returns (bool) {
+        return institutions[_address];
+    }
+
     function isVerifiedUser(address _userAddress) external view returns (bool) {
         return users[_userAddress].isVerified;
     }
@@ -110,16 +103,11 @@ contract Identity is Ownable, Pausable {
             msg.sender,
             _ipfsHash,
             _role,
-            false,
-            block.timestamp
+            false
         );
 
         if (_role == UserRole.INSTITUTION) {
             institutions[msg.sender] = true;
-            emit InstitutionAdded(msg.sender);
-        } else if (_role == UserRole.STUDENT) {
-            students[msg.sender] = true;
-            emit StudentAdded(msg.sender);
         }
 
         emit UserRegistered(msg.sender, _role);
@@ -149,7 +137,6 @@ contract Identity is Ownable, Pausable {
             }
 
             institutionStudents[msg.sender][studentAddress] = true;
-            emit StudentAdded(studentAddress);
         }
     }
 
@@ -209,5 +196,4 @@ contract Identity is Ownable, Pausable {
     function isStudentEnrolled(address _institution, address _student) external view returns (bool) {
         return institutionStudents[_institution][_student];
     }
-
 }

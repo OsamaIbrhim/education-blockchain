@@ -281,7 +281,7 @@ export const getFromIPFS = async (cid: string): Promise<any> => {
     }
 
     // const gatewayUrl = `${pinataConfig.gateway}/ipfs/${cid}`;
-    const gatewayUrl = `https://ipfs.io/ipfs/${cid}`;
+    const gatewayUrl = `${pinataConfig.gateway}/ipfs/${cid}`;
     const response = await axios.get(gatewayUrl, { responseType: 'json' }); // add responseType based on your expectation
 
     if (response.status !== 200) {
@@ -328,5 +328,48 @@ export const getCIDFromContract = async (contract: any, address: string): Promis
   } catch (error: any) {
     console.error('Error getting CID from contract:', error);
     throw new Error(`Failed to get CID from contract: ${error.message}`);
+  }
+};
+
+/**
+ * @param pdfFile 
+ * @param name 
+ * @returns 
+ */
+export const uploadPdfToIPFS = async (pdfFile: File, name = 'exam-pdf'): Promise<string> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', pdfFile, `${name}.pdf`);
+
+    const metadata = JSON.stringify({
+      name: `${name}`,
+      keyvalues: {
+        timestamp: Date.now(),
+        application: 'education-blockchain'
+      }
+    });
+    formData.append('pinataMetadata', metadata);
+
+    const pinataOptions = JSON.stringify({
+      cidVersion: 1,
+    });
+    formData.append('pinataOptions', pinataOptions);
+
+    const response = await axios.post(
+      'https://api.pinata.cloud/pinning/pinFileToIPFS',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'pinata_api_key': pinataConfig.apiKey,
+          'pinata_secret_api_key': pinataConfig.apiSecret,
+        }
+      }
+    );
+
+    return response.data.IpfsHash;
+  } catch (error: any) {
+    console.error('Error uploading PDF to IPFS:', error);
+    throw new Error(`Failed to upload PDF to IPFS: ${error.message}`);
   }
 };

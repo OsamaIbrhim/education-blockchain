@@ -3,7 +3,7 @@ import { useToast } from '@chakra-ui/react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { useContract } from './useContract';
 import type { Hash } from 'viem';
-import { Exam, ExamResult, ExamStatistics, NewExam, ExamResultStructOutput } from '../types/examManagement';
+import { Exam, ExamResult, ExamStatistics, NewExam, ExamResultStructOutput, ExamData } from '../types/examManagement';
 import { Certificate } from '../types/certificate';
 import { InstitutionData } from '../components/institution/InstitutionProfile';
 import { useRouter } from 'next/router';
@@ -19,9 +19,10 @@ import {
   createExam as createExamService,
   getUserExams,
   registerStudentsForExam,
-  updateExamStatus as updateExamStatusUtil
+  updateExam as updateExamService,
 } from 'services/examManagement';
 import { getUserData } from 'services/identity';
+import { uploadToIPFS } from 'utils/ipfsUtils';
 
 interface InstitutionResponse {
   name: string;
@@ -45,8 +46,8 @@ export const useInstitution = () => {
   const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [certificatesData, setCertificatesData] = useState<Certificate[]>([]);
+  const [exams, setExams] = useState<ExamData[]>([]);
+  const [certificatesData, setCertificatesData] = useState<any[]>([]);
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +114,7 @@ export const useInstitution = () => {
     }
 
     try {
-      const updatedExams = await getUserExams(userAddress) as unknown as Exam[];
+      const updatedExams = await getUserExams(userAddress) as unknown as ExamData[];
       console.log("Loaded exams:", updatedExams);
       setExams(updatedExams || []);
     } catch (error) {
@@ -135,10 +136,13 @@ export const useInstitution = () => {
     }
 
     try {
-      const updatedCertificats = getUserCertificates(userAddress) as unknown as Certificate[];
-      setCertificatesData(updatedCertificats || []);
+      setIsLoading(true);
+      const updatedCertificats = await getUserCertificates(userAddress);
+      setCertificatesData(updatedCertificats);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading certificates:', error);
+      setIsLoading(false);
       return [];
     }
   };
@@ -216,7 +220,7 @@ export const useInstitution = () => {
     }
   };
 
-  const updateExamStatus = async (examId: string, status: string): Promise<boolean> => {
+  const updateExam = async (examId: string, exam: any): Promise<boolean> => {
     if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -229,7 +233,7 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await updateExamStatusUtil(examId, status);
+      await updateExamService(examId, exam);
       await loadExamsFromContract(account);
       return true;
     } catch (err: any) {
@@ -427,7 +431,7 @@ export const useInstitution = () => {
     }
   };
 
-  const issueCertificate = async (studentAddress: string, certificate: { title: string; description: string }): Promise<boolean> => {
+  const issueCertificate = async (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?:string; institutionAddress?: string }): Promise<boolean> => {
     if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -440,7 +444,13 @@ export const useInstitution = () => {
 
     try {
       setIsLoading(true);
-      await issueCertificateService(studentAddress, JSON.stringify(certificate));
+      certificate.studentAddress = studentAddress;
+      certificate.institutionAddress = account;
+      const ipfsHash = await uploadToIPFS({
+        data: certificate,
+        timestamp: new Date().toISOString()
+      });
+      await issueCertificateService(studentAddress, ipfsHash);
       await loadCertificatesFromContract(account);
       return true;
     } catch (err: any) {
@@ -539,7 +549,7 @@ export const useInstitution = () => {
     examStatistics,
     createExam,
     saveInstitutionProfile,
-    updateExamStatus,
+    updateExam,
     registerStudents,
     handleSubmitResults,
     handleEnrollStudents,
