@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { getConfig } from '../utils/config';
 import { IdentityABI } from '../constants/abis';
-import { getAddress, getProvider, getSigner } from 'utils/ethersConfig';
+import { getProvider, getSigner, validateAddress } from 'utils/ethersConfig';
 import { Toast } from '@chakra-ui/react';
 import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
 import { Institution } from 'types/institution';
@@ -73,7 +73,7 @@ export const registerUser = async (role: string) => {
  * @returns status
  */
 export const verifyUser = async (useraddress: string) => {
-  if (!useraddress || !getAddress(useraddress)) {
+  if (!useraddress || !validateAddress(useraddress)) {
     throw new Error('Invalid address');
   }
 
@@ -148,7 +148,7 @@ export const verifyUser = async (useraddress: string) => {
  * @returns Boolean
  */
 export const isVerifiedUser = async (address: string) => {
-  if (!address || !getAddress(address)) {
+  if (!address || !validateAddress(address)) {
     throw new Error('Invalid address');
   }
 
@@ -168,7 +168,7 @@ export const isVerifiedUser = async (address: string) => {
  * @returns Boolean and owner address if true
  */
 export const isOwner = async (address: string) => {
-  if (!address || !getAddress(address)) {
+  if (!address || !validateAddress(address)) {
     throw new Error('Invalid address');
   }
 
@@ -322,7 +322,7 @@ export const getUserData = async (userAddress: string): Promise<Institution> => 
  * @returns User role text
  */
 export const getUserRole = async (address: string): Promise<RoleString> => {
-  if (!address || !getAddress(address)) {
+  if (!address || !validateAddress(address)) {
     throw new Error('Invalid address');
   }
 
@@ -408,7 +408,7 @@ export const getUserRoleText = (roleId: number): RoleString => {
  * @returns Boolean
  */
 export const updateUserIPFS = async (userAddress: string, data: any = {}) => {
-  if (!userAddress || !getAddress(userAddress)) {
+  if (!userAddress || !validateAddress(userAddress)) {
     throw new Error('Invalid address');
   }
 
