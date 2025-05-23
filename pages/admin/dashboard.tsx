@@ -73,16 +73,16 @@ import { getConfig } from '../../utils/config';
 import { useAppData } from 'hooks/useAppData';
 
 // Import the new SimpleLogoutButton
-import SimpleLogoutButton from '../../components/SimpleLogoutButton';
+import SimpleLogoutButton from '../../components/common/ui/SimpleLogoutButton';
 import { Institution } from 'types/institution';
 
 // Lazy load components
-const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {
+const StatsGrid = dynamic(() => import('../../components/common/ui/StatsGrid'), {
   loading: () => <Spinner />,
   ssr: false
 });
 
-const InstitutionsTable = dynamic(() => import('../../components/dashboard/InstitutionsTable'), {
+const InstitutionsTable = dynamic(() => import('../../components/admin/dashboard/InstitutionsTable'), {
   loading: () => <Spinner />,
   ssr: false
 });

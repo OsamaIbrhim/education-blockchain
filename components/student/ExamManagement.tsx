@@ -24,7 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { Exam } from '../../types/examManagement';
 import { CheckCircleIcon, InfoIcon } from '@chakra-ui/icons';
-import { AlertCircleIcon } from 'components/Icons';
+import { AlertCircleIcon } from '../common/icons/Icons';
 import ExamList from './ExamList';
 
 interface ExamManagementProps {

@@ -3,7 +3,7 @@ import { CertificatesABI } from '../constants/abis';
 import { getConfig } from '../utils/config';
 import { getSigner } from 'utils/ethersConfig';
 import { Certificate, CertificateContractType, CertificateResult } from '../types/certificate';
-import { getFromIPFS } from 'utils/ipfsUtils';
+import { getCertificateData } from 'utils/ipfsUtils';
 
 /**
  * @param signer
@@ -129,32 +129,6 @@ export const getUserCertificates = async (address: string): Promise<any[]> => {
   } catch (error: any) {
     console.error('Error getting student certificates:', error);
     throw new Error(`Failed to get student certificates: ${error.message || error}`);
-  }
-};
-
-/**
- * @param certificateId
- * @returns certificateData
- */
-export const getCertificateData = async (certificateIPFS: string): Promise<any> => {
-  try {
-    if (!certificateIPFS) {
-      throw new Error('No certificate IPFS hash provided');
-    }
-
-    if (!window.ethereum) {
-      throw new Error('Ethereum provider not found');
-    }
-
-    const certificateData = await getFromIPFS(certificateIPFS);
-    if (!certificateData) {
-      throw new Error('No certificate data found');
-    }
-
-    return certificateData;
-  } catch (error: any) {
-    console.error('Error getting certificate data:', error);
-    throw new Error(`Failed to get certificate data: ${error.message || error}`);
   }
 };
 

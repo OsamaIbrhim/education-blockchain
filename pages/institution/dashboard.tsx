@@ -26,7 +26,6 @@ import {
   Divider,
   Badge,
   useToast,
-  SimpleGrid,
   InputGroup,
   InputLeftElement,
   Input,
@@ -36,12 +35,6 @@ import {
   Portal,
   ScaleFade,
   useDisclosure as useNotificationDisclosure,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
   useMediaQuery,
   Progress,
   Alert,
@@ -50,7 +43,6 @@ import {
   AlertDescription,
   CloseButton
 } from '@chakra-ui/react';
-import { keyframes } from '@emotion/react';
 import { FaGraduationCap, FaCertificate, FaChartBar, FaSignOutAlt, FaUser, FaBell, FaUniversity, FaSearch, FaCog, FaQuestionCircle } from 'react-icons/fa';
 import { ExamManagement } from '../../components/institution/ExamManagement';
 import { CertificateManagement } from '../../components/institution/CertificateManagement';
@@ -60,40 +52,20 @@ import { Institution, Student } from '../../types/institution';
 import { Certificate } from '../../types/certificate';
 import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
 import { useRouter } from 'next/router';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
-import { BsArrowUpCircle } from 'react-icons/bs';
 import { Connector, useAccount, useConnect } from 'wagmi';
 import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider } from '../../utils/ethersConfig';
 import { ethers } from 'ethers';
 import Layout from '../../components/layout/Layout';
 import { getIdentityContract } from 'services/identity';
 import { useContract } from 'hooks/useContract';
+import InstitutionStatsGrid from '../../components/institution/dashboard/InstitutionStatsGrid';
+import ScrollToTopButton from '../../components/common/ScrollToTopButton';
+import NotificationsDrawer from '../../components/institution/dashboard/NotificationsDrawer';
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
-
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
-
-const slideIn = keyframes`
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-`;
-
-const pulseAnimation = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-`;
-
-const floatAnimation = keyframes`
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-`;
 
 // Types
 type ConnectWalletProps = {
@@ -191,9 +163,6 @@ const InstitutionDashboard = () => {
   const menuListBg = useColorModeValue('white', 'gray.800');
   const tabListBg = useColorModeValue('gray.50', 'gray.700');
   const tabHoverBg = useColorModeValue('gray.100', 'gray.600');
-  const drawerContentBg = useColorModeValue('rgba(255, 255, 255, 0.9)', 'rgba(45, 55, 72, 0.9)');
-  const notificationBg = useColorModeValue('gray.50', 'gray.700');
-  const statCardBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(45, 55, 72, 0.8)');
   const mainContentBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(45, 55, 72, 0.8)');
   const tabSelectedBg = useColorModeValue('white', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'white');
@@ -281,27 +250,6 @@ const InstitutionDashboard = () => {
     visible: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -20 }
   }), []);
-
-  const statsData = useMemo(() => [
-    {
-      label: 'إجمالي الاختبارات | Total Exams',
-      value: exams?.length || '0',
-      icon: FaGraduationCap,
-      color: 'blue.500'
-    },
-    {
-      label: 'الشهادات المصدرة | Issued Certificates',
-      value: certificates?.length || '0',
-      icon: FaCertificate,
-      color: 'green.500'
-    },
-    {
-      label: 'معدل النجاح | Success Rate',
-      value: examStatistics ? `${Math.round(examStatistics.passRate)}%` : '0%',
-      icon: FaChartBar,
-      color: 'purple.500'
-    },
-  ], [exams?.length, certificates?.length, examStatistics]);
 
   // 7. Event handlers
   const scrollToTop = useCallback(() => {
@@ -425,98 +373,12 @@ const InstitutionDashboard = () => {
         </Box>
 
         <Container maxW="container.xl" py={8}>
-          {/* Stats Section with Enhanced Animation */}
-          <SimpleGrid
-            columns={{ base: 1, md: 3 }}
-            spacing={6}
-            mb={8}
-          >
-            {statsData.map((stat, index) => (
-              <MotionBox
-                key={index}
-                whileHover={{
-                  y: -8,
-                  boxShadow: '2xl',
-                  scale: 1.02
-                }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 20,
-                  delay: index * 0.1
-                }}
-              >
-                <Box
-                  bg={statCardBg}
-                  backdropFilter="blur(8px)"
-                  p={6}
-                  borderRadius="2xl"
-                  border="1px"
-                  borderColor={borderColor}
-                  position="relative"
-                  overflow="hidden"
-                  transition="all 0.3s ease"
-                >
-                  {/* Gradient Background */}
-                  <Box
-                    position="absolute"
-                    top={0}
-                    left={0}
-                    right={0}
-                    bottom={0}
-                    bgGradient={`linear(to-br, ${stat.color}10, transparent)`}
-                    opacity={0.5}
-                  />
-
-                  {/* Animated Border */}
-                  <Box
-                    position="absolute"
-                    top={0}
-                    left={0}
-                    right={0}
-                    h="4px"
-                    bgGradient={`linear(to-r, transparent, ${stat.color}, transparent)`}
-                    sx={{
-                      animation: `${pulseAnimation} 2s ease-in-out infinite`
-                    }}
-                  />
-
-                  <VStack spacing={4} align="start" position="relative">
-                    <Icon
-                      as={stat.icon}
-                      boxSize={10}
-                      color={stat.color}
-                      filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.2))"
-                      sx={{
-                        animation: `${floatAnimation} 3s ease-in-out infinite`
-                      }}
-                    />
-                    <Text
-                      fontSize="4xl"
-                      fontWeight="bold"
-                      bgGradient={`linear(to-r, ${stat.color}, ${stat.color})`}
-                      bgClip="text"
-                      sx={{
-                        animation: `${pulseAnimation} 2s ease-in-out infinite`
-                      }}
-                    >
-                      {stat.value}
-                    </Text>
-                    <Text
-                      color="gray.500"
-                      fontSize="lg"
-                      fontWeight="medium"
-                    >
-                      {stat.label}
-                    </Text>
-                  </VStack>
-                </Box>
-              </MotionBox>
-            ))}
-          </SimpleGrid>
+          {/* Stats Section */}
+          <InstitutionStatsGrid
+            exams={exams}
+            certificates={certificates}
+            examStatistics={examStatistics}
+          />
 
           {/* Main Content with Enhanced Animation */}
           <MotionBox
@@ -653,99 +515,14 @@ const InstitutionDashboard = () => {
         </Container>
 
         {/* Scroll to Top Button */}
-        <AnimatePresence>
-          {showScrollTop && (
-            <MotionBox
-              position="fixed"
-              bottom="20px"
-              right="20px"
-              zIndex={99}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.2 }}
-            >
-              <IconButton
-                aria-label="Scroll to top"
-                icon={<BsArrowUpCircle />}
-                onClick={scrollToTop}
-                size="lg"
-                colorScheme="blue"
-                rounded="full"
-                shadow="lg"
-                _hover={{
-                  transform: "translateY(-2px)",
-                  shadow: "xl",
-                }}
-                sx={{
-                  animation: `${floatAnimation} 2s ease-in-out infinite`
-                }}
-              />
-            </MotionBox>
-          )}
-        </AnimatePresence>
+        <ScrollToTopButton showScrollTop={showScrollTop} scrollToTop={scrollToTop} />
 
         {/* Enhanced Notifications Drawer */}
-        <Drawer
+        <NotificationsDrawer
           isOpen={isNotificationsOpen}
-          placement={isLargerThan768 ? "right" : "bottom"}
           onClose={onNotificationsClose}
-        >
-          <DrawerOverlay backdropFilter="blur(10px)" />
-          <DrawerContent
-            bg={drawerContentBg}
-            backdropFilter="blur(10px)"
-          >
-            <DrawerHeader
-              borderBottomWidth="1px"
-              bgGradient="linear(to-r, blue.400, purple.500)"
-              color="white"
-            >
-              <HStack spacing={2}>
-                <RiNotification3Line />
-                <Text>الإشعارات | Notifications</Text>
-              </HStack>
-            </DrawerHeader>
-            <DrawerBody>
-              <AnimatePresence>
-                {exams?.filter(exam => exam.status === 'IN_PROGRESS').map(exam => (
-                  <MotionBox
-                    key={exam.address}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    variants={notificationVariants}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Box
-                      p={4}
-                      mb={4}
-                      bg={notificationBg}
-                      borderRadius="lg"
-                      borderLeft="4px"
-                      borderLeftColor="orange.400"
-                      _hover={{
-                        transform: 'translateX(-4px)',
-                        shadow: 'md'
-                      }}
-                      transition="all 0.2s"
-                    >
-                      <VStack align="start" spacing={1}>
-                        <Text fontWeight="bold">{exam.title}</Text>
-                        <Text fontSize="sm" color="gray.500">
-                          بانتظار الموافقة | Pending Approval
-                        </Text>
-                        <Text fontSize="xs" color="gray.400">
-                          {new Date(exam.date).toLocaleDateString()}
-                        </Text>
-                      </VStack>
-                    </Box>
-                  </MotionBox>
-                ))}
-              </AnimatePresence>
-            </DrawerBody>
-          </DrawerContent>
-        </Drawer>
+          exams={exams}
+        />
       </Box>
     </Layout>
   );

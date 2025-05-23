@@ -24,7 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { InfoIcon, CheckCircleIcon, CopyIcon } from '@chakra-ui/icons';
 import type { Certificate, Certificate as CertificateType } from '../../types/certificate';
-import { AlertCircleIcon, DownloadIcon } from 'components/Icons';
+import { AlertCircleIcon, DownloadIcon } from '../common/icons/Icons';
 import { CertificateManagement } from 'components/institution/CertificateManagement';
 import { issueCertificate } from 'services/certificate';
 

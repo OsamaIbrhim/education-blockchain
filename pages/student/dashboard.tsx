@@ -52,7 +52,7 @@ import { useRouter } from 'next/router';
 import { getUserCertificates, verifyCertificate } from 'services/certificate';
 import { getUserRole } from 'services/identity';
 import { connectWallet, requestAccounts } from '../../utils/web3Provider';
-import LogoutButton from '../../components/LogoutButton';
+import LogoutButton from '../../components/common/ui/LogoutButton';
 import {
   UserIcon,
   GraduateIcon,
@@ -65,7 +65,7 @@ import {
   ActivityIcon,
   AwardIcon,
   CalendarIcon
-} from '../../components/Icons';
+} from '../../components/common/icons/Icons';
 import { useAppData } from 'hooks/useAppData';
 import { ExamManagement } from 'components/student/ExamManagement';
 import { Certificate } from 'components/student/Certificate';

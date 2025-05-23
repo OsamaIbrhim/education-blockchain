@@ -50,7 +50,7 @@ import { useRouter } from 'next/router';
 import { verifyCertificate } from 'services/certificate';
 import { getUserRole } from 'services/identity';
 import { connectWallet } from '../../utils/web3Provider';
-import LogoutButton from '../../components/LogoutButton';
+import LogoutButton from '../../components/common/ui/LogoutButton';
 import {
   UserIcon,
   BriefcaseIcon,
@@ -61,7 +61,7 @@ import {
   SearchIcon,
   ActivityIcon,
   CalendarIcon,
-} from '../../components/Icons';
+} from '../../components/common/icons/Icons';
 
 interface CertificateDetails {
   id: string;

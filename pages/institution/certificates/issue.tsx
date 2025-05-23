@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { useAccount } from 'wagmi';
 import { ethers } from 'ethers';
-import FileUpload from '../../../components/FileUpload';
+import FileUpload from '../../../components/common/ui/FileUpload';
 import { uploadJSONToIPFS } from '../../../services/ipfs';
 
 export default function IssueCertificate() {

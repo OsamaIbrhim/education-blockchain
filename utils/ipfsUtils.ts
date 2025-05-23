@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { EthereumProvider } from 'utilsFront/ethersConfig';
+import { EthereumProvider } from 'utils/ethersConfig';
 import { IdentityABI } from '../constants/abis';
 import { ethers } from 'ethers';
 declare global {
@@ -61,6 +61,32 @@ export const uploadToIPFS = async (data: any, name = 'education-data'): Promise<
   } catch (error: any) {
     console.error('Error uploading to IPFS:', error);
     throw new Error(`Failed to upload to IPFS: ${error.message}`);
+  }
+};
+
+/**
+ * @param certificateId
+ * @returns certificateData
+ */
+export const getCertificateData = async (certificateIPFS: string): Promise<any> => {
+  try {
+    if (!certificateIPFS) {
+      throw new Error('No certificate IPFS hash provided');
+    }
+
+    if (!window.ethereum) {
+      throw new Error('Ethereum provider not found');
+    }
+
+    const certificateData = await getFromIPFS(certificateIPFS);
+    if (!certificateData) {
+      throw new Error('No certificate data found');
+    }
+
+    return certificateData;
+  } catch (error: any) {
+    console.error('Error getting certificate data:', error);
+    throw new Error(`Failed to get certificate data: ${error.message || error}`);
   }
 };
 
