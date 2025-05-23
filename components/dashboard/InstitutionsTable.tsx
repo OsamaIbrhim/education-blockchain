@@ -1,76 +1,203 @@
-import { 
-  Table, 
-  Thead, 
-  Tbody, 
-  Tr, 
-  Th, 
-  Td, 
-  Button, 
-  Badge, 
+import React from 'react';
+import {
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Button,
+  Badge,
   Box,
-  useColorModeValue
+  useColorModeValue,
+  Tooltip,
+  Text,
+  useToast,
+  HStack,
+  Icon,
+  useDisclosure,
+  createIcon,
+  Center,
+  VStack,
+  Heading,
+  Spinner
 } from '@chakra-ui/react';
-
-interface Institution {
-  address: string;
-  name: string;
-  isVerified: boolean;
-  verificationDate?: string;
-}
+import { useState } from 'react';
+import { Institution } from 'types/institution';
+import InstitutionDetailsModal from './InstitutionDetailsModal';
 
 interface InstitutionsTableProps {
   institutions: Institution[];
-  onVerify: (address: string) => Promise<void>;
+  onVerify?: (address: string) => Promise<void>;
+  isLoading?: boolean;
 }
 
-export default function InstitutionsTable({ institutions, onVerify }: InstitutionsTableProps) {
-  const bgColor = useColorModeValue('white', 'gray.800');
+const CheckIcon = createIcon({
+  displayName: 'CheckIcon',
+  viewBox: '0 0 24 24',
+  path: (
+    <path
+      fill="currentColor"
+      d="M20 6L9 17l-5-5"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+});
+
+const InfoIcon = createIcon({
+  displayName: 'InfoIcon',
+  viewBox: '0 0 24 24',
+  path: (
+    <path
+      fill="currentColor"
+      d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-14v4m0 4h.01"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+});
+
+type InstitutionRowProps = {
+  inst: Institution;
+  onClick: (inst: Institution) => void;
+};
+
+const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
+  const toast = useToast();
+
+  const handleCopyAddress = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(inst.address);
+    toast({
+      title: 'تم نسخ العنوان',
+      description: 'تم نسخ عنوان المؤسسة إلى الحافظة',
+      status: 'success',
+      duration: 2000,
+      isClosable: true,
+    });
+  };
 
   return (
-    <Box p={5} shadow="md" borderWidth="1px" bg={bgColor} borderRadius="lg" overflowX="auto">
-      <Table variant="simple">
-        <Thead>
-          <Tr>
-            <Th>العنوان - Address</Th>
-            <Th>الاسم - Name</Th>
-            <Th>الحالة - Status</Th>
-            <Th>تاريخ التحقق - Verification Date</Th>
-            <Th>الإجراءات - Actions</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {institutions.map((institution) => (
-            <Tr key={institution.address}>
-              <Td>{institution.address}</Td>
-              <Td>{institution.name}</Td>
-              <Td>
-                <Badge colorScheme={institution.isVerified ? 'green' : 'red'}>
-                  {institution.isVerified ? 'معتمدة - Verified' : 'غير معتمدة - Unverified'}
-                </Badge>
-              </Td>
-              <Td>{institution.verificationDate || '-'}</Td>
-              <Td>
-                {!institution.isVerified && (
-                  <Button
-                    colorScheme="blue"
-                    size="sm"
-                    onClick={() => onVerify(institution.address)}
-                  >
-                    اعتماد - Verify
-                  </Button>
-                )}
-              </Td>
-            </Tr>
-          ))}
-          {institutions.length === 0 && (
-            <Tr>
-              <Td colSpan={5} textAlign="center">
-                لا توجد مؤسسات مسجلة - No registered institutions
-              </Td>
-            </Tr>
-          )}
-        </Tbody>
-      </Table>
-    </Box>
+    <Tr
+      key={inst.address}
+      _hover={{
+        bg: useColorModeValue('gray.50', 'gray.700'),
+        transition: 'all 0.2s',
+      }}
+    >
+      <Td fontSize="sm">
+        <Tooltip label="اضغط للنسخ" hasArrow>
+          <span style={{ cursor: 'pointer', /*color: '#3182ce'*/ }} onClick={handleCopyAddress}>
+            {inst.address}
+          </span>
+        </Tooltip>
+      </Td>
+      <Td fontSize="sm">
+        <Tooltip label="اضغط لعرض المؤسسة" hasArrow>
+          <span style={{ cursor: 'pointer', /*color: '#3182ce'*/ }} onClick={() => onClick(inst)}>
+            {inst.name}
+          </span>
+        </Tooltip>
+      </Td>
+      <Td fontSize="sm">
+        {inst.verificationDate
+          ? typeof inst.verificationDate === 'string'
+            ? inst.verificationDate
+            : inst.verificationDate.toLocaleDateString()
+          : '-'}
+      </Td>
+      <Td>
+        <Badge
+          colorScheme={inst.isVerified ? 'green' : 'orange'}
+          variant="subtle"
+          px={3}
+          py={1}
+          borderRadius="full"
+        >
+          <HStack spacing={2}>
+            <Icon
+              as={inst.isVerified ? CheckIcon : InfoIcon}
+              w={4}
+              h={4}
+              color={inst.isVerified ? 'green.500' : 'orange.500'}
+            />
+            <Text>
+              {inst.isVerified ? 'معتمدة - Verified' : 'قيد التحقق - Pending'}
+            </Text>
+          </HStack>
+        </Badge>
+      </Td>
+    </Tr>
   );
-} 
+});
+
+export default function InstitutionsTable({ institutions, onVerify, isLoading }: InstitutionsTableProps) {
+  const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+  const textColor = useColorModeValue('gray.800', 'white');
+
+  const toast = useToast();
+
+  // State for selected institution and modal
+  const [selectedInstitutionAddress, setSelectedInstitutionAddress] = useState<string | null>(null);
+  const { isOpen: isInstitutionModalOpen, onOpen: openInstitutionModal, onClose: closeInstitutionModal } = useDisclosure();
+
+  // Function to handle row click
+  const handleInstitutionClick = (inst: Institution) => {
+    setSelectedInstitutionAddress(inst.address);
+    openInstitutionModal();
+  };
+
+  return (
+    <>
+      {/* Institutions Table */}
+      <VStack spacing={4} align="stretch">
+        <Box overflowX="auto">
+          {isLoading ? (
+            <Center p={8}>
+              <Spinner size="xl" color="red.500" />
+              <Text mt={4}>جاري تحميل المؤسسات...</Text>
+            </Center>
+          ) : institutions.length === 0 ? (
+            <Center p={8}>
+              <VStack spacing={3}>
+                {/* <Icon as={InfoIcon} w={40} h={40} color="red.500" /> */}
+                <Text fontSize="lg">لا توجد مؤسسات مسجلة</Text>
+                <Text color={mutedTextColor}>
+                  No registered institutions
+                </Text>
+              </VStack>
+            </Center>
+          ) : (
+            <Table variant="simple">
+              <Thead bg={useColorModeValue('gray.50', 'gray.700')}>
+                <Tr>
+                  <Th>عنوان المؤسسة - Institution Address</Th>
+                  <Th>اسم المؤسسة - Institution Name</Th>
+                  <Th>تاريخ التحقق - Verification Date</Th>
+                  <Th>الحالة - Status</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {institutions.map((inst) => (
+                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} />
+                ))}
+              </Tbody>
+            </Table>
+          )}
+        </Box>
+      </VStack>
+
+      {/* Institution Details Modal */}
+      <InstitutionDetailsModal
+        isOpen={isInstitutionModalOpen}
+        onClose={closeInstitutionModal}
+        address={selectedInstitutionAddress}
+      />
+    </>
+  );
+}
