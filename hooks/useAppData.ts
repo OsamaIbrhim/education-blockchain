@@ -5,7 +5,7 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getAllInstitutions, getUserData, verifyUser as verifyUserService } from 'services/identity';
+import { getAllInstitutions, getUserData, verifyUser as verifyUserService, getUserRole } from 'services/identity';
 import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
@@ -27,6 +27,8 @@ interface UseAppDataReturn {
     selectedExamResults: ExamResult[];
     examStatistics: ExamStatistics | null;
     institutionData: Institution | null;
+    userRole: string | null;
+    account: `0x${string}` | undefined;
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -54,6 +56,7 @@ export const useAppData = (): UseAppDataReturn => {
     const publicClient = usePublicClient();
     const [institutionData, setInstitutionData] = useState<Institution | null>(null);
     const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
+    const [userRole, setUserRole] = useState<string | null>(null);
     const router = useRouter();
 
     // Access & Verification check
@@ -135,6 +138,16 @@ export const useAppData = (): UseAppDataReturn => {
         };
         checkVerificationStatus();
     }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
+
+    useEffect(() => {
+        const fetchRole = async () => {
+            if (account) {
+                const role = await getUserRole(account);
+                setUserRole(role);
+            }
+        };
+        fetchRole();
+    }, [account]);
 
     // load exams
     useEffect(() => {
@@ -612,6 +625,8 @@ export const useAppData = (): UseAppDataReturn => {
         examStatistics,
         institutionData,
         allInstitutions,
+        userRole,
+        account,
         checkAccess,
         createNewExam,
         saveInstitutionProfile,
