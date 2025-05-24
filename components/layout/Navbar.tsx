@@ -25,8 +25,8 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                             : userRole === 'institution' ? '/dashboard/institution'
                                 : '/', show: !!userRole
         },
-        { label: 'المؤسسات المعتمدة', href: '/dashboard/admin/verifiedInstitutions', show: userRole === 'admin' },
-        { label: 'قيد التحقق', href: '/dashboard/admin/pendingInstitutions', show: userRole === 'admin' },
+        // { label: 'المؤسسات المعتمدة', href: '/dashboard/admin/verifiedInstitutions', show: userRole === 'admin' },
+        // { label: 'قيد التحقق', href: '/dashboard/admin/pendingInstitutions', show: userRole === 'admin' },
     ];
 
     const handleLogout = () => {
