@@ -329,8 +329,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleverifyUser = async () => {
-    if (!institutionAddress) {
+  const handleverifyUser = async (address?: string) => {
+    if (!institutionAddress && !address) {
       toast({
         title: 'خطأ - Error',
         description: 'يرجى إدخال عنوان المؤسسة - Please enter institution address',
@@ -346,12 +346,14 @@ export default function AdminDashboard() {
       setLoading(true);
       setVerificationProgress(25);
 
+      const institution = address || institutionAddress.trim();
+
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setVerificationProgress(prev => Math.min(prev + 15, 90));
       }, 500);
 
-      const { status } = await verifyUser(institutionAddress);
+      const { status } = await verifyUser(institution);
       setVerificationProgress(95);
 
       setInstitutionAddress('');
@@ -623,7 +625,7 @@ export default function AdminDashboard() {
                         <Button
                           colorScheme="red"
                           size="lg"
-                          onClick={handleverifyUser}
+                          onClick={() => handleverifyUser()}
                           isLoading={loading}
                           loadingText="جاري التحقق... - Verifying..."
                           leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
@@ -698,7 +700,7 @@ export default function AdminDashboard() {
                     {/* Pending Institutions Table */}
                     <Box ref={pendingInstitutionsRef} p={6} mt={6}>
                       <Heading size="md" mb={2}>المؤسسات قيد التحقق - Pending Institutions</Heading>
-                      <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} isLoading={isLoading} />
+                      <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} onVerify={handleverifyUser} isLoading={isLoading} />
                     </Box>
                   </Box>
                 </ScaleFade>

@@ -1,6 +1,6 @@
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton,
-  ModalBody, VStack, Text, Spinner, useToast, Box, SimpleGrid, Divider
+  ModalBody, VStack, Text, Spinner, useToast, Box, SimpleGrid, Divider, Button
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { getUserData } from 'services/identity';
@@ -11,9 +11,10 @@ interface InstitutionDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   address: string | null;
+  onVerify?: (address: string) => Promise<void>;
 }
 
-const InstitutionDetailsModal = ({ isOpen, onClose, address }: InstitutionDetailsModalProps) => {
+const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: InstitutionDetailsModalProps) => {
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
@@ -91,6 +92,17 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address }: InstitutionDetail
                     />
                   </Box>
                 </>
+              )}
+
+              {institution && !institution.isVerified && onVerify && (
+                <Button
+                  colorScheme="green"
+                  mt={4}
+                  onClick={() => onVerify(institution.address)}
+                  width="100%"
+                >
+                  تحقق من المؤسسة - Verify Institution
+                </Button>
               )}
             </Box>
           ) : (

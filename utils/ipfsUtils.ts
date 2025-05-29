@@ -77,7 +77,7 @@ interface TransactionOptions {
  * @param options - Transaction options (from, gas, etc.)
  * @returns Promise with transaction receipt
  */
-export const setCIDInContract = async (contractOrAddress: any, cid: string, options: TransactionOptions = {}, userAddress?: string): Promise<any> => {
+export const setCIDInContract = async (contractOrAddress: any, cid: string, options: TransactionOptions = {}, userAddressToUpdate?: string): Promise<any> => {
   try {
     if (!contractOrAddress) {
       throw new Error("Contract is undefined");
@@ -100,7 +100,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
     if (typeof window !== 'undefined' && window.ethereum) {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const signerAddress = await signer.getAddress();
+      const callerAddress = await signer.getAddress(); // Address of the connected wallet
 
       let identityContract;
       let contractAddress = "";
@@ -118,7 +118,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
       }
 
       try {
-        const userRole = await identityContract.getUserRole(signerAddress);
+        const userRole = await identityContract.getUserRole(callerAddress);
 
         if (userRole === 0) {
           throw new Error("User is not registered in the contract. Please register first.");
@@ -126,11 +126,6 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
       } catch (roleError) {
         throw new Error("Failed to verify user registration status");
       }
-
-      const txOptions = {
-        gasLimit: options.gas || 300000,
-        ...options
-      };
 
       let receipt = null;
       let attempts = 0;
@@ -140,8 +135,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
         try {
           attempts++;
 
-          const tx = await identityContract.updateUserIPFS(cid, txOptions);
-
+          const tx = await identityContract.updateUserIPFS(callerAddress, cid);
           receipt = await tx.wait();
 
           if (!receipt || !receipt.status) {
@@ -179,7 +173,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
             if (parsed.name === "IPFSHashUpdated") {
               ipfsHashUpdateFound = true;
 
-              if (parsed.args[0].toLowerCase() === signerAddress.toLowerCase() &&
+              if (parsed.args[0].toLowerCase() === callerAddress.toLowerCase() &&
                 parsed.args[1] === cid) {
               } else {
                 console.warn("⚠️ Event parameters don't match what we sent!");
@@ -207,7 +201,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
         try {
           verificationAttempts++;
 
-          const updatedUserData = await identityContract.users(signerAddress);
+          const updatedUserData = await identityContract.users(callerAddress);
 
           if (updatedUserData && updatedUserData[1] === cid) {
             verificationSuccess = true;
@@ -246,7 +240,7 @@ export const setCIDInContract = async (contractOrAddress: any, cid: string, opti
             const finalReceipt = await finalTx.wait();
 
             await new Promise(resolve => setTimeout(resolve, 3000));
-            const finalCheck = await freshContract.users(signerAddress);
+            const finalCheck = await freshContract.users(callerAddress);
 
             if (finalCheck && finalCheck[1] === cid) {
               verificationSuccess = true;

@@ -5,7 +5,7 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getAllInstitutions, getUserData, verifyUser as verifyUserService, getUserRole } from 'services/identity';
+import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRole } from 'services/identity';
 import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
@@ -573,7 +573,7 @@ export const useAppData = (): UseAppDataReturn => {
         if (!account || !identityContract) return;
         try {
             setIsLoading(true);
-            const institutions = await getAllInstitutions();
+            const institutions = await getUsersByRole(2);
             setAllInstitutions(institutions);
         } catch (error: any) {
             console.error('Error loading institution data:', error);
