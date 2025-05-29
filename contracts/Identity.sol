@@ -171,13 +171,13 @@ contract Identity is Ownable, Pausable {
         emit UserRoleUpdated(_userAddress, oldRole, _newRole);
     }
 
-    function updateUserIPFS(string memory _newIpfsHash) external whenNotPaused {
+    function updateUserIPFS(address _userAddress, string memory _newIpfsHash) external whenNotPaused {
         require(
-            users[msg.sender].userAddress != address(0),
+            users[_userAddress].userAddress != address(0),
             "User does not exist"
         );
-        users[msg.sender].ipfsHash = _newIpfsHash;
-        emit IPFSHashUpdated(msg.sender, _newIpfsHash);
+        users[_userAddress].ipfsHash = _newIpfsHash;
+        emit IPFSHashUpdated(_userAddress, _newIpfsHash);
     }
 
     // Emergency functions

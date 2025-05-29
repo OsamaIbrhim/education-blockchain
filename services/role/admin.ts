@@ -1,102 +1,35 @@
-import { ethers } from 'ethers';
-import { IdentityABI } from '../constants/abis';
-import { getProvider, getSigner } from 'utils/ethersConfig';
-import { getConfig } from '../utils/config';
-import { getExamManagementContract } from './examManagement';
-type IdentityContractType = ethers.Contract & {
-  getUsersByRole(role: number): Promise<string[]>;
-  getUserData(address: string): Promise<[string, string, number, boolean, number]>;
-  verifyUser(address: string): Promise<any>;
-  addAdmin(address: string): Promise<any>;
-  removeAdmin(address: string): Promise<any>;
-  isAdmin(address: string): Promise<boolean>;
-  isInstitution(address: string): Promise<boolean>;
-  updateUserRole(address: string, role: number): Promise<any>;
-  pause(): Promise<any>;
-  unpause(): Promise<any>;
-};
-
-/**
- * Get the Identity contract instance
- * @param runner - Optional signer or provider
- * @returns The Identity contract instance
- */
-export const getIdentityContract = async (runner?: ethers.Signer | ethers.Provider) => {
-  const contractAddress = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS?.toString() || getConfig('IDENTITY_CONTRACT_ADDRESS');
-  const runnerInstance = runner || await getProvider();
-  return new ethers.Contract(contractAddress, IdentityABI, runnerInstance) as unknown as IdentityContractType;
-};
-
-/**
- * Get all users by role
- * @param role - User role (1: Student, 2: Institution, 3: Employer, 4: Admin)
- * @returns Array of addresses with the specified role
- */
-export const getAllUsersByRole = async (role: number) => {
-  try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
-    const addresses = await contract.getUsersByRole(role);
-    return addresses;
-  } catch (error: any) {
-    console.error('Error getting users by role:', error);
-    return [];
-  }
-};
-
-/**
- * Get detailed user data
- * @param address - User address
- * @returns User data object or null if error occurs
- */
-export const getDetailedUserData = async (address: string) => {
-  try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
-    const data = await contract.getUserData(address);
-    
-    return {
-      userAddress: data[0],
-      ipfsHash: data[1],
-      role: data[2],
-      isVerified: data[3],
-      createdAt: new Date(Number(data[4]) * 1000)
-    };
-  } catch (error: any) {
-    console.error('Error getting user data:', error);
-    return null;
-  }
-};
+import { getSigner } from 'utils/ethersConfig';
+import { getExamManagementContract } from '../examManagement';
+import { getIdentityContract } from '../identity';
+import { ethers, getAddress } from 'ethers';
 
 /**
  * Verify a user (admin only)
- * @param userAddress - Address of the user to verify
- * @returns Result object with success status and transaction details
  */
 export const verifyUser = async (userAddress: string) => {
   try {
     const signer = await getSigner();
-    const identityContract = await getIdentityContract(signer);
-    const examManagementContract = await getExamManagementContract(signer);
-    
+    const identityContract = await getIdentityContract();
+
     // Ensure caller is admin
     const signerAddress = await signer.getAddress();
     const isAdmin = await identityContract.isAdmin(signerAddress);
-    
+    const isVerified = await isVerifiedUser(userAddress);
+
     if (!isAdmin) {
       return { success: false, message: 'Only admins can verify users' };
     }
 
-    const examManagementTx = await examManagementContract.verifyInstitution(userAddress);
-    await examManagementTx.wait();
-    
+    if (isVerified) {
+      return { success: false, message: 'User is already verified' };
+    }
+
     const identityTx = await identityContract.verifyUser(userAddress);
     await identityTx.wait();
-    
+
     return {
       success: true,
       message: 'User verified successfully',
-      examManagementHash: examManagementTx.hash,
       identityHash: identityTx.hash
     };
   } catch (error: any) {
@@ -109,18 +42,33 @@ export const verifyUser = async (userAddress: string) => {
 };
 
 /**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const isVerifiedUser = async (address: string) => {
+  if (!address) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+    const isVerified = await identityContract.isVerifiedUser(address);
+    return isVerified;
+  } catch (error: any) {
+    console.error('Error checking verification status:', error);
+    throw error;
+  }
+};
+
+/**
  * Add a new admin (owner only)
- * @param adminAddress - Address to add as admin
- * @returns Result object with success status and transaction details
  */
 export const addAdmin = async (adminAddress: string) => {
   try {
-    const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
     const tx = await contract.addAdmin(adminAddress);
     await tx.wait();
-    
     return {
       success: true,
       message: 'Admin added successfully',
@@ -142,12 +90,9 @@ export const addAdmin = async (adminAddress: string) => {
  */
 export const removeAdmin = async (adminAddress: string) => {
   try {
-    const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
     const tx = await contract.removeAdmin(adminAddress);
     await tx.wait();
-    
     return {
       success: true,
       message: 'Admin removed successfully',
@@ -163,38 +108,6 @@ export const removeAdmin = async (adminAddress: string) => {
 };
 
 /**
- * Check if an address is an admin
- * @param address - Address to check
- * @returns Boolean indicating if the address is an admin
- */
-export const checkIsAdmin = async (address: string) => {
-  try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
-    return await contract.isAdmin(address);
-  } catch (error: any) {
-    console.error('Error checking admin status:', error);
-    return false;
-  }
-};
-
-/**
- * Check if an address is an institution
- * @param address - Address to check
- * @returns Boolean indicating if the address is an institution
- */
-export const checkIsInstitution = async (address: string) => {
-  try {
-    const provider = await getProvider();
-    const contract = await getIdentityContract(provider);
-    return await contract.isInstitution(address);
-  } catch (error: any) {
-    console.error('Error checking institution status:', error);
-    return false;
-  }
-};
-
-/**
  * Update a user's role (admin only)
  * @param userAddress - Address of the user
  * @param newRole - New role to assign (1: Student, 2: Institution, 3: Employer)
@@ -203,19 +116,19 @@ export const checkIsInstitution = async (address: string) => {
 export const updateUserRole = async (userAddress: string, newRole: number) => {
   try {
     const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
+
     // Ensure caller is admin
     const signerAddress = await signer.getAddress();
     const isAdmin = await contract.isAdmin(signerAddress);
-    
+
     if (!isAdmin) {
       return { success: false, message: 'Only admins can update user roles' };
     }
-    
+
     const tx = await contract.updateUserRole(userAddress, newRole);
     await tx.wait();
-    
+
     return {
       success: true,
       message: 'User role updated successfully',
@@ -237,19 +150,19 @@ export const updateUserRole = async (userAddress: string, newRole: number) => {
 export const pauseContract = async () => {
   try {
     const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
+
     // Ensure caller is admin
     const signerAddress = await signer.getAddress();
     const isAdmin = await contract.isAdmin(signerAddress);
-    
+
     if (!isAdmin) {
       return { success: false, message: 'Only admins can pause the contract' };
     }
-    
+
     const tx = await contract.pause();
     await tx.wait();
-    
+
     return {
       success: true,
       message: 'Contract paused successfully',
@@ -271,19 +184,19 @@ export const pauseContract = async () => {
 export const unpauseContract = async () => {
   try {
     const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
+
     // Ensure caller is admin
     const signerAddress = await signer.getAddress();
     const isAdmin = await contract.isAdmin(signerAddress);
-    
+
     if (!isAdmin) {
       return { success: false, message: 'Only admins can unpause the contract' };
     }
-    
+
     const tx = await contract.unpause();
     await tx.wait();
-    
+
     return {
       success: true,
       message: 'Contract unpaused successfully',
@@ -299,30 +212,42 @@ export const unpauseContract = async () => {
 };
 
 /**
- * Verify all institutions that aren't verified yet
- * @returns Result object with success status and counts
+ * Check if an address is an admin
  */
-export const verifyAllPendingInstitutions = async () => {
+export const checkIsAdmin = async (address: string) => {
+  try {
+    const contract = await getIdentityContract();
+    return await contract.isAdmin(address);
+  } catch (error: any) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+};
+
+/**
+ * Batch verify all pending institutions (admin only)
+ */
+export const verifyAllPendingInstitutions = async (getAllUsersByRole: (role: number) => Promise<string[]>, getDetailedUserData: (address: string) => Promise<any>) => {
   try {
     const institutionAddresses = await getAllUsersByRole(2); // Role 2 is Institution
     const signer = await getSigner();
-    const contract = await getIdentityContract(signer);
-    
+    const contract = await getIdentityContract();
+
     // Ensure caller is admin
     const signerAddress = await signer.getAddress();
     const isAdmin = await contract.isAdmin(signerAddress);
-    
+
     if (!isAdmin) {
       return { success: false, message: 'Only admins can perform batch verification' };
     }
-    
+
     let verifiedCount = 0;
     let failedCount = 0;
-    
+
     for (const address of institutionAddresses) {
       try {
         const userData = await getDetailedUserData(address);
-        
+
         if (userData && !userData.isVerified) {
           const tx = await contract.verifyUser(address);
           await tx.wait();
@@ -333,7 +258,7 @@ export const verifyAllPendingInstitutions = async () => {
         failedCount++;
       }
     }
-    
+
     return {
       success: true,
       message: `Verified ${verifiedCount} institutions. Failed: ${failedCount}`,
@@ -353,13 +278,13 @@ export const verifyAllPendingInstitutions = async () => {
  * Get admin dashboard statistics
  * @returns Statistics for the admin dashboard
  */
-export const getAdminStats = async () => {
+export const getAdminStats = async (getAllUsersByRole: (role: number) => Promise<string[]>) => {
   try {
     const students = await getAllUsersByRole(1); // Role 1 is Student
     const institutions = await getAllUsersByRole(2); // Role 2 is Institution
     const employers = await getAllUsersByRole(3); // Role 3 is Employer
     const admins = await getAllUsersByRole(4); // Role 4 is Admin
-    
+
     return {
       studentCount: students.length,
       institutionCount: institutions.length,
@@ -378,3 +303,208 @@ export const getAdminStats = async () => {
     };
   }
 };
+
+/**
+ * @param role
+ * @returns Array of user addresses
+ */
+export const getUsersByRole = async (role: number) => {
+  try {
+    const contract = await getIdentityContract();
+
+    const filter = contract.filters.UserRegistered(null, role);
+    const events = await contract.queryFilter(filter);
+
+    const addresses = events.map(event => {
+      const eventData = event as ethers.EventLog;
+      if (eventData && eventData.args && eventData.args.length > 0) {
+        return eventData.args[0];
+      }
+      return null;
+    }).filter(address => address !== null);
+
+    return addresses;
+  } catch (error) {
+    console.error('Error in getUsersByRole:', error);
+    throw error;
+  }
+};
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const removeUser = async (userAddress: string) => {
+  if (!userAddress || !ethers.isAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const contract = await getIdentityContract();
+
+    const tx = await contract.removeUser(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error removing user:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const revokeUser = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.revokeUser(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error revoking user:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const revokeInstitutionRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.revokeInstitutionRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error revoking institution role:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const grantInstitutionRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.grantInstitutionRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error granting institution role:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const grantEmployerRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.grantEmployerRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error granting employer role:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const revokeEmployerRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.revokeEmployerRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error revoking employer role:', error);
+    throw error;
+  }
+}
+
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const revokeAdminRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.revokeAdminRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error revoking admin role:', error);
+    throw error;
+  }
+}
+
+/**
+ * @param userAddress
+ * @returns Boolean
+ */
+export const grantAdminRole = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const identityContract = await getIdentityContract();
+
+    const tx = await identityContract.grantAdminRole(userAddress);
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error granting admin role:', error);
+    throw error;
+  }
+}
+
+export * from './admin';

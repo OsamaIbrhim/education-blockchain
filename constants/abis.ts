@@ -39,37 +39,38 @@ export const IdentityABI = [
   "event AdminAdded(address indexed admin)",
   "event AdminRemoved(address indexed admin)",
   "event IPFSHashUpdated(address indexed user, string ipfsHash)",
-  "event InstitutionAdded(address indexed institution)",
+  "event InstitutionAdded(address indexed institution)", // This event might be redundant if UserRegistered covers it
   "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)", // From Ownable
   "event Paused(address account)", // From Pausable
-  "event StudentAdded(address indexed institution, address indexed student)", // Added institution
+  // "event StudentAdded(address indexed institution, address indexed student)", // This event seems to be missing from your Identity.sol
   "event Unpaused(address account)", // From Pausable
   "event UserRegistered(address indexed userAddress, uint8 indexed role)", // UserRole enum maps to uint8
   "event UserVerified(address indexed userAddress)",
-  "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // Added UserRoleUpdated
+  "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // UserRole enum maps to uint8
 
   // State Variable Getters
   "function admins(address) view returns (bool)",
-  "function institutions(address) view returns (bool)",
+  "function institutions(address) view returns (bool)", // Getter for institutions mapping
   "function owner() view returns (address)", // From Ownable
   "function paused() view returns (bool)", // From Pausable
   "function users(address) view returns (address userAddress, string ipfsHash, uint8 role, bool isVerified)", // UserRole enum maps to uint8
 
   // Functions
-  "function addAdmin(address _newAdmin) external", // Removed onlyOwner
-  "function addStudents(address[] memory studentAddresses) external", // Added addStudents
+  "function addAdmin(address _newAdmin) external", // onlyOwner
+  "function addStudents(address[] memory studentAddresses) external", // onlyInstitution, onlyVerified
   "function getUserRole(address _userAddress) external view returns (uint8)", // UserRole enum maps to uint8
   "function isAdmin(address _address) public view returns (bool)",
   "function isInstitution(address _address) public view returns (bool)",
   "function isVerifiedUser(address _userAddress) external view returns (bool)",
-  "function pause() external", 
+  "function pause() external", // onlyAdmin
   "function registerUser(uint8 _role, string memory _ipfsHash) external", // UserRole enum maps to uint8
-  "function removeAdmin(address _admin) external", // Removed onlyOwner
-  "function unpause() external", 
-  "function updateUserIPFS(string memory _newIpfsHash) external",
-  "function updateUserRole(address _userAddress, uint8 _newRole) external", //  UserRole enum maps to uint8
-  "function verifyUser(address _userAddress) external",
-  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)",// Added isStudentEnrolled
+  "function removeAdmin(address _admin) external", // onlyOwner
+  "function unpause() external", // onlyAdmin
+  "function updateUserIPFS(address _userAddress, string memory _newIpfsHash) external", // onlyAdmin
+  "function updateUserRole(address _userAddress, uint8 _newRole) external", // onlyAdmin, UserRole enum maps to uint8
+  "function verifyUser(address _userAddress) external", // onlyAdmin
+  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)",
+  "function userExists(address _userAddress) external view returns (bool)" // Added from your Identity.sol
 ];
 
 // --- Examinations ABI ---

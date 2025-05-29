@@ -65,9 +65,10 @@ const InfoIcon = createIcon({
 type InstitutionRowProps = {
   inst: Institution;
   onClick: (inst: Institution) => void;
+  onVerify?: (address: string) => Promise<void>;
 };
 
-const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
+const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowProps) => {
   const toast = useToast();
 
   const handleCopyAddress = (e: React.MouseEvent) => {
@@ -84,7 +85,6 @@ const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
 
   return (
     <Tr
-      key={inst.address}
       _hover={{
         bg: useColorModeValue('gray.50', 'gray.700'),
         transition: 'all 0.2s',
@@ -92,24 +92,33 @@ const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
     >
       <Td fontSize="sm">
         <Tooltip label="اضغط للنسخ" hasArrow>
-          <span style={{ cursor: 'pointer', /*color: '#3182ce'*/ }} onClick={handleCopyAddress}>
+          <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
             {inst.address}
           </span>
         </Tooltip>
       </Td>
       <Td fontSize="sm">
         <Tooltip label="اضغط لعرض المؤسسة" hasArrow>
-          <span style={{ cursor: 'pointer', /*color: '#3182ce'*/ }} onClick={() => onClick(inst)}>
+          <span style={{ cursor: 'pointer' }} onClick={() => onClick(inst)}>
             {inst.name}
           </span>
         </Tooltip>
       </Td>
       <Td fontSize="sm">
-        {inst.verificationDate
-          ? typeof inst.verificationDate === 'string'
-            ? inst.verificationDate
-            : inst.verificationDate.toLocaleDateString()
-          : '-'}
+        {(() => {
+          if (inst.verificationDate) {
+            const date = new Date(inst.verificationDate);
+            // Check if the date is valid after conversion
+            if (date instanceof Date && !isNaN(date.getTime())) {
+              return date.toLocaleDateString('EG', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+            }
+          }
+          return '-';
+        })()}
       </Td>
       <Td>
         <Badge
@@ -118,6 +127,7 @@ const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
           px={3}
           py={1}
           borderRadius="full"
+          mr={2}
         >
           <HStack spacing={2}>
             <Icon
@@ -131,6 +141,20 @@ const InstitutionRow = React.memo(({ inst, onClick }: InstitutionRowProps) => {
             </Text>
           </HStack>
         </Badge>
+      </Td>
+      <Td>
+        {!inst.isVerified && onVerify && (
+          <Button
+            size="xs"
+            colorScheme="green"
+            onClick={e => {
+              e.stopPropagation();
+              onVerify(inst.address);
+            }}
+          >
+            تحقق - Verify
+          </Button>
+        )}
       </Td>
     </Tr>
   );
@@ -150,6 +174,23 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
   const handleInstitutionClick = (inst: Institution) => {
     setSelectedInstitutionAddress(inst.address);
     openInstitutionModal();
+  };
+
+  const handleVerify = async (address: string) => {
+    if (onVerify) {
+      try {
+        await onVerify(address);
+      } catch (error) {
+        toast({
+          title: 'فشل التحقق',
+          description: 'حدث خطأ أثناء محاولة التحقق من المؤسسة',
+          status: 'error',
+          duration: 2000,
+          isClosable: true,
+        });
+      }
+    }
+    closeInstitutionModal();
   };
 
   return (
@@ -180,11 +221,12 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
                   <Th>اسم المؤسسة - Institution Name</Th>
                   <Th>تاريخ التحقق - Verification Date</Th>
                   <Th>الحالة - Status</Th>
+                  <Th>إجراء - Action</Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {institutions.map((inst) => (
-                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} />
+                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} />
                 ))}
               </Tbody>
             </Table>
@@ -197,6 +239,7 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
         isOpen={isInstitutionModalOpen}
         onClose={closeInstitutionModal}
         address={selectedInstitutionAddress}
+        onVerify={() => handleVerify(selectedInstitutionAddress || '')}
       />
     </>
   );
