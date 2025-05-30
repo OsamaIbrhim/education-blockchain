@@ -39,7 +39,7 @@ const InstitutionProfilePage = () => {
   };
 
   return (
-    <Layout address={address} exams={exams} pageName={pageName}>
+    <Layout address={address} exams={exams} pageName={pageName} allowedValue="institution">
       <Box minH="100vh" bg={bgColor}>
         <Container maxW="container.xl" py={8}>
           <VStack spacing={6} align="stretch">

@@ -1,5 +1,6 @@
 import { SimpleGrid, Box, Stat, StatLabel, StatNumber, useColorModeValue, Fade, StatHelpText } from '@chakra-ui/react';
 import { Institution } from 'types/institution';
+import { useLanguage } from 'context/LanguageContext ';
 
 interface StatsGridProps {
   institutions: Institution[];
@@ -20,6 +21,12 @@ export default function StatsGrid({
   borderColor,
   mutedTextColor,
 }: StatsGridProps) {
+  const { t, translations } = useLanguage();
+
+  if (Object.keys(translations).length === 0) {
+    return null;
+  }
+
   return (
     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
       <Fade in={true} delay={0.1}>
@@ -51,7 +58,7 @@ export default function StatsGrid({
           />
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
-              إجمالي المؤسسات
+              {t('totalInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -61,7 +68,7 @@ export default function StatsGrid({
               {institutions.length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              Total Institutions
+              {t('totalInstitutions')}
             </StatHelpText>
           </Stat>
         </Box>
@@ -96,7 +103,7 @@ export default function StatsGrid({
           />
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
-              المؤسسات المعتمدة
+              {t('verifiedInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -106,7 +113,7 @@ export default function StatsGrid({
               {institutions.filter(inst => inst.isVerified).length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              Verified Institutions
+              {t('verifiedInstitutions')}
             </StatHelpText>
           </Stat>
         </Box>
@@ -141,7 +148,7 @@ export default function StatsGrid({
           />
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
-              المؤسسات قيد التحقق
+              {t('pendingInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -151,7 +158,7 @@ export default function StatsGrid({
               {institutions.filter(inst => !inst.isVerified).length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              Pending Verification
+              {t('pendingInstitutions')}
             </StatHelpText>
           </Stat>
         </Box>

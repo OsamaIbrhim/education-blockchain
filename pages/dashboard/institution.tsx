@@ -387,6 +387,7 @@ const InstitutionDashboard = () => {
       exams={exams}
       onNotificationsOpen={onNotificationsOpen}
       pageName={pageName}
+      allowedValue="institution"
     >
       <Box minH="100vh" bg={bgColor}>
         {/* Gradient Overlay */}

@@ -25,6 +25,7 @@ import {
 import { useState } from 'react';
 import { Institution } from 'types/institution';
 import InstitutionDetailsModal from './InstitutionDetailsModal';
+import { useLanguage } from 'context/LanguageContext ';
 
 interface InstitutionsTableProps {
   institutions: Institution[];
@@ -68,15 +69,15 @@ type InstitutionRowProps = {
   onVerify?: (address: string) => Promise<void>;
 };
 
-const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowProps) => {
+const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRowProps & { t: (key: string) => string }) => {
   const toast = useToast();
 
   const handleCopyAddress = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(inst.address);
     toast({
-      title: 'تم نسخ العنوان',
-      description: 'تم نسخ عنوان المؤسسة إلى الحافظة',
+      title: t('copiedTitle'),
+      description: t('copiedDescription'),
       status: 'success',
       duration: 2000,
       isClosable: true,
@@ -91,14 +92,14 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowPr
       }}
     >
       <Td fontSize="sm">
-        <Tooltip label="اضغط للنسخ" hasArrow>
+        <Tooltip label={inst.address} hasArrow>
           <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
-            {inst.address}
+            {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
           </span>
         </Tooltip>
       </Td>
       <Td fontSize="sm">
-        <Tooltip label="اضغط لعرض المؤسسة" hasArrow>
+        <Tooltip label={t('showInstitution')} hasArrow>
           <span style={{ cursor: 'pointer' }} onClick={() => onClick(inst)}>
             {inst.name}
           </span>
@@ -108,7 +109,6 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowPr
         {(() => {
           if (inst.verificationDate) {
             const date = new Date(inst.verificationDate);
-            // Check if the date is valid after conversion
             if (date instanceof Date && !isNaN(date.getTime())) {
               return date.toLocaleDateString('EG', {
                 year: 'numeric',
@@ -137,7 +137,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowPr
               color={inst.isVerified ? 'green.500' : 'orange.500'}
             />
             <Text>
-              {inst.isVerified ? 'معتمدة - Verified' : 'قيد التحقق - Pending'}
+              {inst.isVerified ? t('verified') : t('pending')}
             </Text>
           </HStack>
         </Badge>
@@ -152,7 +152,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowPr
               onVerify(inst.address);
             }}
           >
-            تحقق - Verify
+            {t('verify')}
           </Button>
         )}
       </Td>
@@ -163,8 +163,13 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify }: InstitutionRowPr
 export default function InstitutionsTable({ institutions, onVerify, isLoading }: InstitutionsTableProps) {
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
   const textColor = useColorModeValue('gray.800', 'white');
-
   const toast = useToast();
+
+  const { t, translations } = useLanguage();
+
+  if (Object.keys(translations).length === 0) {
+    return <Spinner size="lg" />; // أو أي لودينج بسيط
+  }
 
   // State for selected institution and modal
   const [selectedInstitutionAddress, setSelectedInstitutionAddress] = useState<string | null>(null);
@@ -182,8 +187,8 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
         await onVerify(address);
       } catch (error) {
         toast({
-          title: 'فشل التحقق',
-          description: 'حدث خطأ أثناء محاولة التحقق من المؤسسة',
+          title: t('verifyFailed'),
+          description: t('verifyError'),
           status: 'error',
           duration: 2000,
           isClosable: true,
@@ -201,32 +206,28 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
           {isLoading ? (
             <Center p={8}>
               <Spinner size="xl" color="red.500" />
-              <Text mt={4}>جاري تحميل المؤسسات...</Text>
+              <Text mt={4}>{t('loadingInstitutions')}</Text>
             </Center>
           ) : institutions.length === 0 ? (
             <Center p={8}>
               <VStack spacing={3}>
-                {/* <Icon as={InfoIcon} w={40} h={40} color="red.500" /> */}
-                <Text fontSize="lg">لا توجد مؤسسات مسجلة</Text>
-                <Text color={mutedTextColor}>
-                  No registered institutions
-                </Text>
+                <Text fontSize="lg">{t('noInstitutions')}</Text>
               </VStack>
             </Center>
           ) : (
             <Table variant="simple">
               <Thead bg={useColorModeValue('gray.50', 'gray.700')}>
                 <Tr>
-                  <Th>عنوان المؤسسة - Institution Address</Th>
-                  <Th>اسم المؤسسة - Institution Name</Th>
-                  <Th>تاريخ التحقق - Verification Date</Th>
-                  <Th>الحالة - Status</Th>
-                  <Th>إجراء - Action</Th>
+                  <Th>{t('institutionAddress')}</Th>
+                  <Th>{t('institutionName')}</Th>
+                  <Th>{t('verificationDate')}</Th>
+                  <Th>{t('status')}</Th>
+                  <Th>{t('action')}</Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {institutions.map((inst) => (
-                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} />
+                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} t={t} />
                 ))}
               </Tbody>
             </Table>
