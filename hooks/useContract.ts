@@ -16,6 +16,7 @@ export function useContract() {
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
   const { address: account } = useAccount();
+  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
@@ -27,6 +28,7 @@ export function useContract() {
   useEffect(() => {
     const initializeContracts = async () => {
       try {
+        setIsLoading(true);
         setIsLoadingContract(true);
 
         if (!publicClient) {
@@ -44,8 +46,15 @@ export function useContract() {
         
         // Accept either Ganache (1337) or Ethereum Mainnet (1)
         if (chainId !== 1337 && chainId !== 1) {
-          console.log('Wrong network - expected Ganache (1337) or Ethereum Mainnet (1), got:', chainId);
           setIsCorrectNetwork(false);
+          toast({
+            title: 'Wrong Network',
+            description: `Please switch to Ganache (1337) or Ethereum Mainnet (1). Current network ID: ${chainId}`,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          setIsLoading(false);
           return;
         }
 
@@ -103,6 +112,7 @@ export function useContract() {
         });
       } finally {
         setIsLoadingContract(false);
+        setIsLoading(false);
       }
     };
 
@@ -115,6 +125,7 @@ export function useContract() {
     certificateContract,
     isInitialized,
     isCorrectNetwork,
-    isLoadingContract
+    isLoadingContract,
+    isLoading,
   };
 }

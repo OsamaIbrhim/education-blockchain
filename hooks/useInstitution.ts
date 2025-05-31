@@ -5,7 +5,7 @@ import { useContract } from './useContract';
 import type { Hash } from 'viem';
 import { Exam, ExamResult, ExamStatistics, NewExam, ExamResultStructOutput, ExamData } from '../types/examManagement';
 import { Certificate } from '../types/certificate';
-import { InstitutionData } from '../components/institution/InstitutionProfile';
+import { Institution } from 'types/institution';
 import { useRouter } from 'next/router';
 
 // services
@@ -42,8 +42,8 @@ export const useInstitution = () => {
   const { address: account } = useAccount();
   const publicClient = usePublicClient();
   const toast = useToast();
-  const { examManagement, certificates, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
-  const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
+  const { examManagementContract, certificateContract, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
+  const [institutionData, setInstitutionData] = useState<Institution | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamData[]>([]);
@@ -60,7 +60,7 @@ export const useInstitution = () => {
           return;
         }
 
-        if (!examManagement || !certificates) {
+        if (!examManagementContract || !certificateContract) {
           throw new Error('Contracts not initialized');
         }
 
@@ -80,11 +80,11 @@ export const useInstitution = () => {
 
     checkAccess();
 
-  }, [account, examManagement, certificates, isInitialized, isCorrectNetwork]);
+  }, [account, examManagementContract, certificateContract, isInitialized, isCorrectNetwork]);
 
   useEffect(() => {
     const checkVerificationStatus = async () => {
-      if (!account || !examManagement || !isInitialized || !isCorrectNetwork) {
+      if (!account || !examManagementContract || !isInitialized || !isCorrectNetwork) {
         return;
       }
 
@@ -99,17 +99,17 @@ export const useInstitution = () => {
       }
     };
     checkVerificationStatus();
-  }, [account, examManagement, isInitialized, isCorrectNetwork]);
+  }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
 
   // effect to load exams
   useEffect(() => {
-    if (account && examManagement && isInitialized && isCorrectNetwork) {
+    if (account && examManagementContract && isInitialized && isCorrectNetwork) {
       loadExamsFromContract(account);
     }
-  }, [account, examManagement, isInitialized, isCorrectNetwork]);
+  }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
 
   const loadExamsFromContract = async (userAddress: `0x${string}`) => {
-    if (!examManagement || !userAddress) {
+    if (!examManagementContract || !userAddress) {
       return [];
     }
 
@@ -125,13 +125,13 @@ export const useInstitution = () => {
 
   // effect to load certificates
   useEffect(() => {
-    if (account && examManagement && isInitialized && isCorrectNetwork) {
+    if (account && examManagementContract && isInitialized && isCorrectNetwork) {
       loadCertificatesFromContract(account);
     }
-  }, [account, certificates, isInitialized, isCorrectNetwork]);
+  }, [account, certificateContract, isInitialized, isCorrectNetwork]);
 
   const loadCertificatesFromContract = async (userAddress: `0x${string}`) => {
-    if (!certificates || !userAddress) {
+    if (!certificateContract || !userAddress) {
       return [];
     }
 
@@ -149,7 +149,7 @@ export const useInstitution = () => {
 
   // create exam
   const createExam = async (exam: NewExam): Promise<any> => {
-    if (!account || !examManagement || !publicClient) {
+    if (!account || !examManagementContract || !publicClient) {
       toast({
         title: 'خطأ في العنوان | Address Error',
         description: 'لم يتم العثور على عنوان المحفظة أو العقد | Wallet address or contract not found',
@@ -467,8 +467,8 @@ export const useInstitution = () => {
     }
   };
 
-  const saveInstitutionProfile = async (data: InstitutionData): Promise<void> => {
-    if (!examManagement || !account || !publicClient) {
+  const saveInstitutionProfile = async (data: Institution): Promise<void> => {
+    if (!examManagementContract || !account || !publicClient) {
       throw new Error('Contract or address not available');
     }
 
@@ -481,7 +481,7 @@ export const useInstitution = () => {
     try {
       setIsLoading(true);
       // Direct function call without using write property
-      const hash = await examManagement.updateInstitutionProfile([
+      const hash = await examManagementContract.updateInstitutionProfile([
         data.name,
         data.ministry,
         data.university,

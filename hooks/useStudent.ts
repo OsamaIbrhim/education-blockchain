@@ -7,6 +7,7 @@ import { useContract } from './useContract';
 import { Certificate } from 'crypto';
 import { getUserExams } from 'services/examManagement';
 import { getUserCertificates } from 'services/certificate';
+import { useAppData } from './useAppData';
 
 interface UseStudentReturn {
     student: StudentStructOutput | null;
@@ -16,7 +17,8 @@ interface UseStudentReturn {
 
 export const useStudent = () => {
     const { address: account } = useAccount();
-    const { examManagement, certificates, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
+    const { certificates, isLoading: appDataLoading } = useAppData();
+    const { examManagementContract, certificateContract, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
     const [error, setError] = useState<string | null>(null);
     const [exams, setExams] = useState<Exam[]>([]);
     const [certificatesData, setCertificatesData] = useState<any[]>([]);
@@ -32,7 +34,7 @@ export const useStudent = () => {
                 return;
             }
 
-            if (!examManagement || !certificates) {
+            if (!examManagementContract || !certificateContract) {
                 throw new Error('Contracts not initialized');
             }
 
@@ -55,17 +57,17 @@ export const useStudent = () => {
 
     useEffect(() => {
         checkAccess();
-    }, [account, examManagement, certificates, isInitialized, isCorrectNetwork]);
+    }, [account, examManagementContract, certificates, isInitialized, isCorrectNetwork]);
 
     // load exams
     useEffect(() => {
-        if (account && examManagement && isInitialized && isCorrectNetwork) {
+        if (account && examManagementContract && isInitialized && isCorrectNetwork) {
             loadExamsFromContract(account);
         }
-    }, [account, examManagement, isInitialized, isCorrectNetwork]);
+    }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
 
     const loadExamsFromContract = async (userAddress: string) => {
-        if (!examManagement || !userAddress) {
+        if (!examManagementContract || !userAddress) {
             return [];
         }
 
@@ -83,7 +85,7 @@ export const useStudent = () => {
 
     // load certificates
     useEffect(() => {
-        if (account && examManagement && isInitialized && isCorrectNetwork) {
+        if (account && examManagementContract && isInitialized && isCorrectNetwork) {
             loadCertificatesFromContract(account);
         }
     }, [account, certificates, isInitialized, isCorrectNetwork]);
@@ -107,7 +109,7 @@ export const useStudent = () => {
     };
 
     return {
-        loading: isLoading || contractsLoading,
+        loading: isLoading || contractsLoading || appDataLoading,
         error,
         exams,
         certificatesData,

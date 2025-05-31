@@ -66,6 +66,7 @@ export default function InstitutionProfile({
       website: '',
       email: '',
       phone: '',
+      isVerified: false, // Added missing property
     }
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
