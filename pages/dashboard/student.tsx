@@ -356,9 +356,6 @@ export default function StudentDashboard() {
                         >
                           {exams.length}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          {t('totalExams')}
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
@@ -399,9 +396,6 @@ export default function StudentDashboard() {
                         >
                           {certificates.filter(cert => cert.isValid).length}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          {t('issuedCertificates')}
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
@@ -442,9 +436,6 @@ export default function StudentDashboard() {
                         >
                           {new Set(certificates.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          {t('verifiedInstitutions')}
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
