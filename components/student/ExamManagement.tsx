@@ -22,13 +22,13 @@ import {
     Link,
     useDisclosure
 } from '@chakra-ui/react';
-import { Exam } from '../../types/examManagement';
+import { ExamData } from '../../types/examManagement';
 import { CheckCircleIcon, InfoIcon } from '@chakra-ui/icons';
 import { AlertCircleIcon } from 'components/Icons';
 import ExamList from './ExamList';
 
 interface ExamManagementProps {
-    exams: Exam[];
+    exams: ExamData[];
     loading: boolean;
 }
 

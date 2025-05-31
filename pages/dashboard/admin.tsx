@@ -238,38 +238,8 @@ const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     </Modal>
   );
 };
-// Update the TutorialModal component to use t
-const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const { t } = useLanguage();
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="xl">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{t('welcomeAdminDashboard')}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
-          <VStack spacing={4} align="stretch">
-            <Text>
-              👋 {t('welcomeAdminDashboard')}:
-              <br />
-              • {t('verifyEducationalInstitutions')}
-              <br />
-              • {t('monitorInstitutionsStatus')}
-              <br />
-              • {t('manageSystem')}
-            </Text>
-            <Button colorScheme="red" onClick={onClose}>
-              {t('gotIt')}
-            </Button>
-          </VStack>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
-  );
-};
 
 export default function AdminDashboard() {
-  const { t, translations } = useLanguage();
   const { t, translations } = useLanguage();
   const { allInstitutions, verifyUser, account, userRole, isLoading } = useAppData();
   const router = useRouter();
@@ -289,8 +259,8 @@ export default function AdminDashboard() {
 
   // Colors
   const bgGradient = useColorModeValue(
-    'linear-gradient(120deg, red.500 0%, red.700 100%)',
-    'linear-gradient(120deg, red.700 0%, red.900 100%)'
+    'linear-gradient(120deg, red.700 0%, red.900 100%)',
+    'linear-gradient(120deg, red.500 0%, red.700 100%)'
   );
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('red.100', 'red.700');
@@ -357,8 +327,6 @@ export default function AdminDashboard() {
       toast({
         title: t('error'),
         description: t('pleaseEnterInstitutionAddress'),
-        title: t('error'),
-        description: t('pleaseEnterInstitutionAddress'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -387,8 +355,6 @@ export default function AdminDashboard() {
         toast({
           title: t('success'),
           description: t('institutionVerified'),
-          title: t('success'),
-          description: t('institutionVerified'),
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -396,8 +362,6 @@ export default function AdminDashboard() {
         });
       } else if (status === 'already verified') {
         toast({
-          title: t('warning'),
-          description: t('alreadyVerified'),
           title: t('warning'),
           description: t('alreadyVerified'),
           status: 'warning',
@@ -418,8 +382,6 @@ export default function AdminDashboard() {
     } catch (error: any) {
       console.error('Error verifying institution:', error);
       toast({
-        title: t('error'),
-        description: error.message || t('failedToVerifyInstitution'),
         title: t('error'),
         description: error.message || t('failedToVerifyInstitution'),
         status: 'error',
@@ -448,16 +410,11 @@ export default function AdminDashboard() {
     return <Spinner />;
   }
 
-  if (Object.keys(translations).length === 0) {
-    return <Spinner />;
-  }
-
   if (loading) {
     return (
       <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <VStack spacing={4}>
           <Spinner size="xl" color="red.500" thickness="4px" speed="0.65s" />
-          <Text fontSize="lg">{t('loading')}</Text>
           <Text fontSize="lg">{t('loading')}</Text>
           <Progress
             size="xs"
@@ -497,7 +454,6 @@ export default function AdminDashboard() {
               mt={4}
             >
               {t('retry')}
-              {t('retry')}
             </Button>
           </Alert>
         </ScaleFade>
@@ -506,7 +462,6 @@ export default function AdminDashboard() {
   }
 
   return (
-    <Layout pageName={t('adminDashboard')} address={account} allowedValue={userRole}>
     <Layout pageName={t('adminDashboard')} address={account} allowedValue={userRole}>
       <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         {isOpen && <TutorialModal isOpen={isOpen} onClose={onClose} />}
@@ -542,10 +497,8 @@ export default function AdminDashboard() {
                         <Icon as={UserIcon} w={5} h={5} color="red.500" />
                         <Text fontWeight="bold" fontSize="sm" color={mutedTextColor}>
                           {t('connectedAccount')}
-                          {t('connectedAccount')}
                         </Text>
                       </HStack>
-                      <Tooltip label={t('walletAddress')} placement="top">
                       <Tooltip label={t('walletAddress')} placement="top">
                         <Text fontSize="sm" wordBreak="break-all" color={textColor}>
                           {account}
@@ -553,11 +506,9 @@ export default function AdminDashboard() {
                       </Tooltip>
                       <Divider />
                       <Tooltip label={t('userRole')} placement="top">
-                      <Tooltip label={t('userRole')} placement="top">
                         <Badge colorScheme="red" px={3} py={1} borderRadius="full">
                           <HStack spacing={2}>
                             <Icon as={ShieldIcon} w={4} h={4} />
-                            <Text>{t('systemAdmin')}</Text>
                             <Text>{t('systemAdmin')}</Text>
                           </HStack>
                         </Badge>
@@ -581,7 +532,6 @@ export default function AdminDashboard() {
                         <Icon as={DatabaseIcon} w={5} h={5} color="red.500" />
                         <Heading size="sm" color={useColorModeValue('red.600', 'red.200')}>
                           {t('systemFeatures')}
-                          {t('systemFeatures')}
                         </Heading>
                       </HStack>
                       <VStack spacing={3} align="start" pl={6}>
@@ -589,20 +539,17 @@ export default function AdminDashboard() {
                           <Icon as={CheckIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
                             {t('verifyInstitutions')}
-                            {t('verifyInstitutions')}
                           </Text>
                         </HStack>
                         <HStack>
                           <Icon as={BriefcaseIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
                             {t('manageInstitutions')}
-                            {t('manageInstitutions')}
                           </Text>
                         </HStack>
                         <HStack>
                           <Icon as={SettingsIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            {t('systemSettings')}
                             {t('systemSettings')}
                           </Text>
                         </HStack>
@@ -641,14 +588,11 @@ export default function AdminDashboard() {
                       <VStack spacing={4} align="stretch">
                         <Heading size="md" color={textColor}>
                           {t('verifyNewInstitution')}
-                          {t('verifyNewInstitution')}
                         </Heading>
                         <Text color={mutedTextColor}>
                           {t('enterInstitutionWallet')}
-                          {t('enterInstitutionWallet')}
                         </Text>
                         <FormControl>
-                          <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
                           <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
                           <Input
                             value={institutionAddress}
@@ -663,7 +607,6 @@ export default function AdminDashboard() {
                           />
                           <FormHelperText color={mutedTextColor}>
                             {t('mustBeValidEthereum')}
-                            {t('mustBeValidEthereum')}
                           </FormHelperText>
                         </FormControl>
                         <Button
@@ -671,7 +614,6 @@ export default function AdminDashboard() {
                           size="lg"
                           onClick={() => handleverifyUser()}
                           isLoading={loading}
-                          loadingText={t('verifying')}
                           loadingText={t('verifying')}
                           leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
                           _hover={{
@@ -681,7 +623,6 @@ export default function AdminDashboard() {
                         >
                           <HStack spacing={2}>
                             <Icon as={CheckIcon} w={5} h={5} />
-                            <Text>{t('verifyInstitution')}</Text>
                             <Text>{t('verifyInstitution')}</Text>
                           </HStack>
                         </Button>
@@ -710,7 +651,6 @@ export default function AdminDashboard() {
                     borderWidth="1px"
                     borderColor={borderColor}
                   > */}
-                  > */}
                     {/* Total Institutions Table */}
                     {/* <Box p={6} ref={totalInstitutionsRef}>
                     {/* <Box p={6} ref={totalInstitutionsRef}>
@@ -720,7 +660,6 @@ export default function AdminDashboard() {
                         isLoading={isLoading}
                       />
                     </Box>
-                  </Box> */}
                   </Box> */}
                   <Box
                     bg={cardBg}
@@ -733,7 +672,6 @@ export default function AdminDashboard() {
                   >
                     {/* Verified Institutions Table */}
                     <Box ref={verifiedInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>{t('verifiedInstitutions')}</Heading>
                       <Heading size="md" mb={2}>{t('verifiedInstitutions')}</Heading>
                       <InstitutionsTable institutions={allInstitutions.filter(i => i.isVerified)} isLoading={isLoading} />
                     </Box>
@@ -750,7 +688,6 @@ export default function AdminDashboard() {
                     {/* Pending Institutions Table */}
                     <Box ref={pendingInstitutionsRef} p={6} mt={6}>
                       <Heading size="md" mb={2}>{t('pendingInstitutions')}</Heading>
-                      <Heading size="md" mb={2}>{t('pendingInstitutions')}</Heading>
                       <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} onVerify={handleverifyUser} isLoading={isLoading} />
                     </Box>
                   </Box>
@@ -761,7 +698,6 @@ export default function AdminDashboard() {
         </Container>
 
         <IconButton
-          aria-label={t('scrollToTop')}
           aria-label={t('scrollToTop')}
           icon={<Icon as={FiArrowUp} />}
           position="fixed"

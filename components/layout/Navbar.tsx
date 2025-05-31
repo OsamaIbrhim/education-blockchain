@@ -2,8 +2,6 @@ import React from 'react';
 import {
     Box, Flex, HStack, Heading, Icon, Button, Avatar, useColorModeValue, Tooltip, Spacer,
     Spinner
-    Box, Flex, HStack, Heading, Icon, Button, Avatar, useColorModeValue, Tooltip, Spacer,
-    Spinner
 } from '@chakra-ui/react';
 import { FaUniversity, FaSignOutAlt, FaHome, FaThLarge } from 'react-icons/fa';
 import { BellIcon } from '@chakra-ui/icons';
@@ -23,17 +21,9 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
     if (Object.keys(translations).length === 0) {
         return <Spinner />;
     }
-    const { language, setLanguage, t, translations } = useLanguage();
-
-    if (Object.keys(translations).length === 0) {
-        return <Spinner />;
-    }
 
     const navLinks = [
         {
-            label: t('home'), // استخدم الترجمة هنا
-            icon: <FaHome />,
-            href:
             label: t('home'), // استخدم الترجمة هنا
             icon: <FaHome />,
             href:
@@ -71,20 +61,9 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                     <Icon as={FaUniversity} w={7} h={7} color="blue.500" />
                     <Heading size="md" bgGradient="linear(to-r, blue.400, blue.600)" bgClip="text">
                         {t('systemTitle')}
-                        {t('systemTitle')}
                     </Heading>
                 </HStack>
                 <Spacer />
-
-                <Button
-                    size="sm"
-                    variant="outline"
-                    colorScheme="blue"
-                    mx={2}
-                    onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-                >
-                    {language === 'ar' ? 'English' : 'العربية'}
-                </Button>
 
                 <Button
                     size="sm"
@@ -116,10 +95,8 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
 
                 {/* User & Logout */}
                 <HStack spacing={2} marginStart={4}>
-                <HStack spacing={2} marginStart={4}>
                     {/* Notification Button */}
                     {onNotificationsOpen && (
-                        <Tooltip label={t('notifications')} hasArrow>
                         <Tooltip label={t('notifications')} hasArrow>
                             <Button
                                 onClick={onNotificationsOpen}
@@ -136,10 +113,8 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                         </Tooltip>
                     )}
                     <Tooltip label={address || t('noAddress')} hasArrow>
-                    <Tooltip label={address || t('noAddress')} hasArrow>
                         <Avatar size="sm" name={address || 'User'} bg="blue.500" />
                     </Tooltip>
-                    <Tooltip label={t('logout')} hasArrow>
                     <Tooltip label={t('logout')} hasArrow>
                         <Button
                             leftIcon={<FaSignOutAlt />}
@@ -150,7 +125,6 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                             onClick={handleLogout}
                             _hover={{ bg: 'red.50', color: 'red.600' }}
                         >
-                            {t('logout')}
                             {t('logout')}
                         </Button>
                     </Tooltip>

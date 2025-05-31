@@ -70,15 +70,12 @@ type InstitutionRowProps = {
 };
 
 const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRowProps & { t: (key: string) => string }) => {
-const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRowProps & { t: (key: string) => string }) => {
   const toast = useToast();
 
   const handleCopyAddress = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(inst.address);
     toast({
-      title: t('copiedTitle'),
-      description: t('copiedDescription'),
       title: t('copiedTitle'),
       description: t('copiedDescription'),
       status: 'success',
@@ -96,15 +93,12 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
     >
       <Td fontSize="sm">
         <Tooltip label={inst.address} hasArrow>
-        <Tooltip label={inst.address} hasArrow>
           <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
-            {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
             {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
           </span>
         </Tooltip>
       </Td>
       <Td fontSize="sm">
-        <Tooltip label={t('showInstitution')} hasArrow>
         <Tooltip label={t('showInstitution')} hasArrow>
           <span style={{ cursor: 'pointer' }} onClick={() => onClick(inst)}>
             {inst.name}
@@ -144,7 +138,6 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
             />
             <Text>
               {inst.isVerified ? t('verified') : t('pending')}
-              {inst.isVerified ? t('verified') : t('pending')}
             </Text>
           </HStack>
         </Badge>
@@ -160,7 +153,6 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
             }}
           >
             {t('verify')}
-            {t('verify')}
           </Button>
         )}
       </Td>
@@ -172,12 +164,6 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
   const textColor = useColorModeValue('gray.800', 'white');
   const toast = useToast();
-
-  const { t, translations } = useLanguage();
-
-  if (Object.keys(translations).length === 0) {
-    return <Spinner size="lg" />; // أو أي لودينج بسيط
-  }
 
   const { t, translations } = useLanguage();
 
@@ -203,8 +189,6 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
         toast({
           title: t('verifyFailed'),
           description: t('verifyError'),
-          title: t('verifyFailed'),
-          description: t('verifyError'),
           status: 'error',
           duration: 2000,
           isClosable: true,
@@ -223,12 +207,10 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
             <Center p={8}>
               <Spinner size="xl" color="red.500" />
               <Text mt={4}>{t('loadingInstitutions')}</Text>
-              <Text mt={4}>{t('loadingInstitutions')}</Text>
             </Center>
           ) : institutions.length === 0 ? (
             <Center p={8}>
               <VStack spacing={3}>
-                <Text fontSize="lg">{t('noInstitutions')}</Text>
                 <Text fontSize="lg">{t('noInstitutions')}</Text>
               </VStack>
             </Center>
@@ -241,16 +223,10 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
                   <Th>{t('verificationDate')}</Th>
                   <Th>{t('status')}</Th>
                   <Th>{t('action')}</Th>
-                  <Th>{t('institutionAddress')}</Th>
-                  <Th>{t('institutionName')}</Th>
-                  <Th>{t('verificationDate')}</Th>
-                  <Th>{t('status')}</Th>
-                  <Th>{t('action')}</Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {institutions.map((inst) => (
-                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} t={t} />
                   <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} t={t} />
                 ))}
               </Tbody>

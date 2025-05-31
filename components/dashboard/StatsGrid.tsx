@@ -21,11 +21,6 @@ export default function StatsGrid({
   borderColor,
   mutedTextColor,
 }: StatsGridProps) {
-  const { t, translations } = useLanguage();
-
-  if (Object.keys(translations).length === 0) {
-    return null;
-  }
 
   const { t, translations } = useLanguage();
 
@@ -65,7 +60,6 @@ export default function StatsGrid({
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
               {t('totalInstitutions')}
-              {t('totalInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -75,7 +69,6 @@ export default function StatsGrid({
               {institutions.length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              {t('totalInstitutions')}
               {t('totalInstitutions')}
             </StatHelpText>
           </Stat>
@@ -112,7 +105,6 @@ export default function StatsGrid({
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
               {t('verifiedInstitutions')}
-              {t('verifiedInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -122,7 +114,6 @@ export default function StatsGrid({
               {institutions.filter(inst => inst.isVerified).length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              {t('verifiedInstitutions')}
               {t('verifiedInstitutions')}
             </StatHelpText>
           </Stat>
@@ -159,7 +150,6 @@ export default function StatsGrid({
           <Stat textAlign="center">
             <StatLabel fontSize="lg" color={mutedTextColor}>
               {t('pendingInstitutions')}
-              {t('pendingInstitutions')}
             </StatLabel>
             <StatNumber
               fontSize="4xl"
@@ -169,7 +159,6 @@ export default function StatsGrid({
               {institutions.filter(inst => !inst.isVerified).length}
             </StatNumber>
             <StatHelpText color={mutedTextColor}>
-              {t('pendingInstitutions')}
               {t('pendingInstitutions')}
             </StatHelpText>
           </Stat>

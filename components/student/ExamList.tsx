@@ -11,11 +11,11 @@ import {
     IconButton
 } from '@chakra-ui/react';
 import { UserIcon, BookIcon, CheckIcon, AwardIcon } from '../Icons';
-import { Exam } from '../../types/examManagement';
+import { ExamData } from '../../types/examManagement';
 
 interface ExamListProps {
-    exams: Exam[];
-    onSelectExam: (exam: Exam) => void;
+    exams: ExamData[];
+    onSelectExam: (exam: ExamData) => void;
     onOpenResultsModal: () => void;
 }
 
