@@ -94,7 +94,7 @@ export default function StudentDashboard() {
   const toast = useToast();
   const { t, language } = useLanguage();
 
-  const pageName = `${t('studentDashboard')} | Student Dashboard`;
+  const pageName = `${t('studentDashboard')}`;
 
   // Colors
   const bgGradient = useColorModeValue(
@@ -457,37 +457,6 @@ export default function StudentDashboard() {
             </GridItem>
           </Grid>
         </Container>
-
-        {/* Footer */}
-        <Box
-          position="fixed"
-          bottom="0"
-          left="0"
-          right="0"
-          bg={cardBg}
-          borderTop="1px solid"
-          borderColor={borderColor}
-          py={4}
-          px={8}
-          shadow="lg"
-          zIndex={999}
-        >
-          <Container maxW="container.xl">
-            <HStack justify="space-between" align="center">
-              <HStack spacing={4}>
-                <Text fontSize="sm" color={mutedTextColor}>
-                  {t('systemTitle')}
-                </Text>
-                <Link href="/about" color="blue.500" fontSize="sm">
-                  {t('about') || 'About'}
-                </Link>
-                <Link href="/contact" color="blue.500" fontSize="sm">
-                  {t('contact') || 'Contact'}
-                </Link>
-              </HStack>
-            </HStack>
-          </Container>
-        </Box>
       </Box>
     </Layout>
   );
