@@ -1,6 +1,6 @@
 import { SimpleGrid, Box, Stat, StatLabel, StatNumber, useColorModeValue, Fade, StatHelpText } from '@chakra-ui/react';
 import { Institution } from 'types/institution';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 interface StatsGridProps {
   institutions: Institution[];

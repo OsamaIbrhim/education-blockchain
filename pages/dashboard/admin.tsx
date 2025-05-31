@@ -80,7 +80,7 @@ import { Institution } from 'types/institution';
 // Layout
 import Layout from '../../components/layout/Layout';
 import ProtectedRoute from '../../components/auth/ProtectedRoute';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 // Lazy load components
 const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {

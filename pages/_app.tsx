@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
-import { LanguageProvider } from 'context/LanguageContext '
+import { LanguageProvider } from 'context/LanguageContext'
 import { AppProvider } from 'contexts/AppContext'
 
 const config = createConfig({

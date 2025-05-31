@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { getUserData } from 'services/identity';
 import { Institution } from 'types/institution';
 import { getFromIPFS } from 'utils/ipfsUtils';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 interface InstitutionDetailsModalProps {
   isOpen: boolean;

@@ -25,7 +25,7 @@ import {
 import { useState } from 'react';
 import { Institution } from 'types/institution';
 import InstitutionDetailsModal from './InstitutionDetailsModal';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 interface InstitutionsTableProps {
   institutions: Institution[];

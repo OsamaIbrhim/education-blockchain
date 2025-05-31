@@ -33,6 +33,7 @@ import {
   Divider,
 } from '@chakra-ui/react';
 import { Certificate } from '../../types/certificate';
+import { useLanguage } from 'context/LanguageContext';
 
 interface CertificateManagementProps {
   certificates: Certificate[];
@@ -45,10 +46,11 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
   onIssueCertificate,
   loading,
 }) => {
+  const { t } = useLanguage();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [studentAddress, setStudentAddress] = React.useState('');
   const [studentName, setStudentName] = React.useState('');
-  const [degree, setDegree] = React.useState('بكالوريوس');
+  const [degree, setDegree] = React.useState('bachelor');
   const [grade, setGrade] = React.useState('');
   const [percentage, setPercentage] = React.useState<number>(0);
   const [totalScore, setTotalScore] = React.useState<number>(0);
@@ -56,19 +58,16 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
   const [stamps, setStamps] = React.useState('');
 
   const handleSubmit = async () => {
-    const title = `شهادة ${degree} في تقنية المعلومات`;
+    const title = `${t('certificateTitlePrefix')} ${t(degree)} ${t('inInformationTechnology')}`;
     const metadata = {
       studentName,
-      degree,
-      grade,
+      degree: t(degree),
+      grade: t(grade),
       stamps,
       totalScore,
       maxScore,
       percentage,
     };
-
-    // I should make the data ipfs hash and save it
-    // const ipfsHash = await saveToIPFS({ title, description });
 
     await onIssueCertificate(studentAddress, { title, metadata });
     onClose();
@@ -96,28 +95,28 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
           borderColor={borderColor}
           shadow="sm"
         >
-          <HStack justify="space-between" mb={4}>
+          <HStack justify="space-between" mb={6}>
             <Text fontSize="xl" fontWeight="bold">
-              إجمالي الشهادات المصدرة | Total Certificates: {certificates.length}
+              {t('totalCertificates')}: {certificates.length}
             </Text>
             <Button
               colorScheme="blue"
               onClick={onOpen}
               isLoading={loading}
             >
-              إصدار شهادة جديدة | Issue New Certificate
+              {t('issueNewCertificate')}
             </Button>
           </HStack>
 
           <Table variant="simple">
             <Thead>
               <Tr>
-                <Th>عنوان الطالب | Student Address</Th>
-                <Th>اسم الطالب | Student Name</Th>
-                <Th>الدرجة العلمية | Degree</Th>
-                <Th>التقدير | Grade</Th>
-                <Th>تاريخ الإصدار | Issue Date</Th>
-                <Th>الحالة | Status</Th>
+                <Th>{t('studentAddress')}</Th>
+                <Th>{t('studentName')}</Th>
+                <Th>{t('degree')}</Th>
+                <Th>{t('grade')}</Th>
+                <Th>{t('issueDate')}</Th>
+                <Th>{t('status')}</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -133,14 +132,14 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
                     {cert.metadata?.degree || '-'}
                   </Td>
                   <Td maxW="180px" title={cert.metadata?.grade}>
-                  {cert.metadata?.grade || '-'}
+                    {cert.metadata?.grade || '-'}
                   </Td>
                   <Td>{new Date(cert.issueDate).toLocaleDateString()}</Td>
                   <Td>
                     <Badge
                       colorScheme={cert.status === 'issued' ? 'green' : 'yellow'}
                     >
-                      {cert.status === 'issued' ? 'تم الإصدار | Issued' : 'معلق | Pending'}
+                      {cert.status === 'issued' ? t('issued') : t('pending')}
                     </Badge>
                   </Td>
                 </Tr>
@@ -153,11 +152,11 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay backdropFilter="blur(10px)" />
         <ModalContent>
-          <ModalHeader>إصدار شهادة جديدة | Issue New Certificate</ModalHeader>
+          <ModalHeader>{t('issueNewCertificate')}</ModalHeader>
           <ModalBody>
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel>عنوان الطالب | Student Address</FormLabel>
+                <FormLabel>{t('studentAddress')}</FormLabel>
                 <Input
                   value={studentAddress}
                   onChange={(e) => setStudentAddress(e.target.value)}
@@ -166,43 +165,43 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>اسم الطالب | Student Name</FormLabel>
+                <FormLabel>{t('studentName')}</FormLabel>
                 <Input
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  placeholder="أدخل اسم الطالب الكامل"
+                  placeholder={t('enterFullStudentName')}
                 />
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>الدرجة العلمية | Degree</FormLabel>
+                <FormLabel>{t('degree')}</FormLabel>
                 <Select
                   value={degree}
                   onChange={(e) => setDegree(e.target.value)}
                 >
-                  <option value="بكالوريوس">بكالوريوس | Bachelor</option>
-                  <option value="ماجستير">ماجستير | Master</option>
-                  <option value="دكتوراه">دكتوراه | PhD</option>
+                  <option value="bachelor">{t('bachelor')}</option>
+                  <option value="master">{t('master')}</option>
+                  <option value="phd">{t('phd')}</option>
                 </Select>
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>التقدير العام | Grade</FormLabel>
+                <FormLabel>{t('grade')}</FormLabel>
                 <Select
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
                 >
-                  <option value="ممتاز مع مرتبة الشرف">ممتاز مع مرتبة الشرف | Excellent with Honors</option>
-                  <option value="ممتاز">ممتاز | Excellent</option>
-                  <option value="جيد جداً">جيد جداً | Very Good</option>
-                  <option value="جيد">جيد | Good</option>
-                  <option value="مقبول">مقبول | Pass</option>
+                  <option value="excellentWithHonors">{t('excellentWithHonors')}</option>
+                  <option value="excellent">{t('excellent')}</option>
+                  <option value="veryGood">{t('veryGood')}</option>
+                  <option value="good">{t('good')}</option>
+                  <option value="pass">{t('pass')}</option>
                 </Select>
               </FormControl>
 
               <HStack width="100%" spacing={4}>
                 <FormControl isRequired>
-                  <FormLabel>النسبة المئوية | Percentage</FormLabel>
+                  <FormLabel>{t('percentage')}</FormLabel>
                   <NumberInput
                     value={percentage}
                     onChange={(_, value) => setPercentage(value)}
@@ -218,7 +217,7 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>مجموع الدرجات | Total Score</FormLabel>
+                  <FormLabel>{t('totalScore')}</FormLabel>
                   <NumberInput
                     value={totalScore}
                     onChange={(_, value) => setTotalScore(value)}
@@ -232,7 +231,7 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>من أصل | Max Score</FormLabel>
+                  <FormLabel>{t('maxScore')}</FormLabel>
                   <NumberInput
                     value={maxScore}
                     onChange={(_, value) => setMaxScore(value)}
@@ -247,11 +246,11 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
               </HStack>
 
               <FormControl isRequired>
-                <FormLabel>الأختام | Stamps</FormLabel>
+                <FormLabel>{t('stamps')}</FormLabel>
                 <Textarea
                   value={stamps}
                   onChange={(e) => setStamps(e.target.value)}
-                  placeholder="أدخل معلومات الأختام والتوقيعات"
+                  placeholder={t('enterStampsInfo')}
                 />
               </FormControl>
             </VStack>
@@ -259,18 +258,18 @@ export const CertificateManagement: React.FC<CertificateManagementProps> = ({
 
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>
-              إلغاء | Cancel
+              {t('cancel')}
             </Button>
             <Button
               colorScheme="blue"
               onClick={handleSubmit}
               isLoading={loading}
             >
-              إصدار | Issue
+              {t('issue')}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
     </Box>
   );
-}; 
+};

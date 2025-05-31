@@ -68,6 +68,7 @@ import { validateNetwork, EXPECTED_NETWORK, getSigner, getProvider } from '../..
 import { ethers } from 'ethers';
 import Layout from '../../components/layout/Layout';
 import { getIdentityContract } from 'services/identity';
+import { useLanguage } from 'context/LanguageContext';
 import { useContract } from 'hooks/useContract';
 
 const MotionBox = motion(Box);
@@ -178,6 +179,16 @@ const ConnectWallet = ({ connect, connectors }: ConnectWalletProps) => {
 };
 
 const InstitutionDashboard = () => {
+  // 2. External hooks
+  const { address = undefined, isConnected: isWalletConnected = false } = useAccount() || {};
+  const router = useRouter();
+  const toast = useToast();
+  const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const { t, translations } = useLanguage();
+
   // 1. Color mode values - ALL useColorModeValue hooks MUST be at the top
   const bgColor = useColorModeValue('gray.50', 'gray.800');
   const cardBg = useColorModeValue('white', 'gray.700');
@@ -199,16 +210,7 @@ const InstitutionDashboard = () => {
   const textColor = useColorModeValue('gray.800', 'white');
   const subTextColor = useColorModeValue('gray.600', 'gray.300');
   const iconColor = useColorModeValue('gray.600', 'gray.400');
-  const pageName = 'لوحة تحكم المؤسسة | Institution Dashboard';
-
-  // 2. External hooks
-  const { address = undefined, isConnected: isWalletConnected = false } = useAccount() || {};
-  const router = useRouter();
-  const toast = useToast();
-  const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [networkError, setNetworkError] = useState<string | null>(null);
+  const pageName = t('institutionDashboard');
 
   // 3. Get all values from useInstitution hook
   const {
@@ -258,7 +260,7 @@ const InstitutionDashboard = () => {
         setNetworkError(error.message);
         // Show toast for network error
         toast({
-          title: 'خطأ في الشبكة | Network Error',
+          title: t('networkError'),
           description: error.message,
           status: 'error',
           duration: null,
@@ -284,24 +286,24 @@ const InstitutionDashboard = () => {
 
   const statsData = useMemo(() => [
     {
-      label: 'إجمالي الاختبارات | Total Exams',
+      label: t('totalExams'),
       value: exams?.length || '0',
       icon: FaGraduationCap,
       color: 'blue.500'
     },
     {
-      label: 'الشهادات المصدرة | Issued Certificates',
+      label: t('issuedCertificates'),
       value: certificates?.length || '0',
       icon: FaCertificate,
       color: 'green.500'
     },
     {
-      label: 'معدل النجاح | Success Rate',
+      label: t('successRate'),
       value: examStatistics ? `${Math.round(examStatistics.passRate)}%` : '0%',
       icon: FaChartBar,
       color: 'purple.500'
     },
-  ], [exams?.length, certificates?.length, examStatistics]);
+  ], [exams?.length, certificates?.length, examStatistics, t]);
 
   // 7. Event handlers
   const scrollToTop = useCallback(() => {
@@ -312,7 +314,7 @@ const InstitutionDashboard = () => {
     return (
       <Container centerContent py={10}>
         <Spinner size="xl" />
-        <Text mt={4}>جاري التحميل... | Loading...</Text>
+        <Text mt={4}>{t('loading')}</Text>
       </Container>
     );
   }
@@ -332,7 +334,7 @@ const InstitutionDashboard = () => {
         >
           <AlertIcon boxSize="40px" mr={0} />
           <AlertTitle mt={4} mb={1} fontSize="lg">
-            شبكة غير صحيحة | Wrong Network
+            {t('wrongNetwork')}
           </AlertTitle>
           <AlertDescription maxWidth="sm">
             {networkError}
@@ -345,7 +347,7 @@ const InstitutionDashboard = () => {
               window.location.reload();
             }}
           >
-            إعادة المحاولة | Retry
+            {t('retry')}
           </Button>
         </Alert>
       </Container>
@@ -358,9 +360,9 @@ const InstitutionDashboard = () => {
         <Alert status="error">
           <AlertIcon />
           <Box flex="1">
-            <AlertTitle>غير مصرح | Unauthorized</AlertTitle>
+            <AlertTitle>{t('unauthorized')}</AlertTitle>
             <AlertDescription display="block">
-              عذراً، هذا الحساب غير مصرح له بالوصول | Sorry, this account is not authorized to access
+              {t('unauthorizedDescription')}
             </AlertDescription>
           </Box>
           <CloseButton
@@ -375,7 +377,7 @@ const InstitutionDashboard = () => {
           colorScheme="blue"
           onClick={() => router.push('/')}
         >
-          العودة للرئيسية | Return to Home
+          {t('returnToHome')}
         </Button>
       </Container>
     );
@@ -387,6 +389,7 @@ const InstitutionDashboard = () => {
       exams={exams}
       onNotificationsOpen={onNotificationsOpen}
       pageName={pageName}
+      allowedValue="institution"
     >
       <Box minH="100vh" bg={bgColor}>
         {/* Gradient Overlay */}
@@ -559,17 +562,17 @@ const InstitutionDashboard = () => {
                     // },
                     {
                       icon: FaGraduationCap,
-                      text: "الاختبارات | Exams",
+                      text: t('exams'),
                       color: 'green'
                     },
                     {
                       icon: FaChartBar,
-                      text: "النتائج | Results",
+                      text: t('results'),
                       color: 'purple'
                     },
                     {
                       icon: FaCertificate,
-                      text: "الشهادات | Certificates",
+                      text: t('certificates'),
                       color: 'orange'
                     }
                   ].map((tab, index) => (

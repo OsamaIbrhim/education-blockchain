@@ -1,5 +1,5 @@
 import { Box, Container, Heading, Text, VStack, ScaleFade, useColorModeValue, Spinner } from '@chakra-ui/react';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 interface DynamicHeaderProps {
   userRole?: string | null;

@@ -7,7 +7,7 @@ import { FaUniversity, FaSignOutAlt, FaHome, FaThLarge } from 'react-icons/fa';
 import { BellIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 import { useAppData } from 'hooks/useAppData';
-import { useLanguage } from 'context/LanguageContext ';
+import { useLanguage } from 'context/LanguageContext';
 
 interface NavbarProps {
     onNotificationsOpen?: () => void;

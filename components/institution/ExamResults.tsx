@@ -29,6 +29,7 @@ import {
 import { AddIcon } from '@chakra-ui/icons';
 import ResultsModal from './ResultsModal';
 import { Exam, ExamData, ExamResult, ExamStatistics } from '../../types/examManagement';
+import { useLanguage } from 'context/LanguageContext';
 
 interface ExamResultsProps {
   exams: ExamData[];
@@ -49,13 +50,14 @@ export function ExamResults({
   onSubmitResults,
   loading
 }: ExamResultsProps) {
+  const { t, language } = useLanguage();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
   const handleSubmitResult = async (result: ExamResult): Promise<boolean> => {
     if (!selectedExamId) {
       toast({
-        title: 'يرجى اختيار اختبار | Please select an exam',
+        title: t('pleaseSelectExam'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -66,7 +68,7 @@ export function ExamResults({
     try {
       await onSubmitResults(selectedExamId, [...results, result]);
       toast({
-        title: 'تم إضافة النتيجة بنجاح | Result added successfully',
+        title: t('resultAdded'),
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -75,8 +77,8 @@ export function ExamResults({
       return true;
     } catch (error: any) {
       toast({
-        title: 'حدث خطأ | Error occurred',
-        description: error.message || 'Unknown error occurred',
+        title: t('errorOccurred'),
+        description: error.message || t('unknownError'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -119,19 +121,20 @@ export function ExamResults({
           shadow="sm"
         >
           <HStack justify="space-between">
-            <Heading size="lg">نتائج الاختبار | Exam Results</Heading>
+            <Heading size="lg">{t('examResults')}</Heading>
             <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen} isDisabled={!selectedExamId}>
-              إضافة نتيجة | Add Result
+              {t('addResult')}
             </Button>
           </HStack>
 
           {/* Exam Selection */}
-          <Box>
-            <Text mb={2}>اختر الاختبار | Select Exam</Text>
+          <Box mt={4} mb={6}>
             <Select
-              placeholder="اختر اختبار | Select an exam"
+              placeholder={t('selectExamPlaceholder')}
               value={selectedExamId || ''}
               onChange={(e) => onSelectExam(e.target.value)}
+              pr={language === 'ar' ? 8 : 8}
+              pl={language === 'ar' ? 8 : 8}
             >
               {exams.map((exam) => (
                 <option key={exam.address} value={exam.address}>
@@ -144,25 +147,25 @@ export function ExamResults({
           {/* Statistics */}
           {statistics && (
             <Box>
-              <Heading size="md" mb={4}>الإحصائيات | Statistics</Heading>
+              <Heading size="md" mb={4}>{t('statistics')}</Heading>
               <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4}>
                 <StatGroup>
                   <Stat>
-                    <StatLabel>إجمالي الطلاب | Total Students</StatLabel>
+                    <StatLabel>{t('totalStudents')}</StatLabel>
                     <StatNumber>{statistics.totalStudents}</StatNumber>
                   </Stat>
                 </StatGroup>
 
                 <StatGroup>
                   <Stat>
-                    <StatLabel>نسبة النجاح | Pass Rate</StatLabel>
+                    <StatLabel>{t('passRate')}</StatLabel>
                     <StatNumber>{statistics.passRate}%</StatNumber>
                   </Stat>
                 </StatGroup>
 
                 <StatGroup>
                   <Stat>
-                    <StatLabel>متوسط الدرجات | Average Score</StatLabel>
+                    <StatLabel>{t('averageScore')}</StatLabel>
                     <StatNumber>{statistics.averageScore.toFixed(2)}</StatNumber>
                   </Stat>
                 </StatGroup>
@@ -170,18 +173,18 @@ export function ExamResults({
 
               <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={4} mt={4}>
                 <Box>
-                  <Text fontWeight="bold" mb={2}>توزيع الدرجات | Grade Distribution</Text>
+                  <Text fontWeight="bold" mb={2}>{t('gradeDistribution')}</Text>
                   <VStack align="start">
-                    <Text>A: {statistics.aCount} طالب</Text>
-                    <Text>B: {statistics.bCount} طالب</Text>
-                    <Text>C: {statistics.cCount} طالب</Text>
-                    <Text>D: {statistics.dCount} طالب</Text>
-                    <Text>F: {statistics.fCount} طالب</Text>
+                    <Text>A: {statistics.aCount} {t('students')}</Text>
+                    <Text>B: {statistics.bCount} {t('students')}</Text>
+                    <Text>C: {statistics.cCount} {t('students')}</Text>
+                    <Text>D: {statistics.dCount} {t('students')}</Text>
+                    <Text>F: {statistics.fCount} {t('students')}</Text>
                   </VStack>
                 </Box>
 
                 <Box>
-                  <Text fontWeight="bold" mb={2}>الدرجة الأكثر شيوعاً | Most Common Grade</Text>
+                  <Text fontWeight="bold" mb={2}>{t('mostCommonGrade')}</Text>
                   <Badge colorScheme={getGradeColor(statistics.mostCommonGrade)} fontSize="lg">
                     {statistics.mostCommonGrade}
                   </Badge>
@@ -192,16 +195,16 @@ export function ExamResults({
 
           {/* Results Table */}
           <Box>
-            <Heading size="md" mb={4}>قائمة النتائج | Results List</Heading>
+            <Heading size="md" mb={4}>{t('resultsList')}</Heading>
             {results.length > 0 ? (
               <Box overflowX="auto">
                 <Table variant="simple">
                   <Thead>
                     <Tr>
-                      <Th>عنوان الطالب | Student Address</Th>
-                      <Th>الدرجة | Score</Th>
-                      <Th>التقدير | Grade</Th>
-                      <Th>ملاحظات | Notes</Th>
+                      <Th>{t('studentAddress')}</Th>
+                      <Th>{t('score')}</Th>
+                      <Th>{t('grade')}</Th>
+                      <Th>{t('notes')}</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -222,7 +225,7 @@ export function ExamResults({
               </Box>
             ) : (
               <Text textAlign="center" color="gray.500">
-                لا توجد نتائج بعد | No results yet
+                {t('noResultsYet')}
               </Text>
             )}
           </Box>
@@ -237,4 +240,4 @@ export function ExamResults({
       />
     </Box>
   );
-} 
+}
