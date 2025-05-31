@@ -72,9 +72,11 @@ import { Certificate } from 'components/student/Certificate';
 import { Certificate as CertificateType } from 'types/certificate';
 import Layout from 'components/layout/Layout';
 import { useAccount } from 'wagmi';
+import { useLanguage } from 'context/LanguageContext';
 
 export default function StudentDashboard() {
   const {
+    account,
     isLoading,
     error,
     exams,
@@ -86,12 +88,13 @@ export default function StudentDashboard() {
 
     const { isOpen: isNotificationsOpen, onOpen: onNotificationsOpen, onClose: onNotificationsClose } = useNotificationDisclosure();
   const { address = undefined } = useAccount() || {};
-  const [account, setAccount] = useState<string | null>(null);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const router = useRouter();
   const toast = useToast();
-  const pageName = 'لوحة تحكم الطالب | Student Dashboard';
+  const { t, language } = useLanguage();
+
+  const pageName = `${t('studentDashboard')}`;
 
   // Colors
   const bgGradient = useColorModeValue(
@@ -133,30 +136,23 @@ export default function StudentDashboard() {
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>مرحباً بك في لوحة تحكم الطالب - Welcome to Student Dashboard</ModalHeader>
+        <ModalHeader>
+          {t('welcomeMessage')} - {t('studentDashboard')}
+        </ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <VStack spacing={4} align="stretch">
             <Text>
-              👋 مرحباً بك في لوحة تحكم الطالب:
+              👋 {t('welcomeMessage')}
               <br />
-              • يمكنك عرض جميع شهاداتك الأكاديمية
+              • {t('certificates')}: {t('viewAcademicCertificates') || 'View all your academic certificates'}
               <br />
-              • التحقق من صحة كل شهادة
+              • {t('verify')}: {t('verifyCertificateAuthenticity') || "Verify each certificate's authenticity"}
               <br />
-              • تحميل الشهادات بصيغة PDF
-            </Text>
-            <Text>
-              Welcome to your Student Dashboard:
-              <br />
-              • View all your academic certificates
-              <br />
-              • Verify each certificate's authenticity
-              <br />
-              • Download certificates in PDF format
+              • {t('download') || 'Download'}: {t('downloadCertificatesPdf') || 'Download certificates in PDF format'}
             </Text>
             <Button colorScheme="blue" onClick={onClose}>
-              فهمت - Got it!
+              {t('gotIt')}
             </Button>
           </VStack>
         </ModalBody>
@@ -169,7 +165,7 @@ export default function StudentDashboard() {
       <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <VStack spacing={4}>
           <Spinner size="xl" color="blue.500" thickness="4px" speed="0.65s" />
-          <Text fontSize="lg">جاري التحميل... - Loading...</Text>
+          <Text fontSize="lg">{t('loading')}</Text>
           <Progress
             size="xs"
             isIndeterminate
@@ -208,7 +204,7 @@ export default function StudentDashboard() {
               mt={4}
             >
               <ActivityIcon mr={2} />
-              إعادة المحاولة - Retry
+              {t('retry')}
             </Button>
           </Alert>
         </ScaleFade>
@@ -222,53 +218,14 @@ export default function StudentDashboard() {
       exams={exams}
       onNotificationsOpen={onNotificationsOpen}
       pageName={pageName}
+      allowedValue={'student'}
     >
       <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <TutorialModal />
 
-        {/* Enhanced Header with Animation */}
-        <Box
-          bgGradient={bgGradient}
-          color="white"
-          py={8}
-          px={4}
-          mb={8}
-          shadow="xl"
-          position="relative"
-          overflow="hidden"
-        >
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            opacity={0.1}
-            bgGradient="linear(to-r, transparent 0%, white 50%, transparent 100%)"
-            transform="skewY(-12deg)"
-            transformOrigin="top right"
-          />
-          <Container maxW="container.xl">
-            <ScaleFade initialScale={0.9} in={true}>
-              <VStack spacing={4} align="center">
-                <Heading
-                  size="xl"
-                  bgGradient="linear(to-r, white, blue.100)"
-                  bgClip="text"
-                  letterSpacing="tight"
-                >
-                  إدارة وعرض شهاداتك الأكاديمية في مكان واحد
-                  <br />
-                  Manage and View Your Academic Certificates in One Place
-                </Heading>
-              </VStack>
-            </ScaleFade>
-          </Container>
-        </Box>
-
         <Container maxW="container.xl" pb="100px">
           <Grid templateColumns="repeat(12, 1fr)" gap={6}>
-            {/* Enhanced Sidebar with Animations */}
+            {/* Sidebar */}
             <GridItem colSpan={{ base: 12, lg: 3 }}>
               <VStack spacing={6} align="stretch">
                 <ScaleFade initialScale={0.9} in={true}>
@@ -296,19 +253,19 @@ export default function StudentDashboard() {
                       <HStack>
                         <UserIcon color="blue.500" />
                         <Text fontWeight="bold" fontSize="sm" color={mutedTextColor}>
-                          المحفظة المتصلة - CONNECTED ACCOUNT
+                          {t('connectedAccount').toUpperCase()}
                         </Text>
                       </HStack>
-                      <Tooltip label="عنوان المحفظة - Wallet Address" placement="top">
+                      <Tooltip label={t('walletAddress')} placement="top">
                         <Text fontSize="sm" wordBreak="break-all" color={textColor}>
                           {account}
                         </Text>
                       </Tooltip>
                       <Divider />
-                      <Tooltip label="دور المستخدم - User Role" placement="top">
+                      <Tooltip label={t('userRole')} placement="top">
                         <Badge colorScheme="blue" px={3} py={1} borderRadius="full">
                           <GraduateIcon mr={2} />
-                          طالب - Student
+                          {t('studentRole')}
                         </Badge>
                       </Tooltip>
                     </VStack>
@@ -329,32 +286,26 @@ export default function StudentDashboard() {
                       <HStack>
                         <CertificateIcon color="blue.500" />
                         <Heading size="sm" color={useColorModeValue('blue.600', 'blue.200')}>
-                          مميزات النظام - System Features
+                          {t('systemFeatures')}
                         </Heading>
                       </HStack>
                       <VStack spacing={3} align="start" pl={6}>
                         <HStack>
                           <AwardIcon color="green.500" />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            عرض الشهادات الأكاديمية
-                            <br />
-                            View Academic Certificates
+                            {t('viewAcademicCertificates') || 'View Academic Certificates'}
                           </Text>
                         </HStack>
                         <HStack>
                           <CheckCircleIcon color="blue.500" />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            التحقق من صحة الشهادات
-                            <br />
-                            Verify Certificate Authenticity
+                            {t('verifyCertificateAuthenticity') || 'Verify Certificate Authenticity'}
                           </Text>
                         </HStack>
                         <HStack>
                           <CalendarIcon color="orange.500" />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            تتبع تواريخ الإصدار
-                            <br />
-                            Track Issue Dates
+                            {t('trackIssueDates') || 'Track Issue Dates'}
                           </Text>
                         </HStack>
                       </VStack>
@@ -364,10 +315,10 @@ export default function StudentDashboard() {
               </VStack>
             </GridItem>
 
-            {/* Enhanced Main Content with Animations */}
+            {/* Main Content */}
             <GridItem colSpan={{ base: 12, lg: 9 }}>
               <VStack spacing={6} align="stretch">
-                {/* Enhanced Stats with Hover Effects */}
+                {/* Stats */}
                 <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
                   <Fade in={true} delay={0.1}>
                     <Box
@@ -396,18 +347,15 @@ export default function StudentDashboard() {
                       />
                       <Stat textAlign="center">
                         <StatLabel fontSize="lg" color={mutedTextColor}>
-                          إجمالي الشهادات
+                          {t('totalExams')}
                         </StatLabel>
                         <StatNumber
                           fontSize="4xl"
                           color={useColorModeValue('blue.600', 'blue.300')}
                           fontWeight="bold"
                         >
-                          {certificatesData.length}
+                          {exams.length}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          Total Certificates
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
@@ -439,7 +387,7 @@ export default function StudentDashboard() {
                       />
                       <Stat textAlign="center">
                         <StatLabel fontSize="lg" color={mutedTextColor}>
-                          الشهادات الصالحة
+                          {t('issuedCertificates')}
                         </StatLabel>
                         <StatNumber
                           fontSize="4xl"
@@ -448,9 +396,6 @@ export default function StudentDashboard() {
                         >
                           {certificatesData.filter(cert => cert.isValid).length}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          Valid Certificates
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
@@ -482,7 +427,7 @@ export default function StudentDashboard() {
                       />
                       <Stat textAlign="center">
                         <StatLabel fontSize="lg" color={mutedTextColor}>
-                          المؤسسات المانحة
+                          {t('verifiedInstitutions')}
                         </StatLabel>
                         <StatNumber
                           fontSize="4xl"
@@ -491,27 +436,20 @@ export default function StudentDashboard() {
                         >
                           {new Set(certificatesData.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
-                        <StatHelpText color={mutedTextColor}>
-                          Issuing Institutions
-                        </StatHelpText>
                       </Stat>
                     </Box>
                   </Fade>
                 </SimpleGrid>
 
-                {/* Enhanced Certificates List */}
+                {/* Exams List */}
                 <ExamManagement
                   exams={exams}
                   loading={isLoading}
                 />
 
-                {/* Enhanced Certificates List */}
+                {/* Certificates List */}
                 <Certificate
-<<<<<<< HEAD
-                  certificatesData={certificatesData}
-=======
                   certificatesData={certificates}
->>>>>>> 3a672c6acd6168d4ed929b815b1ab50d0f0cf870
                   onDownload={handleDownload}
                   loading={isLoading}
                 />
@@ -519,38 +457,7 @@ export default function StudentDashboard() {
             </GridItem>
           </Grid>
         </Container>
-
-        {/* Enhanced Footer with Social Links */}
-        <Box
-          position="fixed"
-          bottom="0"
-          left="0"
-          right="0"
-          bg={cardBg}
-          borderTop="1px solid"
-          borderColor={borderColor}
-          py={4}
-          px={8}
-          shadow="lg"
-          zIndex={999}
-        >
-          <Container maxW="container.xl">
-            <HStack justify="space-between" align="center">
-              <HStack spacing={4}>
-                <Text fontSize="sm" color={mutedTextColor}>
-                  نظام الشهادات اللامركزي - Decentralized Certificate System
-                </Text>
-                <Link href="/about" color="blue.500" fontSize="sm">
-                  عن النظام - About
-                </Link>
-                <Link href="/contact" color="blue.500" fontSize="sm">
-                  تواصل معنا - Contact
-                </Link>
-              </HStack>
-            </HStack>
-          </Container>
-        </Box>
       </Box>
     </Layout>
   );
-} 
+}

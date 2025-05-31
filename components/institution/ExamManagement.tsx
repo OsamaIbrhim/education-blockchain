@@ -37,6 +37,7 @@ import { AddIcon, ViewIcon } from '@chakra-ui/icons';
 import { Exam, ExamData, NewExam } from '../../types/examManagement';
 import ExamList from './ExamList';
 import { uploadPdfToIPFS } from 'utils/ipfsUtils';
+import { useLanguage } from 'context/LanguageContext';
 
 interface ExamManagementProps {
   exams: ExamData[];
@@ -53,6 +54,7 @@ export function ExamManagement({
   onRegisterStudents,
   loading
 }: ExamManagementProps) {
+  const { t } = useLanguage();
   const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
   const { isOpen: isEnrollOpen, onOpen: onEnrollOpen, onClose: onEnrollClose } = useDisclosure();
   const [selectedExamId, setSelectedExamId] = useState<string>('');
@@ -82,7 +84,7 @@ export function ExamManagement({
 
       if (exam) {
         toast({
-          title: 'تم إنشاء الاختبار بنجاح | Exam created successfully',
+          title: t('examCreated'),
           status: 'success',
           duration: 3000,
           isClosable: true,
@@ -92,8 +94,8 @@ export function ExamManagement({
       }
     } catch (error: any) {
       toast({
-        title: 'حدث خطأ | Error occurred',
-        description: error.message || 'Unknown error occurred',
+        title: t('errorOccurred'),
+        description: error.message || t('unknownError'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -105,14 +107,14 @@ export function ExamManagement({
     e.preventDefault();
     try {
       const addresses = studentAddresses
-        .split('\n') // Split by newline
-        .map(addr => addr.trim()) // Trim whitespace
-        .filter(addr => addr !== ''); // Remove empty strings
+        .split('\n')
+        .map(addr => addr.trim())
+        .filter(addr => addr !== '');
 
       const success = await onRegisterStudents(selectedExamId, addresses);
       if (success) {
         toast({
-          title: 'تم تسجيل الطلاب بنجاح | Students enrolled successfully',
+          title: t('studentsEnrolled'),
           status: 'success',
           duration: 3000,
           isClosable: true,
@@ -122,8 +124,8 @@ export function ExamManagement({
       }
     } catch (error: any) {
       toast({
-        title: 'حدث خطأ | Error occurred',
-        description: error.message || 'Unknown error occurred',
+        title: t('errorOccurred'),
+        description: error.message || t('unknownError'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -136,7 +138,7 @@ export function ExamManagement({
       const success = await onUpdateStatus(examId, exam);
       if (success) {
         toast({
-          title: 'تم تحديث حالة الاختبار بنجاح | Exam status updated successfully',
+          title: t('examStatusUpdated'),
           status: 'success',
           duration: 3000,
           isClosable: true,
@@ -144,8 +146,8 @@ export function ExamManagement({
       }
     } catch (error: any) {
       toast({
-        title: 'حدث خطأ | Error occurred',
-        description: error.message || 'Unknown error occurred',
+        title: t('errorOccurred'),
+        description: error.message || t('unknownError'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -171,10 +173,10 @@ export function ExamManagement({
           borderColor={borderColor}
           shadow="sm"
         >
-          <HStack justify="space-between">
-            <Heading size="lg">إدارة الاختبارات | Exam Management</Heading>
+          <HStack justify="space-between" mb={6}>
+            <Heading size="lg">{t('examManagement')}</Heading>
             <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onCreateOpen}>
-              إنشاء اختبار جديد | Create New Exam
+              {t('createNewExam')}
             </Button>
           </HStack>
 
@@ -182,15 +184,15 @@ export function ExamManagement({
           <StatGroup>
             <Grid templateColumns="repeat(3, 1fr)" gap={4} w="100%">
               <Stat>
-                <StatLabel>إجمالي الاختبارات | Total Exams</StatLabel>
+                <StatLabel>{t('totalExams')}</StatLabel>
                 <StatNumber>{totalExams}</StatNumber>
               </Stat>
               <Stat>
-                <StatLabel>الاختبارات النشطة | Active Exams</StatLabel>
+                <StatLabel>{t('activeExams')}</StatLabel>
                 <StatNumber>{activeExams}</StatNumber>
               </Stat>
               <Stat>
-                <StatLabel>الاختبارات المكتملة | Completed Exams</StatLabel>
+                <StatLabel>{t('completedExams')}</StatLabel>
                 <StatNumber>{completedExams}</StatNumber>
               </Stat>
             </Grid>
@@ -216,18 +218,18 @@ export function ExamManagement({
         <ModalOverlay />
         <ModalContent>
           <form onSubmit={handleCreateSubmit}>
-            <ModalHeader>إنشاء اختبار جديد | Create New Exam</ModalHeader>
+            <ModalHeader>{t('createNewExam')}</ModalHeader>
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl isRequired>
-                  <FormLabel>العنوان | Title</FormLabel>
+                  <FormLabel>{t('examTitle')}</FormLabel>
                   <Input
                     value={newExam.title}
                     onChange={e => setNewExam({ ...newExam, title: e.target.value })}
                   />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>ملف PDF للاختبار | Exam PDF File</FormLabel>
+                  <FormLabel>{t('examPdfFile')}</FormLabel>
                   <Input
                     type="file"
                     accept="application/pdf"
@@ -241,14 +243,14 @@ export function ExamManagement({
                   />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>الوصف | Description</FormLabel>
+                  <FormLabel>{t('examDescription')}</FormLabel>
                   <Textarea
                     value={newExam.description}
                     onChange={e => setNewExam({ ...newExam, description: e.target.value })}
                   />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>التاريخ | Date</FormLabel>
+                  <FormLabel>{t('examDate')}</FormLabel>
                   <Input
                     type="datetime-local"
                     value={newExam.date}
@@ -256,7 +258,7 @@ export function ExamManagement({
                   />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>المدة (بالدقائق) | Duration (minutes)</FormLabel>
+                  <FormLabel>{t('examDuration')}</FormLabel>
                   <Input
                     type="number"
                     value={newExam.duration}
@@ -267,9 +269,9 @@ export function ExamManagement({
             </ModalBody>
             <ModalFooter>
               <Button type="submit" colorScheme="blue" mr={3} isLoading={loading}>
-                إنشاء | Create
+                {t('create')}
               </Button>
-              <Button onClick={onCreateClose}>إلغاء | Cancel</Button>
+              <Button onClick={onCreateClose}>{t('cancel')}</Button>
             </ModalFooter>
           </form>
         </ModalContent>
@@ -280,10 +282,10 @@ export function ExamManagement({
         <ModalOverlay />
         <ModalContent>
           <form onSubmit={handleEnrollSubmit}>
-            <ModalHeader>تسجيل طالب | Enroll Student</ModalHeader>
+            <ModalHeader>{t('enrollStudent')}</ModalHeader>
             <ModalBody>
               <FormControl isRequired>
-                <FormLabel>عنوان الطالب | Student Address</FormLabel>
+                <FormLabel>{t('studentAddress')}</FormLabel>
                 <Textarea
                   value={studentAddresses}
                   onChange={e => setStudentAddresses(e.target.value)}
@@ -293,13 +295,13 @@ export function ExamManagement({
             </ModalBody>
             <ModalFooter>
               <Button type="submit" colorScheme="blue" mr={3} isLoading={loading}>
-                تسجيل | Enroll
+                {t('enroll')}
               </Button>
-              <Button onClick={onEnrollClose}>إلغاء | Cancel</Button>
+              <Button onClick={onEnrollClose}>{t('cancel')}</Button>
             </ModalFooter>
           </form>
         </ModalContent>
       </Modal>
     </Box>
   );
-} 
+}

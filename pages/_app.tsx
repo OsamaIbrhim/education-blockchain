@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
+import { LanguageProvider } from 'context/LanguageContext'
+import { AppProvider } from 'contexts/AppContext'
 
 const config = createConfig({
   chains: [mainnet, sepolia],
@@ -82,12 +84,20 @@ export default function App({ Component, pageProps }: AppProps) {
   }, [router])
 
   return (
+    <LanguageProvider>
+    <LanguageProvider>
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={config}>
+          {/* <AppProvider> */}
+          {/* <AppProvider> */}
           <Component {...pageProps} />
+          {/* </AppProvider> */}
+          {/* </AppProvider> */}
         </WagmiProvider>
       </QueryClientProvider>
     </ChakraProvider>
+    </LanguageProvider>
+    </LanguageProvider>
   )
 } 

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { getUserData } from 'services/identity';
 import { Institution } from 'types/institution';
 import { getFromIPFS } from 'utils/ipfsUtils';
+import { useLanguage } from 'context/LanguageContext';
 
 interface InstitutionDetailsModalProps {
   isOpen: boolean;
@@ -18,6 +19,11 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const { t, translations } = useLanguage();
+
+  if (Object.keys(translations).length === 0) {
+    return <Spinner />;
+  }
 
   useEffect(() => {
     const fetchInstitution = async () => {
@@ -25,12 +31,12 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
       setLoading(true);
       try {
         const { ipfsHash, isVerified } = await getUserData(address);
-        if (!ipfsHash) throw new Error('No IPFS hash found');
+        if (!ipfsHash) throw new Error(t('noIpfsHashFound'));
         const data = await getFromIPFS(ipfsHash);
         setInstitution({ address, isVerified, ...data });
       } catch (error: any) {
         toast({
-          title: 'خطأ في جلب بيانات المؤسسة',
+          title: t('fetchInstitutionError'),
           description: error.message || error,
           status: 'error',
           duration: 3000,
@@ -42,12 +48,12 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
       }
     };
     if (isOpen && address) fetchInstitution();
-  }, [isOpen, address, toast]);
+  }, [isOpen, address, toast, t]);
 
   const renderField = (label: string, value?: string | null) => (
     <Box>
       <Text fontWeight="bold" color="gray.700">{label}</Text>
-      <Text>{value || 'N/A'}</Text>
+      <Text>{value || t('notAvailable')}</Text>
     </Box>
   );
 
@@ -55,7 +61,7 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
     <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>📄 بيانات المؤسسة - Institution Details</ModalHeader>
+        <ModalHeader>📄 {t('institutionDetails')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           {loading ? (
@@ -65,20 +71,23 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
           ) : institution ? (
             <Box border="1px solid" borderColor="gray.100" borderRadius="md" p={4} bg="gray.50">
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                {renderField('العنوان - Address', institution.address || address)}
-                {renderField('الاسم - Name', institution.name)}
-                {renderField('البريد الإلكتروني - Email', institution.email)}
-                {renderField('الهاتف - Phone', institution.phone)}
-                {renderField('الجامعة - University', institution.university)}
-                {renderField('الكلية - College', institution.college)}
-                {renderField('الوزارة - Ministry', institution.ministry)}
-                {renderField('الوصف - Description', institution.description)}
-                {renderField('الموقع الإلكتروني - Website', institution.website)}
+                {renderField(t('institutionAddress'), institution.address || address)}
+                {renderField(t('institutionName'), institution.name)}
+                {renderField(t('institutionEmail'), institution.email)}
+                {renderField(t('institutionPhone'), institution.phone)}
+                {renderField(t('institutionUniversity'), institution.university)}
+                {renderField(t('institutionCollege'), institution.college)}
+                {renderField(t('institutionMinistry'), institution.ministry)}
+                {renderField(t('institutionDescription'), institution.description)}
+                {renderField(t('institutionWebsite'), institution.website)}
                 {renderField(
-                  'تاريخ التحقق - Verification Date',
-                  institution.verificationDate ? new Date(institution.verificationDate).toLocaleString() : 'N/A'
+                  t('verificationDate'),
+                  institution.verificationDate ? new Date(institution.verificationDate).toLocaleString() : t('notAvailable')
                 )}
-                {renderField('الحالة - Status', institution.isVerified ? 'معتمدة - Verified' : 'قيد التحقق - Pending')}
+                {renderField(
+                  t('status'),
+                  institution.isVerified ? t('verified') : t('pending')
+                )}
               </SimpleGrid>
 
               {institution.logo && (
@@ -87,7 +96,7 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
                   <Box textAlign="center">
                     <img
                       src={institution.logo}
-                      alt="Institution Logo"
+                      alt={t('institutionLogo')}
                       style={{ maxWidth: 120, borderRadius: 8 }}
                     />
                   </Box>
@@ -101,12 +110,12 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
                   onClick={() => onVerify(institution.address)}
                   width="100%"
                 >
-                  تحقق من المؤسسة - Verify Institution
+                  {t('verifyInstitution')}
                 </Button>
               )}
             </Box>
           ) : (
-            <Text color="red.500" fontWeight="bold">⚠️ لم يتم العثور على بيانات المؤسسة</Text>
+            <Text color="red.500" fontWeight="bold">⚠️ {t('institutionNotFound')}</Text>
           )}
         </ModalBody>
       </ModalContent>

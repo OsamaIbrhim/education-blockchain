@@ -12,6 +12,7 @@ import {
 } from '@chakra-ui/react';
 import { UserIcon, BookIcon, CheckIcon, AwardIcon } from '../Icons';
 import { ExamData } from '../../types/examManagement';
+import { useLanguage } from 'context/LanguageContext';
 
 interface ExamListProps {
   exams: ExamData[];
@@ -26,16 +27,31 @@ export default function ExamList({
   onSelectExam,
   onOpenResultsModal
 }: ExamListProps) {
+  const { t } = useLanguage();
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return t('completed');
+      case 'IN_PROGRESS':
+        return t('inProgress');
+      case 'UPCOMING':
+        return t('upcoming');
+      default:
+        return status;
+    }
+  };
+
   return (
     <Table variant="simple">
       <Thead>
         <Tr>
-          <Th>العنوان - Title</Th>
-          <Th>التاريخ - Date</Th>
-          <Th>المدة - Duration</Th>
-          <Th>الحالة - Status</Th>
-          <Th>الطلاب - Students</Th>
-          <Th>الإجراءات - Actions</Th>
+          <Th>{t('examTitle')}</Th>
+          <Th>{t('examDate')}</Th>
+          <Th>{t('examDuration')}</Th>
+          <Th>{t('status')}</Th>
+          <Th>{t('students')}</Th>
+          <Th>{t('actions')}</Th>
         </Tr>
       </Thead>
       <Tbody>
@@ -43,7 +59,7 @@ export default function ExamList({
           <Tr key={exam.address}>
             <Td>{exam.title}</Td>
             <Td>{new Date(exam.date).toLocaleDateString()}</Td>
-            <Td>{exam.duration} دقيقة</Td>
+            <Td>{exam.duration} {t('minutes')}</Td>
             <Td>
               <Badge
                 colorScheme={
@@ -52,14 +68,14 @@ export default function ExamList({
                       'blue'
                 }
               >
-                {exam.status}
+                {getStatusLabel(exam.status)}
               </Badge>
             </Td>
             <Td>
               <HStack>
-                <Text>{exam.students.length} طالب</Text>
+                <Text>{exam.students.length} {t('students')}</Text>
                 <IconButton
-                  aria-label="Add student"
+                  aria-label={t('addStudent')}
                   icon={<UserIcon />}
                   size="sm"
                   colorScheme="teal"
@@ -71,7 +87,7 @@ export default function ExamList({
             <Td>
               <HStack spacing={2}>
                 <IconButton
-                  aria-label="Enter Results"
+                  aria-label={t('enterResults')}
                   icon={<AwardIcon />}
                   size="sm"
                   colorScheme="purple"
@@ -82,7 +98,7 @@ export default function ExamList({
                   }}
                 />
                 <IconButton
-                  aria-label="Start exam"
+                  aria-label={t('startExam')}
                   icon={<BookIcon />}
                   size="sm"
                   colorScheme="blue"
@@ -90,7 +106,7 @@ export default function ExamList({
                   isDisabled={exam.status !== 'UPCOMING'}
                 />
                 <IconButton
-                  aria-label="Complete exam"
+                  aria-label={t('completeExam')}
                   icon={<CheckIcon />}
                   size="sm"
                   colorScheme="green"
@@ -104,4 +120,4 @@ export default function ExamList({
       </Tbody>
     </Table>
   );
-} 
+}

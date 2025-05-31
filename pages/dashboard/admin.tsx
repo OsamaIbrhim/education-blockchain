@@ -80,6 +80,7 @@ import { Institution } from 'types/institution';
 // Layout
 import Layout from '../../components/layout/Layout';
 import ProtectedRoute from '../../components/auth/ProtectedRoute';
+import { useLanguage } from 'context/LanguageContext';
 
 // Lazy load components
 const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {
@@ -208,43 +209,38 @@ const IconComponent = ({ icon: IconComponent, ...props }: IconComponentProps) =>
   </Box>
 );
 
-// Update the TutorialModal component
-const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
-  <Modal isOpen={isOpen} onClose={onClose} size="xl">
-    <ModalOverlay />
-    <ModalContent>
-      <ModalHeader>مرحباً بك في لوحة تحكم المسؤول - Welcome to Admin Dashboard</ModalHeader>
-      <ModalCloseButton />
-      <ModalBody pb={6}>
-        <VStack spacing={4} align="stretch">
-          <Text>
-            👋 مرحباً بك في لوحة تحكم المسؤول:
-            <br />
-            • التحقق من المؤسسات التعليمية
-            <br />
-            • مراقبة حالة المؤسسات
-            <br />
-            • إدارة النظام بشكل كامل
-          </Text>
-          <Text>
-            Welcome to your Admin Dashboard:
-            <br />
-            • Verify educational institutions
-            <br />
-            • Monitor institutions status
-            <br />
-            • Manage the entire system
-          </Text>
-          <Button colorScheme="red" onClick={onClose}>
-            فهمت - Got it!
-          </Button>
-        </VStack>
-      </ModalBody>
-    </ModalContent>
-  </Modal>
-);
+// Update the TutorialModal component to use t
+const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { t } = useLanguage();
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>{t('welcomeAdminDashboard')}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody pb={6}>
+          <VStack spacing={4} align="stretch">
+            <Text>
+              👋 {t('welcomeAdminDashboard')}:
+              <br />
+              • {t('verifyEducationalInstitutions')}
+              <br />
+              • {t('monitorInstitutionsStatus')}
+              <br />
+              • {t('manageSystem')}
+            </Text>
+            <Button colorScheme="red" onClick={onClose}>
+              {t('gotIt')}
+            </Button>
+          </VStack>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+};
 
 export default function AdminDashboard() {
+  const { t, translations } = useLanguage();
   const { allInstitutions, verifyUser, account, userRole, isLoading } = useAppData();
   const router = useRouter();
   const toast = useToast();
@@ -263,8 +259,8 @@ export default function AdminDashboard() {
 
   // Colors
   const bgGradient = useColorModeValue(
-    'linear-gradient(120deg, red.500 0%, red.700 100%)',
-    'linear-gradient(120deg, red.700 0%, red.900 100%)'
+    'linear-gradient(120deg, red.700 0%, red.900 100%)',
+    'linear-gradient(120deg, red.500 0%, red.700 100%)'
   );
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('red.100', 'red.700');
@@ -290,26 +286,23 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('MetaMask غير مثبت - MetaMask is not installed');
+        throw new Error(t('metamaskNotInstalled'));
+        throw new Error(t('metamaskNotInstalled'));
       }
 
       const adminAddress = getConfig('ADMIN_ADDRESS');
 
       if (!account || account.toLowerCase() !== adminAddress.toLowerCase()) {
-        throw new Error('غير مصرح لك بالوصول لهذه الصفحة - You are not authorized to access this page');
+        throw new Error(t('notAuthorized'));
+        throw new Error(t('notAuthorized'));
       }
 
       const role = Number(await getUserRole(account));
       const isSystemOwner = await isOwner(account);
 
-      console.log('Role Check:', {
-        role,
-        isSystemOwner,
-        isAdmin: role === 4
-      });
-
       if (role !== 4 && !isSystemOwner) {
-        throw new Error('ليس لديك صلاحيات كافية للوصول - Insufficient permissions');
+        throw new Error(t('insufficientPermissions'));
+        throw new Error(t('insufficientPermissions'));
       }
 
       localStorage.setItem('adminAddress', account);
@@ -332,8 +325,8 @@ export default function AdminDashboard() {
   const handleverifyUser = async (address?: string) => {
     if (!institutionAddress && !address) {
       toast({
-        title: 'خطأ - Error',
-        description: 'يرجى إدخال عنوان المؤسسة - Please enter institution address',
+        title: t('error'),
+        description: t('pleaseEnterInstitutionAddress'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -360,8 +353,8 @@ export default function AdminDashboard() {
 
       if (status === 'success') {
         toast({
-          title: 'نجاح - Success',
-          description: 'تم التحقق من المؤسسة بنجاح - Institution verified successfully',
+          title: t('success'),
+          description: t('institutionVerified'),
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -369,8 +362,8 @@ export default function AdminDashboard() {
         });
       } else if (status === 'already verified') {
         toast({
-          title: 'تحذير - Warning',
-          description: 'المؤسسة تم التحقق منها مسبقاً - Institution already verified',
+          title: t('warning'),
+          description: t('alreadyVerified'),
           status: 'warning',
           duration: 5000,
           isClosable: true,
@@ -389,8 +382,8 @@ export default function AdminDashboard() {
     } catch (error: any) {
       console.error('Error verifying institution:', error);
       toast({
-        title: 'خطأ - Error',
-        description: error.message || 'فشل في التحقق من المؤسسة - Failed to verify institution',
+        title: t('error'),
+        description: error.message || t('failedToVerifyInstitution'),
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -413,12 +406,16 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (Object.keys(translations).length === 0) {
+    return <Spinner />;
+  }
+
   if (loading) {
     return (
       <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         <VStack spacing={4}>
           <Spinner size="xl" color="red.500" thickness="4px" speed="0.65s" />
-          <Text fontSize="lg">جاري التحميل... - Loading...</Text>
+          <Text fontSize="lg">{t('loading')}</Text>
           <Progress
             size="xs"
             isIndeterminate
@@ -456,7 +453,7 @@ export default function AdminDashboard() {
               onClick={checkAccess}
               mt={4}
             >
-              إعادة المحاولة - Retry
+              {t('retry')}
             </Button>
           </Alert>
         </ScaleFade>
@@ -465,7 +462,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <Layout pageName="لوحة تحكم المسؤول | Admin Dashboard" address={account} allowedValue={userRole}>
+    <Layout pageName={t('adminDashboard')} address={account} allowedValue={userRole}>
       <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
         {isOpen && <TutorialModal isOpen={isOpen} onClose={onClose} />}
 
@@ -499,20 +496,20 @@ export default function AdminDashboard() {
                       <HStack>
                         <Icon as={UserIcon} w={5} h={5} color="red.500" />
                         <Text fontWeight="bold" fontSize="sm" color={mutedTextColor}>
-                          المحفظة المتصلة - CONNECTED ACCOUNT
+                          {t('connectedAccount')}
                         </Text>
                       </HStack>
-                      <Tooltip label="عنوان المحفظة - Wallet Address" placement="top">
+                      <Tooltip label={t('walletAddress')} placement="top">
                         <Text fontSize="sm" wordBreak="break-all" color={textColor}>
                           {account}
                         </Text>
                       </Tooltip>
                       <Divider />
-                      <Tooltip label="دور المستخدم - User Role" placement="top">
+                      <Tooltip label={t('userRole')} placement="top">
                         <Badge colorScheme="red" px={3} py={1} borderRadius="full">
                           <HStack spacing={2}>
                             <Icon as={ShieldIcon} w={4} h={4} />
-                            <Text>مسؤول النظام - System Admin</Text>
+                            <Text>{t('systemAdmin')}</Text>
                           </HStack>
                         </Badge>
                       </Tooltip>
@@ -534,32 +531,26 @@ export default function AdminDashboard() {
                       <HStack>
                         <Icon as={DatabaseIcon} w={5} h={5} color="red.500" />
                         <Heading size="sm" color={useColorModeValue('red.600', 'red.200')}>
-                          مميزات النظام - System Features
+                          {t('systemFeatures')}
                         </Heading>
                       </HStack>
                       <VStack spacing={3} align="start" pl={6}>
                         <HStack>
                           <Icon as={CheckIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            التحقق من المؤسسات
-                            <br />
-                            Verify Institutions
+                            {t('verifyInstitutions')}
                           </Text>
                         </HStack>
                         <HStack>
                           <Icon as={BriefcaseIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            إدارة المؤسسات
-                            <br />
-                            Manage Institutions
+                            {t('manageInstitutions')}
                           </Text>
                         </HStack>
                         <HStack>
                           <Icon as={SettingsIcon} w={4} h={4} />
                           <Text fontSize="sm" color={mutedTextColor}>
-                            إعدادات النظام
-                            <br />
-                            System Settings
+                            {t('systemSettings')}
                           </Text>
                         </HStack>
                       </VStack>
@@ -596,15 +587,13 @@ export default function AdminDashboard() {
                     <Box p={6}>
                       <VStack spacing={4} align="stretch">
                         <Heading size="md" color={textColor}>
-                          التحقق من مؤسسة جديدة - Verify New Institution
+                          {t('verifyNewInstitution')}
                         </Heading>
                         <Text color={mutedTextColor}>
-                          أدخل عنوان المحفظة للمؤسسة للتحقق منها
-                          <br />
-                          Enter the institution's wallet address to verify
+                          {t('enterInstitutionWallet')}
                         </Text>
                         <FormControl>
-                          <FormLabel fontWeight="bold">عنوان المؤسسة - Institution Address</FormLabel>
+                          <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
                           <Input
                             value={institutionAddress}
                             onChange={(e) => setInstitutionAddress(e.target.value)}
@@ -617,9 +606,7 @@ export default function AdminDashboard() {
                             }}
                           />
                           <FormHelperText color={mutedTextColor}>
-                            يجب أن يكون العنوان صالحاً على شبكة إيثريوم
-                            <br />
-                            Must be a valid Ethereum address
+                            {t('mustBeValidEthereum')}
                           </FormHelperText>
                         </FormControl>
                         <Button
@@ -627,7 +614,7 @@ export default function AdminDashboard() {
                           size="lg"
                           onClick={() => handleverifyUser()}
                           isLoading={loading}
-                          loadingText="جاري التحقق... - Verifying..."
+                          loadingText={t('verifying')}
                           leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
                           _hover={{
                             transform: 'translateY(-2px)',
@@ -636,7 +623,7 @@ export default function AdminDashboard() {
                         >
                           <HStack spacing={2}>
                             <Icon as={CheckIcon} w={5} h={5} />
-                            <Text>تحقق من المؤسسة - Verify Institution</Text>
+                            <Text>{t('verifyInstitution')}</Text>
                           </HStack>
                         </Button>
                         {verificationProgress > 0 && (
@@ -651,11 +638,11 @@ export default function AdminDashboard() {
                         )}
                       </VStack>
                     </Box>
-
                   </Box>
                   <Divider />
                   {/* Enhanced Institutions List */}
-                  <Box
+                  {/* <Box
+                  {/* <Box
                     bg={cardBg}
                     borderRadius="xl"
                     marginTop={2.5}
@@ -663,16 +650,17 @@ export default function AdminDashboard() {
                     overflow="hidden"
                     borderWidth="1px"
                     borderColor={borderColor}
-                  >
+                  > */}
                     {/* Total Institutions Table */}
-                    <Box p={6} ref={totalInstitutionsRef}>
+                    {/* <Box p={6} ref={totalInstitutionsRef}>
+                    {/* <Box p={6} ref={totalInstitutionsRef}>
                       <InstitutionsTable
                         institutions={allInstitutions}
                         onVerify={handleverifyUser}
                         isLoading={isLoading}
                       />
                     </Box>
-                  </Box>
+                  </Box> */}
                   <Box
                     bg={cardBg}
                     borderRadius="xl"
@@ -684,7 +672,7 @@ export default function AdminDashboard() {
                   >
                     {/* Verified Institutions Table */}
                     <Box ref={verifiedInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>المؤسسات المعتمدة - Verified Institutions</Heading>
+                      <Heading size="md" mb={2}>{t('verifiedInstitutions')}</Heading>
                       <InstitutionsTable institutions={allInstitutions.filter(i => i.isVerified)} isLoading={isLoading} />
                     </Box>
                   </Box>
@@ -699,7 +687,7 @@ export default function AdminDashboard() {
                   >
                     {/* Pending Institutions Table */}
                     <Box ref={pendingInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>المؤسسات قيد التحقق - Pending Institutions</Heading>
+                      <Heading size="md" mb={2}>{t('pendingInstitutions')}</Heading>
                       <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} onVerify={handleverifyUser} isLoading={isLoading} />
                     </Box>
                   </Box>
@@ -710,7 +698,7 @@ export default function AdminDashboard() {
         </Container>
 
         <IconButton
-          aria-label="الرجوع للأعلى"
+          aria-label={t('scrollToTop')}
           icon={<Icon as={FiArrowUp} />}
           position="fixed"
           bottom="90px"

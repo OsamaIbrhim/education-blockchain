@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   ScaleFade,
   Box,
@@ -17,16 +17,13 @@ import {
   Button,
   useColorModeValue,
   Center,
-  Link,
-  Container,
   Spinner,
-  useClipboard,
+  Container,
 } from '@chakra-ui/react';
-import { InfoIcon, CheckCircleIcon, CopyIcon } from '@chakra-ui/icons';
-import type { Certificate, Certificate as CertificateType } from '../../types/certificate';
-import { AlertCircleIcon, DownloadIcon } from 'components/Icons';
-import { CertificateManagement } from 'components/institution/CertificateManagement';
-import { issueCertificate } from 'services/certificate';
+import { InfoIcon, CheckCircleIcon } from '@chakra-ui/icons';
+import { AlertCircleIcon } from 'components/Icons';
+import type { Certificate as CertificateType } from '../../types/certificate';
+import { useLanguage } from 'context/LanguageContext';
 
 interface CertificateManagementProps {
   certificatesData: any[];
@@ -43,12 +40,13 @@ export function Certificate({
   const textColor = useColorModeValue('gray.700', 'gray.300');
   const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const { t, language } = useLanguage();
 
   if (loading) {
     return (
       <Container centerContent py={10}>
         <Spinner size="xl" />
-        <Text mt={4}>جاري التحميل... | Loading...</Text>
+        <Text mt={4}>{t('loading')}</Text>
       </Container>
     );
   }
@@ -73,21 +71,19 @@ export function Certificate({
         <Box p={6}>
           <VStack spacing={4} align="stretch">
             <Heading size="md" color={textColor}>
-              الشهادات الأكاديمية | Academic Certificates
+              {t('certificates')}
             </Heading>
             <Text color={mutedTextColor}>
-              قائمة بجميع شهاداتك الأكاديمية وتفاصيلها
-              <br />
-              List of all your academic certificates and their details
+              {t('resultsList') || 'List of all your academic certificates and their details'}
             </Text>
             <Box overflowX="auto">
               {certificatesData.length === 0 ? (
                 <Center p={8}>
                   <VStack spacing={3}>
                     <InfoIcon boxSize="40px" color="blue.500" />
-                    <Text fontSize="lg">لا توجد شهادات بعد</Text>
+                    <Text fontSize="lg">{t('noResultsYet')}</Text>
                     <Text color={mutedTextColor}>
-                      No certificates yet
+                      {t('noResultsYet')}
                     </Text>
                   </VStack>
                 </Center>
@@ -95,11 +91,11 @@ export function Certificate({
                 <Table variant="simple">
                   <Thead bg={useColorModeValue('gray.50', 'gray.700')}>
                     <Tr>
-                      <Th>معرف الشهادة - Certificate ID</Th>
-                      <Th>المؤسسة - Institution</Th>
-                      <Th>تاريخ الإصدار - Issue Date</Th>
-                      <Th>الحالة - Status</Th>
-                      <Th>الإجراءات - Actions</Th>
+                      <Th>{t('certificateTitlePrefix')} ID</Th>
+                      <Th>{t('institutionName')}</Th>
+                      <Th>{t('issueDate')}</Th>
+                      <Th>{t('status')}</Th>
+                      <Th>{t('actions')}</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -111,13 +107,13 @@ export function Certificate({
                           transition: 'all 0.2s',
                         }}
                       >
-                        <Td 
-                        fontSize="sm" 
-                        maxW="180px" 
-                        overflow="hidden" 
-                        textOverflow="ellipsis" 
-                        whiteSpace="nowrap" 
-                        title={cert.address}>
+                        <Td
+                          fontSize="sm"
+                          maxW="180px"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          whiteSpace="nowrap"
+                          title={cert.address}>
                           <HStack spacing={1}>
                             <span>{cert.address}</span>
                           </HStack>
@@ -148,38 +144,28 @@ export function Certificate({
                             {cert.isValid ? (
                               <>
                                 <CheckCircleIcon mr={2} color="green.500" />
-                                صالحة - Valid
+                                {t('verified')}
                               </>
                             ) : (
                               <>
                                 <AlertCircleIcon mr={2} color="red.500" />
-                                غير صالحة - Invalid
+                                {t('notAvailable')}
                               </>
                             )}
                           </Badge>
                         </Td>
                         <Td>
                           <HStack spacing={2}>
-                            <Tooltip label="عرض الشهادة - View Certificate">
+                            <Tooltip label={t('showInstitution')}>
                               <Button
                                 size="sm"
                                 colorScheme="blue"
                                 variant="ghost"
                                 onClick={() => window.open(`https://fuchsia-abundant-bobcat-831.mypinata.cloud/ipfs/${cert.ipfsHash}`, '_blank')}
                               >
-                                عرض - View
+                                {t('view') || 'View'}
                               </Button>
                             </Tooltip>
-                            {/* <Tooltip label="تحميل الشهادة - Download Certificate">
-                                <Button
-                                  leftIcon={<DownloadIcon />}
-                                  colorScheme="blue"
-                                  size="sm"
-                                  onClick={onDownload(cert)}
-                                >
-                                  تحميل - Download
-                                </Button>
-                              </Tooltip> */}
                           </HStack>
                         </Td>
                       </Tr>
@@ -193,4 +179,4 @@ export function Certificate({
       </Box>
     </ScaleFade>
   );
-};
+}
