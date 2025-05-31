@@ -394,7 +394,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('green.600', 'green.300')}
                           fontWeight="bold"
                         >
-                          {certificates.filter(cert => cert.isValid).length}
+                          {certificatesData.filter(cert => cert.isValid).length}
                         </StatNumber>
                       </Stat>
                     </Box>
@@ -434,7 +434,7 @@ export default function StudentDashboard() {
                           color={useColorModeValue('orange.600', 'orange.300')}
                           fontWeight="bold"
                         >
-                          {new Set(certificates.map(cert => cert.institutionAddress)).size}
+                          {new Set(certificatesData.map(cert => cert.institutionAddress)).size}
                         </StatNumber>
                       </Stat>
                     </Box>
