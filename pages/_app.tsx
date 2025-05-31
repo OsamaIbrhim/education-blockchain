@@ -85,15 +85,19 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <LanguageProvider>
+    <LanguageProvider>
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={config}>
           {/* <AppProvider> */}
+          {/* <AppProvider> */}
           <Component {...pageProps} />
+          {/* </AppProvider> */}
           {/* </AppProvider> */}
         </WagmiProvider>
       </QueryClientProvider>
     </ChakraProvider>
+    </LanguageProvider>
     </LanguageProvider>
   )
 } 

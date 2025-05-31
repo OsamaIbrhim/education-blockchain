@@ -24,6 +24,11 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
   if (Object.keys(translations).length === 0) {
     return <Spinner />;
   }
+  const { t, translations } = useLanguage();
+
+  if (Object.keys(translations).length === 0) {
+    return <Spinner />;
+  }
 
   useEffect(() => {
     const fetchInstitution = async () => {
@@ -32,10 +37,12 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
       try {
         const { ipfsHash, isVerified } = await getUserData(address);
         if (!ipfsHash) throw new Error(t('noIpfsHashFound'));
+        if (!ipfsHash) throw new Error(t('noIpfsHashFound'));
         const data = await getFromIPFS(ipfsHash);
         setInstitution({ address, isVerified, ...data });
       } catch (error: any) {
         toast({
+          title: t('fetchInstitutionError'),
           title: t('fetchInstitutionError'),
           description: error.message || error,
           status: 'error',
@@ -50,10 +57,13 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
     if (isOpen && address) fetchInstitution();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, address, toast, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, address, toast, t]);
 
   const renderField = (label: string, value?: string | null) => (
     <Box>
       <Text fontWeight="bold" color="gray.700">{label}</Text>
+      <Text>{value || t('notAvailable')}</Text>
       <Text>{value || t('notAvailable')}</Text>
     </Box>
   );
@@ -62,6 +72,7 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
     <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
       <ModalOverlay />
       <ModalContent>
+        <ModalHeader>📄 {t('institutionDetails')}</ModalHeader>
         <ModalHeader>📄 {t('institutionDetails')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
@@ -85,7 +96,22 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
                   t('verificationDate'),
                   institution.verificationDate ? new Date(institution.verificationDate).toLocaleString() : t('notAvailable')
                 )}
+                {renderField(t('institutionAddress'), institution.address || address)}
+                {renderField(t('institutionName'), institution.name)}
+                {renderField(t('institutionEmail'), institution.email)}
+                {renderField(t('institutionPhone'), institution.phone)}
+                {renderField(t('institutionUniversity'), institution.university)}
+                {renderField(t('institutionCollege'), institution.college)}
+                {renderField(t('institutionMinistry'), institution.ministry)}
+                {renderField(t('institutionDescription'), institution.description)}
+                {renderField(t('institutionWebsite'), institution.website)}
                 {renderField(
+                  t('verificationDate'),
+                  institution.verificationDate ? new Date(institution.verificationDate).toLocaleString() : t('notAvailable')
+                )}
+                {renderField(
+                  t('status'),
+                  institution.isVerified ? t('verified') : t('pending')
                   t('status'),
                   institution.isVerified ? t('verified') : t('pending')
                 )}
@@ -97,6 +123,7 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
                   <Box textAlign="center">
                     <img
                       src={institution.logo}
+                      alt={t('institutionLogo')}
                       alt={t('institutionLogo')}
                       style={{ maxWidth: 120, borderRadius: 8 }}
                     />
@@ -112,10 +139,12 @@ const InstitutionDetailsModal = ({ isOpen, onClose, address, onVerify }: Institu
                   width="100%"
                 >
                   {t('verifyInstitution')}
+                  {t('verifyInstitution')}
                 </Button>
               )}
             </Box>
           ) : (
+            <Text color="red.500" fontWeight="bold">⚠️ {t('institutionNotFound')}</Text>
             <Text color="red.500" fontWeight="bold">⚠️ {t('institutionNotFound')}</Text>
           )}
         </ModalBody>
