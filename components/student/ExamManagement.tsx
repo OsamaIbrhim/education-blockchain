@@ -1,13 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Box,
-    Table,
-    Thead,
-    Tbody,
-    Tr,
-    Th,
-    Td,
-    Badge,
     VStack,
     Heading,
     Text,
@@ -16,16 +9,11 @@ import {
     Container,
     ScaleFade,
     Center,
-    HStack,
-    Tooltip,
-    Button,
-    Link,
-    useDisclosure
 } from '@chakra-ui/react';
 import { ExamData } from '../../types/examManagement';
-import { CheckCircleIcon, InfoIcon } from '@chakra-ui/icons';
-import { AlertCircleIcon } from 'components/Icons';
+import { InfoIcon } from '@chakra-ui/icons';
 import ExamList from './ExamList';
+import { useLanguage } from 'context/LanguageContext';
 
 interface ExamManagementProps {
     exams: ExamData[];
@@ -36,20 +24,18 @@ export function ExamManagement({
     exams,
     loading
 }: ExamManagementProps) {
-    const { onOpen: onEnrollOpen } = useDisclosure();
+    const { onOpen: onEnrollOpen } = { onOpen: () => {} }; // dummy if not used
     const [selectedExamId, setSelectedExamId] = useState<string>('');
-
-    const bgColor = useColorModeValue('white', 'gray.700');
     const cardBg = useColorModeValue('gray.50', 'gray.800');
-    const textColor = useColorModeValue('gray.700', 'gray.300');
     const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
     const borderColor = useColorModeValue('gray.200', 'gray.700');
+    const { t } = useLanguage();
 
     if (loading) {
         return (
             <Container centerContent py={10}>
                 <Spinner size="xl" />
-                <Text mt={4}>جاري التحميل... | Loading...</Text>
+                <Text mt={4}>{t('loading')}</Text>
             </Container>
         );
     }
@@ -74,21 +60,19 @@ export function ExamManagement({
                 <Box p={6}>
                     <VStack spacing={6} align="stretch">
                         <Heading size="lg" mb={4}>
-                            الاختبارات الأكاديمية| Academic Exams
+                            {t('examManagement')}
                         </Heading>
                         <Text color={mutedTextColor}>
-                            قائمة بجميع الاختبارات الأكاديمية وتفاصيلها
-                            <br />
-                            List of all your academic exams and their details
+                            {t('activeExams')} | {t('examManagement')}
                         </Text>
                         <Box overflowX="auto">
                             {exams.length === 0 ? (
                                 <Center p={8}>
                                     <VStack spacing={3}>
                                         <InfoIcon boxSize="40px" color="blue.500" />
-                                        <Text fontSize="lg">لا توجد أختبارات بعد</Text>
+                                        <Text fontSize="lg">{t('noResultsYet')}</Text>
                                         <Text color={mutedTextColor}>
-                                            No Exams yet
+                                            {t('noResultsYet')}
                                         </Text>
                                     </VStack>
                                 </Center>

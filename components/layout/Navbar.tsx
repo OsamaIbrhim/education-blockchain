@@ -108,7 +108,6 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                                 _hover={{ bg: 'blue.50', color: 'blue.600' }}
                             >
                                 {t('notifications')}
-                                {t('notifications')}
                             </Button>
                         </Tooltip>
                     )}

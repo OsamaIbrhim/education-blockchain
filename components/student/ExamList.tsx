@@ -12,6 +12,7 @@ import {
 } from '@chakra-ui/react';
 import { UserIcon, BookIcon, CheckIcon, AwardIcon } from '../Icons';
 import { ExamData } from '../../types/examManagement';
+import { useLanguage } from 'context/LanguageContext';
 
 interface ExamListProps {
     exams: ExamData[];
@@ -24,15 +25,17 @@ export default function ExamList({
     onSelectExam,
     onOpenResultsModal
 }: ExamListProps) {
+    const { t } = useLanguage();
+
     return (
         <Table variant="simple">
             <Thead>
                 <Tr>
-                    <Th>العنوان - Title</Th>
-                    <Th>التاريخ - Date</Th>
-                    <Th>المدة - Duration</Th>
-                    <Th>الحالة - Status</Th>
-                    <Th>النتيجة - Result</Th>
+                    <Th>{t('examTitle')}</Th>
+                    <Th>{t('examDate')}</Th>
+                    <Th>{t('examDuration')}</Th>
+                    <Th>{t('status')}</Th>
+                    <Th>{t('results')}</Th>
                 </Tr>
             </Thead>
             <Tbody>
@@ -40,7 +43,7 @@ export default function ExamList({
                     <Tr key={exam.address}>
                         <Td>{exam.title}</Td>
                         <Td>{new Date(exam.date).toLocaleDateString()}</Td>
-                        <Td>{exam.duration} دقيقة</Td>
+                        <Td>{exam.duration} {t('minutes')}</Td>
                         <Td>
                             <Badge
                                 colorScheme={
@@ -49,12 +52,21 @@ export default function ExamList({
                                             'blue'
                                 }
                             >
-                                {exam.status}
+                                {t(
+                                    exam.status === 'COMPLETED'
+                                        ? 'completed'
+                                        : exam.status === 'IN_PROGRESS'
+                                            ? 'inProgress'
+                                            : 'upcoming'
+                                )}
                             </Badge>
+                        </Td>
+                        <Td>
+                            {/* يمكنك إضافة زر أو أيقونة لعرض النتائج أو التفاصيل هنا إذا أردت */}
                         </Td>
                     </Tr>
                 ))}
             </Tbody>
         </Table>
     );
-} 
+}

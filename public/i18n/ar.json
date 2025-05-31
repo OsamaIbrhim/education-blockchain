@@ -170,5 +170,8 @@
   "institutionDetails": "تفاصيل المؤسسة",
   "institutionNotFound": "لم يتم العثور على بيانات المؤسسة",
   "fetchInstitutionError": "حدث خطأ أثناء جلب بيانات المؤسسة",
-  "noIpfsHashFound": "لم يتم العثور على بيانات المؤسسة"
+  "noIpfsHashFound": "لم يتم العثور على بيانات المؤسسة",
+  "viewAcademicCertificates": "عرض الشهادات الأكاديمية",
+  "verifyCertificateAuthenticity": "التحقق من صحة الشهادة",
+  "trackIssueDates": "تتبع تواريخ الإصدار"
 }
