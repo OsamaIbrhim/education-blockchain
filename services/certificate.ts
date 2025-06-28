@@ -77,55 +77,20 @@ export const getUserCertificates = async (address: string): Promise<any[]> => {
       throw new Error('Invalid student address');
     }
 
-    if (!window.ethereum) {
-      throw new Error('Ethereum provider not found');
-    }
+    const certificatesContract = await getCertificatesContract();
+    const certificateIds = await certificatesContract.getProposedCertificateIds(); // Adjusted method name
 
-    const cContract = await getCertificatesContract();
-    const certificatesData: Certificate[] = [];
+    const certificates = await Promise.all(
+      certificateIds.map(async (id: string) => {
+        const certificate = await certificatesContract.verifyCertificate(id);
+        return {
+          id,
+          ...certificate,
+        };
+      })
+    );
 
-    const certificates: CertificateResult[] = await cContract.getUserCertificates(address);
-
-    if (!certificates || certificates.length === 0) {
-      console.log('No certificates found');
-      return [];
-    }
-
-    for (const certificate of certificates) {
-      const certificateAddress = certificate.certificate;
-      const ipfsHash = certificate.ipfsHash;
-      const exists = certificate.exist;
-
-      if (!exists) {
-        console.log(`Certificate ${certificateAddress} does not exist`);
-        continue;
-      }
-
-      if (!ipfsHash || ipfsHash.trim() === '') {
-        console.log(`Certificate ${certificateAddress} has no IPFS hash`);
-        continue;
-      }
-
-      const certificateDataFromIPFS = await getCertificateData(ipfsHash);
-      if (!certificateDataFromIPFS) {
-        console.log(`Certificate ${certificateAddress} has no data`);
-        continue;
-      }
-
-      certificatesData.push({
-        address: certificateAddress,
-        title: certificateDataFromIPFS.data.title,
-        ipfsHash: ipfsHash,
-        isValid: exists,
-        issueDate: new Date(certificateDataFromIPFS.timestamp),
-        studentAddress: certificateDataFromIPFS.data.studentAddress,
-        institutionAddress: certificateDataFromIPFS.data.institutionAddress,
-        metadata: { ...certificateDataFromIPFS.data.metadata },
-        status: certificateDataFromIPFS.isValid ? 'Valid' : 'Invalid'
-      });
-    }
-
-    return certificatesData;
+    return certificates;
   } catch (error: any) {
     console.error('Error getting student certificates:', error);
     throw new Error(`Failed to get student certificates: ${error.message || error}`);

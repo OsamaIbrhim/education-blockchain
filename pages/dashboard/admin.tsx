@@ -1,716 +1,109 @@
-import { useState, useEffect, useRef } from 'react';
-import dynamic from 'next/dynamic';
-import { useRouter } from 'next/router';
+import React, { useState, useEffect } from 'react';
 import {
+  Box,
   Container,
+  Grid,
+  GridItem,
   VStack,
   Heading,
   Text,
-  Box,
-  Button,
-  Input,
-  FormControl,
-  FormLabel,
-  useToast,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
   SimpleGrid,
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
-  Spinner,
-  Center,
-  HStack,
-  Divider,
-  useColorModeValue,
-  Grid,
-  GridItem,
-  Tooltip,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  Progress,
-  Icon,
-  Fade,
-  ScaleFade,
   Skeleton,
-  Alert,
-  AlertIcon,
-  Link,
-  FormHelperText,
-  BoxProps,
-  IconButton,
-  createIcon,
+  SkeletonText,
+  Tooltip,
+  Badge,
+  HStack,
+  Icon,
+  useColorModeValue,
 } from '@chakra-ui/react';
-import { getUserRole, isOwner } from 'services/identity';
-import { connectWallet } from '../../utils/web3Provider';
-import { IconType } from 'react-icons';
-import {
-  FiUserCheck,
-  FiCheckCircle,
-  FiAlertCircle,
-  FiInfo,
-  FiUser,
-  FiShield,
-  FiDatabase,
-  FiActivity,
-  FiSettings,
-  FiBriefcase,
-  FiUsers,
-  FiArrowUp
-} from 'react-icons/fi';
-import React from 'react';
-import { getConfig } from '../../utils/config';
+import { FaShieldAlt } from 'react-icons/fa';
 import { useAppData } from 'hooks/useAppData';
-
-// Import the new SimpleLogoutButton
-import SimpleLogoutButton from '../../components/SimpleLogoutButton';
-import { Institution } from 'types/institution';
-
-// Layout
-import Layout from '../../components/layout/Layout';
-import ProtectedRoute from '../../components/auth/ProtectedRoute';
 import { useLanguage } from 'context/LanguageContext';
-
-// Lazy load components
-const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {
-  loading: () => <Spinner />,
-  ssr: false
-});
-
-const InstitutionsTable = dynamic(() => import('../../components/dashboard/InstitutionsTable'), {
-  loading: () => <Spinner />,
-  ssr: false
-});
-
-// تعريف الأيقونات كمكونات Chakra UI
-const UserIcon = createIcon({
-  displayName: 'UserIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const ShieldIcon = createIcon({
-  displayName: 'ShieldIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const DatabaseIcon = createIcon({
-  displayName: 'DatabaseIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M12 2a8 8 0 0 0-8 8v4a8 8 0 0 0 16 0v-4a8 8 0 0 0-8-8zm0 18a6 6 0 0 1-6-6v-4a6 6 0 0 1-12 0v4a6 6 0 0 1-6 6z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const CheckIcon = createIcon({
-  displayName: 'CheckIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M20 6L9 17l-5-5"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const InfoIcon = createIcon({
-  displayName: 'InfoIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-14v4m0 4h.01"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const BriefcaseIcon = createIcon({
-  displayName: 'BriefcaseIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zm0 0V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2m4 6v2"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-const SettingsIcon = createIcon({
-  displayName: 'SettingsIcon',
-  viewBox: '0 0 24 24',
-  path: (
-    <path
-      fill="currentColor"
-      d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1-2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-});
-
-interface IconComponentProps extends BoxProps {
-  icon: IconType;
-}
-
-const IconComponent = ({ icon: IconComponent, ...props }: IconComponentProps) => (
-  <Box as="span" display="inline-flex" alignItems="center" justifyContent="center" {...props}>
-    {IconComponent && <IconComponent />}
-  </Box>
-);
-
-// Update the TutorialModal component to use t
-const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const { t } = useLanguage();
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="xl">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{t('welcomeAdminDashboard')}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
-          <VStack spacing={4} align="stretch">
-            <Text>
-              👋 {t('welcomeAdminDashboard')}:
-              <br />
-              • {t('verifyEducationalInstitutions')}
-              <br />
-              • {t('monitorInstitutionsStatus')}
-              <br />
-              • {t('manageSystem')}
-            </Text>
-            <Button colorScheme="red" onClick={onClose}>
-              {t('gotIt')}
-            </Button>
-          </VStack>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
-  );
-};
+import { useRouter } from 'next/router';
 
 export default function AdminDashboard() {
-  const { t, translations } = useLanguage();
-  const { allInstitutions, verifyUser, account, userRole, isLoading } = useAppData();
+  const { t } = useLanguage();
+  const { userRole, address, account } = useAppData();
   const router = useRouter();
-  const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [institutionAddress, setInstitutionAddress] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isFirstVisit, setIsFirstVisit] = useState(true);
-  const [verificationProgress, setVerificationProgress] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const institutionsSectionRef = useRef<HTMLDivElement>(null);
-  const totalInstitutionsRef = useRef<HTMLDivElement>(null);
-  const verifiedInstitutionsRef = useRef<HTMLDivElement>(null);
-  const pendingInstitutionsRef = useRef<HTMLDivElement>(null);
-
-  // Colors
-  const bgGradient = useColorModeValue(
-    'linear-gradient(120deg, red.700 0%, red.900 100%)',
-    'linear-gradient(120deg, red.500 0%, red.700 100%)'
-  );
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('red.100', 'red.700');
-  const textColor = useColorModeValue('gray.800', 'white');
-  const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
-
-  useEffect(() => {
-    checkAccess();
-    const hasVisited = localStorage.getItem('hasVisitedAdminDashboard');
-    if (!hasVisited) {
-      onOpen();
-      localStorage.setItem('hasVisitedAdminDashboard', 'true');
-    }
-  }, []);
 
   useEffect(() => {
     if (userRole && userRole !== 'admin') {
       router.replace('/');
     }
+    setTimeout(() => setLoading(false), 2000);
   }, [userRole, router]);
 
-  const checkAccess = async () => {
-    try {
-      setLoading(true);
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error(t('metamaskNotInstalled'));
-        throw new Error(t('metamaskNotInstalled'));
-      }
-
-      const adminAddress = getConfig('ADMIN_ADDRESS');
-
-      if (!account || account.toLowerCase() !== adminAddress.toLowerCase()) {
-        throw new Error(t('notAuthorized'));
-        throw new Error(t('notAuthorized'));
-      }
-
-      const role = Number(await getUserRole(account));
-      const isSystemOwner = await isOwner(account);
-
-      if (role !== 4 && !isSystemOwner) {
-        throw new Error(t('insufficientPermissions'));
-        throw new Error(t('insufficientPermissions'));
-      }
-
-      localStorage.setItem('adminAddress', account);
-      localStorage.setItem('userRole', role.toString());
-      setIsAdmin(true);
-      setLoading(false);
-
-    } catch (error: any) {
-      console.error('Access Check Error:', error);
-      setError(error.message);
-      setLoading(false);
-      setIsAdmin(false);
-
-      setTimeout(() => {
-        router.push('/');
-      }, 2000);
-    }
-  };
-
-  const handleverifyUser = async (address?: string) => {
-    if (!institutionAddress && !address) {
-      toast({
-        title: t('error'),
-        description: t('pleaseEnterInstitutionAddress'),
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setVerificationProgress(25);
-
-      const institution = address || institutionAddress.trim();
-
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setVerificationProgress(prev => Math.min(prev + 15, 90));
-      }, 500);
-
-      const { status } = await verifyUser(institution);
-      setVerificationProgress(95);
-
-      setInstitutionAddress('');
-
-      if (status === 'success') {
-        toast({
-          title: t('success'),
-          description: t('institutionVerified'),
-          status: 'success',
-          duration: 5000,
-          isClosable: true,
-          position: 'top-right',
-        });
-      } else if (status === 'already verified') {
-        toast({
-          title: t('warning'),
-          description: t('alreadyVerified'),
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-          position: 'top-right',
-        });
-      }
-
-      clearInterval(progressInterval);
-      setVerificationProgress(100);
-
-      // Reset progress after completion
-      setTimeout(() => {
-        setVerificationProgress(0);
-      }, 1000);
-
-    } catch (error: any) {
-      console.error('Error verifying institution:', error);
-      toast({
-        title: t('error'),
-        description: error.message || t('failedToVerifyInstitution'),
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const scrollToInstitutions = () => {
-    institutionsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const scrollToTotal = () => totalInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const scrollToVerified = () => verifiedInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const scrollToPending = () => pendingInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  if (Object.keys(translations).length === 0) {
-    return <Spinner />;
-  }
-
-  if (loading) {
-    return (
-      <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        <VStack spacing={4}>
-          <Spinner size="xl" color="red.500" thickness="4px" speed="0.65s" />
-          <Text fontSize="lg">{t('loading')}</Text>
-          <Progress
-            size="xs"
-            isIndeterminate
-            width="200px"
-            colorScheme="red"
-          />
-        </VStack>
-      </Center>
-    );
-  }
-
-  if (error) {
-    return (
-      <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        <ScaleFade initialScale={0.9} in={true}>
-          <Alert
-            status="error"
-            variant="subtle"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            height="200px"
-            bg={cardBg}
-            borderRadius="xl"
-            shadow="2xl"
-          >
-            <AlertIcon boxSize="40px" mr={0} />
-            <Text color="red.500" fontSize="xl" mt={4}>
-              {error}
-            </Text>
-            <Button
-              colorScheme="red"
-              size="lg"
-              onClick={checkAccess}
-              mt={4}
-            >
-              {t('retry')}
-            </Button>
-          </Alert>
-        </ScaleFade>
-      </Center>
-    );
-  }
-
   return (
-    <Layout pageName={t('adminDashboard')} address={account} allowedValue={userRole}>
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        {isOpen && <TutorialModal isOpen={isOpen} onClose={onClose} />}
-
-        <Container maxW="container.xl" pb="100px">
-          <Grid templateColumns="repeat(12, 1fr)" gap={6}>
-            {/* Enhanced Sidebar with Animations */}
-            <GridItem colSpan={{ base: 12, lg: 3 }}>
-              <VStack spacing={6} align="stretch">
-                <ScaleFade initialScale={0.9} in={true}>
-                  <Box
-                    bg={cardBg}
-                    p={6}
-                    borderRadius="xl"
-                    shadow="xl"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    position="relative"
-                    overflow="hidden"
-                    transition="transform 0.2s"
-                    _hover={{ transform: 'translateY(-2px)' }}
-                  >
-                    <Box
-                      position="absolute"
-                      top={0}
-                      left={0}
-                      right={0}
-                      h="4px"
-                      bgGradient="linear(to-r, red.400, red.600)"
-                    />
-                    <VStack spacing={4} align="stretch">
-                      <HStack>
-                        <Icon as={UserIcon} w={5} h={5} color="red.500" />
-                        <Text fontWeight="bold" fontSize="sm" color={mutedTextColor}>
-                          {t('connectedAccount')}
-                        </Text>
-                      </HStack>
-                      <Tooltip label={t('walletAddress')} placement="top">
-                        <Text fontSize="sm" wordBreak="break-all" color={textColor}>
-                          {account}
-                        </Text>
-                      </Tooltip>
-                      <Divider />
-                      <Tooltip label={t('userRole')} placement="top">
-                        <Badge colorScheme="red" px={3} py={1} borderRadius="full">
-                          <HStack spacing={2}>
-                            <Icon as={ShieldIcon} w={4} h={4} />
-                            <Text>{t('systemAdmin')}</Text>
-                          </HStack>
-                        </Badge>
-                      </Tooltip>
-                    </VStack>
-                  </Box>
-                </ScaleFade>
-
-                {/* System Info Box with Icons */}
-                <ScaleFade initialScale={0.9} in={true} delay={0.1}>
-                  <Box
-                    bg={useColorModeValue('red.50', 'red.900')}
-                    p={6}
-                    borderRadius="xl"
-                    shadow="md"
-                    transition="transform 0.2s"
-                    _hover={{ transform: 'translateY(-2px)' }}
-                  >
-                    <VStack spacing={3} align="start">
-                      <HStack>
-                        <Icon as={DatabaseIcon} w={5} h={5} color="red.500" />
-                        <Heading size="sm" color={useColorModeValue('red.600', 'red.200')}>
-                          {t('systemFeatures')}
-                        </Heading>
-                      </HStack>
-                      <VStack spacing={3} align="start" pl={6}>
-                        <HStack>
-                          <Icon as={CheckIcon} w={4} h={4} />
-                          <Text fontSize="sm" color={mutedTextColor}>
-                            {t('verifyInstitutions')}
-                          </Text>
+    <Box minH="100vh">
+      <Container maxW="container.xl" pb="100px">
+        <Grid templateColumns="repeat(12, 1fr)" gap={6}>
+          {/* Sidebar */}
+          <GridItem colSpan={{ base: 12, lg: 3 }}>
+            <VStack spacing={6} align="stretch">
+              <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
+                {loading ? (
+                  <SkeletonText noOfLines={4} spacing="4" />
+                ) : (
+                  <>
+                    <Heading size="md" mb={4}>
+                      {account.firstName + ' ' + account.lastName || t('connectedAccount')}
+                    </Heading>
+                    <Text fontSize="sm" mb={2}>
+                      {account?.email}
+                    </Text>
+                    <Text fontSize="sm" mb={2}>
+                      {account?.phoneNumber}
+                    </Text>
+                    <Tooltip label={t('userRole')} placement="top">
+                      <Badge colorScheme="red" px={3} py={1} borderRadius="full">
+                        <HStack spacing={2}>
+                          <Icon as={FaShieldAlt} w={4} h={4} />
+                          <Text>{t('systemAdmin')}</Text>
                         </HStack>
-                        <HStack>
-                          <Icon as={BriefcaseIcon} w={4} h={4} />
-                          <Text fontSize="sm" color={mutedTextColor}>
-                            {t('manageInstitutions')}
-                          </Text>
-                        </HStack>
-                        <HStack>
-                          <Icon as={SettingsIcon} w={4} h={4} />
-                          <Text fontSize="sm" color={mutedTextColor}>
-                            {t('systemSettings')}
-                          </Text>
-                        </HStack>
-                      </VStack>
-                    </VStack>
-                  </Box>
-                </ScaleFade>
-              </VStack>
-            </GridItem>
+                      </Badge>
+                    </Tooltip>
+                  </>
+                )}
+              </Box>
+            </VStack>
+          </GridItem>
 
-            {/* Enhanced Main Content with Animations */}
-            <GridItem colSpan={{ base: 12, lg: 9 }}>
-              <VStack spacing={6} align="stretch">
-                {/* Enhanced Stats with Hover Effects */}
-                <StatsGrid
-                  institutions={allInstitutions}
-                  scrollToTotal={scrollToTotal}
-                  scrollToVerified={scrollToVerified}
-                  scrollToPending={scrollToPending}
-                  cardBg={cardBg}
-                  borderColor={borderColor}
-                  mutedTextColor={mutedTextColor}
-                />
-
-                {/* Enhanced Institution Verification Form */}
-                <ScaleFade initialScale={0.9} in={true}>
-                  <Box
-                    bg={cardBg}
-                    borderRadius="xl"
-                    shadow="xl"
-                    overflow="hidden"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                  >
-                    <Box p={6}>
-                      <VStack spacing={4} align="stretch">
-                        <Heading size="md" color={textColor}>
-                          {t('verifyNewInstitution')}
-                        </Heading>
-                        <Text color={mutedTextColor}>
-                          {t('enterInstitutionWallet')}
-                        </Text>
-                        <FormControl>
-                          <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
-                          <Input
-                            value={institutionAddress}
-                            onChange={(e) => setInstitutionAddress(e.target.value)}
-                            placeholder="0x..."
-                            size="lg"
-                            bg={useColorModeValue('white', 'gray.700')}
-                            _focus={{
-                              borderColor: "red.400",
-                              boxShadow: "0 0 0 1px red.400"
-                            }}
-                          />
-                          <FormHelperText color={mutedTextColor}>
-                            {t('mustBeValidEthereum')}
-                          </FormHelperText>
-                        </FormControl>
-                        <Button
-                          colorScheme="red"
-                          size="lg"
-                          onClick={() => handleverifyUser()}
-                          isLoading={loading}
-                          loadingText={t('verifying')}
-                          leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
-                          _hover={{
-                            transform: 'translateY(-2px)',
-                            boxShadow: 'lg',
-                          }}
-                        >
-                          <HStack spacing={2}>
-                            <Icon as={CheckIcon} w={5} h={5} />
-                            <Text>{t('verifyInstitution')}</Text>
-                          </HStack>
-                        </Button>
-                        {verificationProgress > 0 && (
-                          <Progress
-                            value={verificationProgress}
-                            size="xs"
-                            colorScheme="red"
-                            borderRadius="full"
-                            isAnimated
-                            hasStripe
-                          />
-                        )}
-                      </VStack>
+          {/* Main Content */}
+          <GridItem colSpan={{ base: 12, lg: 9 }}>
+            <Box borderRadius="xl" shadow="xl" borderWidth="1px" p={6}>
+              <Heading size="md" mb={4}>
+                {t('universityStatistics')}
+              </Heading>
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} height="150px" borderRadius="xl" />
+                  ))
+                ) : (
+                  <>
+                    <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                      <Stat>
+                        <StatLabel>{t('numberOfStudents')}</StatLabel>
+                        <StatNumber>0</StatNumber>
+                      </Stat>
                     </Box>
-                  </Box>
-                  <Divider />
-                  {/* Enhanced Institutions List */}
-                  {/* <Box
-                  {/* <Box
-                    bg={cardBg}
-                    borderRadius="xl"
-                    marginTop={2.5}
-                    shadow="xl"
-                    overflow="hidden"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                  > */}
-                    {/* Total Institutions Table */}
-                    {/* <Box p={6} ref={totalInstitutionsRef}>
-                    {/* <Box p={6} ref={totalInstitutionsRef}>
-                      <InstitutionsTable
-                        institutions={allInstitutions}
-                        onVerify={handleverifyUser}
-                        isLoading={isLoading}
-                      />
+                    <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                      <Stat>
+                        <StatLabel>{t('certificatesIssued')}</StatLabel>
+                        <StatNumber>0</StatNumber>
+                      </Stat>
                     </Box>
-                  </Box> */}
-                  <Box
-                    bg={cardBg}
-                    borderRadius="xl"
-                    marginTop={2.5}
-                    shadow="xl"
-                    overflow="hidden"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                  >
-                    {/* Verified Institutions Table */}
-                    <Box ref={verifiedInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>{t('verifiedInstitutions')}</Heading>
-                      <InstitutionsTable institutions={allInstitutions.filter(i => i.isVerified)} isLoading={isLoading} />
-                    </Box>
-                  </Box>
-                  <Box
-                    bg={cardBg}
-                    borderRadius="xl"
-                    marginTop={2.5}
-                    shadow="xl"
-                    overflow="hidden"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                  >
-                    {/* Pending Institutions Table */}
-                    <Box ref={pendingInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>{t('pendingInstitutions')}</Heading>
-                      <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} onVerify={handleverifyUser} isLoading={isLoading} />
-                    </Box>
-                  </Box>
-                </ScaleFade>
-              </VStack>
-            </GridItem>
-          </Grid>
-        </Container>
-
-        <IconButton
-          aria-label={t('scrollToTop')}
-          icon={<Icon as={FiArrowUp} />}
-          position="fixed"
-          bottom="90px"
-          right="40px"
-          zIndex={1000}
-          colorScheme="red"
-          size="lg"
-          borderRadius="full"
-          boxShadow="lg"
-          onClick={scrollToTop}
-        />
-      </Box>
-    </Layout>
+                  </>
+                )}
+              </SimpleGrid>
+            </Box>
+          </GridItem>
+        </Grid>
+      </Container>
+    </Box>
   );
 }

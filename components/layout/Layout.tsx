@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@chakra-ui/react';
-import Navbar from './Navbar';
+import Navbar from 'components/layout/Navbar';
 import Footer from './Footer';
 import ProtectedRoute from 'components/auth/ProtectedRoute';
 import { useAppData } from 'hooks/useAppData';
@@ -15,20 +15,26 @@ interface LayoutProps {
   allowedValue: any;
 }
 
-const Layout = ({ children, address, exams, onNotificationsOpen, pageName, allowedValue }: LayoutProps) => {
+const Layout = ({
+  children,
+  address,
+  exams,
+  onNotificationsOpen,
+  pageName,
+  allowedValue,
+}: LayoutProps) => {
   const { userRole } = useAppData();
+
   return (
-    <Box minH="100vh">
-      <Navbar
-        onNotificationsOpen={onNotificationsOpen}
-      />
+    <Box minH="100vh" bgColor="chakra-body-bg" color="chakra-body-text">
+      <Navbar onNotificationsOpen={onNotificationsOpen} />
       <DynamicHeader /*userRole={userRole}*/ />
-      {/* <ProtectedRoute allowedValue={allowedValue} valueToCheck={userRole}> */}
-      <Box>{children}</Box>
-      {/* </ProtectedRoute> */}
+      <Box as="main" mt="4">
+        {children}
+      </Box>
       <Footer />
     </Box>
   );
 };
 
-export default Layout; 
+export default Layout;

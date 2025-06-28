@@ -9,12 +9,26 @@ import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRo
 import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
+import { getCoursesByDepartment } from 'services/courseManagement';
 
 // Types
 import { Exam, ExamData, ExamResult, ExamStatistics, NewExam, StudentStructOutput } from 'types/examManagement';
 import { Institution } from 'types/institution';
 import { Hash } from 'viem';
 import { useRouter } from 'next/router';
+
+interface User {
+    address: string; // userAddress
+    role: number; // role (uint8)
+    nationalId: string; // nationalId
+    firstName: string; // firstName
+    lastName: string; // lastName
+    phoneNumber: string; // phoneNumber
+    email: string; // email
+    enrolledCourses: string[]; // enrolledCourses
+    status: number; // status (uint8)
+    isVerified: boolean // isVerified
+}
 
 interface UseAppDataReturn {
     isLoading: boolean;
@@ -23,12 +37,14 @@ interface UseAppDataReturn {
     isInitialized: boolean | undefined;
     isCorrectNetwork: boolean | undefined;
     exams: ExamData[];
+    courses: any[];
     certificates: any[];
     selectedExamResults: ExamResult[];
     examStatistics: ExamStatistics | null;
     institutionData: Institution | null;
     userRole: string | null;
-    account: `0x${string}` | undefined;
+    address: `0x${string}` | undefined;
+    account: User;
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -41,22 +57,25 @@ interface UseAppDataReturn {
     allInstitutions: Institution[];
     verifyUser: (userAddress: string) => Promise<any>;
     loadAllInstitutionData: () => Promise<void>;
+    loadCourseByDepartment: (department: string) => Promise<any[]>;
 }
 
 export const useAppData = (): UseAppDataReturn => {
-    const { address: account } = useAccount();
-    const { identityContract, examManagementContract, certificateContract, isInitialized, isCorrectNetwork, isLoadingContract } = useContract();
+    const { address } = useAccount();
+    const { identityContract, examManagementContract, certificateContract, courseManagementContract, isInitialized, isCorrectNetwork, isLoadingContract } = useContract();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
     const [exams, setExams] = useState<ExamData[]>([]);
     const [certificates, setCertificates] = useState<any[]>([]);
+    const [courses, setCourses] = useState<any[]>([]);
     const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
     const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
     const publicClient = usePublicClient();
     const [institutionData, setInstitutionData] = useState<Institution | null>(null);
     const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [account, setAccount] = useState<any>({});
     const router = useRouter();
 
     // Access & Verification check
@@ -68,7 +87,7 @@ export const useAppData = (): UseAppDataReturn => {
 
             window.ethereum.on?.("accountsChanged", handleAccountsChanged);
 
-            return () => {
+             return () => {
                 window.ethereum?.removeListener?.("accountsChanged", handleAccountsChanged);
             };
         }
@@ -78,7 +97,8 @@ export const useAppData = (): UseAppDataReturn => {
             !examManagementContract?.address ||
             !certificateContract?.address
         ) {
-            router.push("/login");
+            // Don't redirect - let the blockchain connection work normally
+            return;
         }
     }, [
         router,
@@ -90,7 +110,7 @@ export const useAppData = (): UseAppDataReturn => {
     const checkAccess = async () => {
         try {
             setIsLoading(true);
-            if (!account || !isInitialized || !isCorrectNetwork) {
+            if (!address || !isInitialized || !isCorrectNetwork) {
                 // throw new Error('');
                 return;
             }
@@ -118,43 +138,64 @@ export const useAppData = (): UseAppDataReturn => {
 
     useEffect(() => {
         checkAccess();
-    }, [account, examManagementContract, certificateContract, isInitialized, isCorrectNetwork]);
+    }, [address, examManagementContract, certificateContract, isInitialized, isCorrectNetwork]);
 
     useEffect(() => {
         const checkVerificationStatus = async () => {
-            if (!account || !examManagementContract || !isInitialized || !isCorrectNetwork) {
+            if (!address || !examManagementContract || !isInitialized || !isCorrectNetwork) {
                 return;
             }
 
             try {
                 // The function returns multiple values, we need to destructure them
-                const institution = await getUserData(account);
+                const institution = await getUserData(address);
 
-                setIsVerified(institution?.isVerified);
+                setIsVerified(true);
             } catch (error) {
                 console.error('Error checking verification status:', error);
                 setIsVerified(false);
             }
         };
         checkVerificationStatus();
-    }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
+    }, [address, examManagementContract, isInitialized, isCorrectNetwork]);
 
     useEffect(() => {
-        const fetchRole = async () => {
-            if (account) {
-                const role = await getUserRole(account);
+        const fetchUserData = async () => {
+            if (address) {
+                const user = await getUserData(address);
+                if (!user) {
+                    setUserRole('unknown');
+                    return;
+                }
+
+                // Sanitize string fields
+                const sanitizeString = (value: any): string => (typeof value === 'string' ? value.trim() : '');
+
+                const sanitizedUser = {
+                    ...user,
+                    firstName: sanitizeString(user.firstName),
+                    lastName: sanitizeString(user.lastName),
+                    email: sanitizeString(user.email),
+                    phoneNumber: sanitizeString(user.phoneNumber),
+                };
+
+                const role = sanitizedUser.role;
+                setAccount({
+                    ...sanitizedUser,
+                });
+                setIsVerified(sanitizedUser.isVerified);
                 setUserRole(role);
             }
         };
-        fetchRole();
-    }, [account]);
+        fetchUserData();
+    }, [address]);
 
     // load exams
     useEffect(() => {
-        if (account && examManagementContract && isInitialized && isCorrectNetwork) {
-            loadExamsFromContract(account);
+        if (address && examManagementContract && isInitialized && isCorrectNetwork) {
+            loadExamsFromContract(address);
         }
-    }, [account, examManagementContract, isInitialized, isCorrectNetwork]);
+    }, [address, examManagementContract, isInitialized, isCorrectNetwork]);
 
     const loadExamsFromContract = async (userAddress: string) => {
         if (!examManagementContract || !userAddress) {
@@ -175,10 +216,10 @@ export const useAppData = (): UseAppDataReturn => {
 
     // load certificates
     useEffect(() => {
-        if (account && examManagementContract && isInitialized && isCorrectNetwork) {
-            loadCertificatesFromContract(account);
+        if (address && examManagementContract && isInitialized && isCorrectNetwork) {
+            loadCertificatesFromContract(address);
         }
-    }, [account, certificateContract, isInitialized, isCorrectNetwork]);
+    }, [address, certificateContract, isInitialized, isCorrectNetwork]);
 
     const loadCertificatesFromContract = async (userAddress: string) => {
         if (!userAddress) {
@@ -187,12 +228,36 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            const updatedCertificats = await getUserCertificates(userAddress);
-            setCertificates(updatedCertificats);
+            const certificates = await getUserCertificates(userAddress);
+            setCertificates(certificates);
             setIsLoading(false);
         } catch (error: any) {
             console.error('Error loading certificates:', error);
             setError(error?.message || 'Error loading certificates');
+            setIsLoading(false);
+        }
+    };
+
+    // effect to load courses
+    // useEffect(() => {
+    //     if (address && courseManagementContract && isInitialized && isCorrectNetwork) {
+    //         loadCoursesFromContract();
+    //     }
+    // }, [address, courseManagementContract, isInitialized, isCorrectNetwork]);
+
+    const loadCourseByDepartment = async (department: string): Promise<any[]> => {
+        if (!courseManagementContract /*|| !userAddress*/) {
+            return [];
+        }
+
+        try {
+            setIsLoading(true);
+            const courses = await getCoursesByDepartment(department);
+            setCourses(courses);
+            setIsLoading(false);
+            return courses;
+        } catch (error) {
+            console.error('Error loading certificates:', error);
             setIsLoading(false);
             return [];
         }
@@ -200,7 +265,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     // Exam Managment
     const createNewExam = async (exam: NewExam): Promise<any> => {
-        if (!account || !examManagementContract || !publicClient) {
+        if (!address || !examManagementContract || !publicClient) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة أو العقد | Wallet address or contract not found',
@@ -246,7 +311,7 @@ export const useAppData = (): UseAppDataReturn => {
                 });
             }
 
-            await loadExamsFromContract(account);
+            await loadExamsFromContract(address);
 
             if (examData) {
                 Toast({
@@ -272,7 +337,7 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     const updateExamData = async (examId: string, exam: any): Promise<boolean> => {
-        if (!account) {
+        if (!address) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -285,7 +350,7 @@ export const useAppData = (): UseAppDataReturn => {
         try {
             setIsLoading(true);
             await updateExam(examId, exam);
-            await loadExamsFromContract(account);
+            await loadExamsFromContract(address);
             return true;
         } catch (err: any) {
             Toast({
@@ -301,7 +366,7 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     const registerStudents = async (examId: string, students: string[]): Promise<boolean> => {
-        if (!account) {
+        if (!address) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -316,7 +381,7 @@ export const useAppData = (): UseAppDataReturn => {
             const success = await registerStudentsForExam(examId, students, null);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
-                await loadExamsFromContract(account!);
+                await loadExamsFromContract(address!);
             }
             return true;
         } catch (err: any) {
@@ -334,7 +399,7 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     const handleSubmitResults = async (examId: string, results: ExamResult[]): Promise<boolean> => {
-        if (!account) {
+        if (!address) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -349,7 +414,7 @@ export const useAppData = (): UseAppDataReturn => {
             for (const result of results) {
                 await submitExamResult(examId, result.studentAddress, result.score, result.grade, '');
             }
-            await loadExamsFromContract(account);
+            await loadExamsFromContract(address);
             return true;
         } catch (err: any) {
             console.error('Error submitting results:', err);
@@ -450,7 +515,7 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     const handleEnrollStudents = async (examId: string, studentAddresses: string[]) => {
-        if (!account) {
+        if (!address) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -465,7 +530,7 @@ export const useAppData = (): UseAppDataReturn => {
             const success = await registerStudentsForExam(examId, studentAddresses, null);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
-                await loadExamsFromContract(account!);
+                await loadExamsFromContract(address!);
             }
             return true;
         } catch (err: unknown) {
@@ -484,7 +549,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     // Issue Certificate
     const issueNewCertificate = async (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }): Promise<boolean> => {
-        if (!account) {
+        if (!address) {
             Toast({
                 title: 'خطأ في العنوان | Address Error',
                 description: 'لم يتم العثور على عنوان المحفظة | Wallet address not found',
@@ -497,13 +562,13 @@ export const useAppData = (): UseAppDataReturn => {
         try {
             setIsLoading(true);
             certificate.studentAddress = studentAddress;
-            certificate.institutionAddress = account;
+            certificate.institutionAddress = address;
             const ipfsHash = await uploadToIPFS({
                 data: certificate,
                 timestamp: new Date().toISOString()
             });
             await issueCertificate(studentAddress, ipfsHash);
-            await loadCertificatesFromContract(account);
+            await loadCertificatesFromContract(address);
             return true;
         } catch (err: any) {
             console.error('Error issuing certificate:', err);
@@ -520,7 +585,7 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     const saveInstitutionProfile = async (data: Institution): Promise<void> => {
-        if (!examManagementContract || !account || !publicClient) {
+        if (!examManagementContract || !address || !publicClient) {
             throw new Error('Contract or address not available');
         }
 
@@ -570,7 +635,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     // Admin functions
     const loadAllInstitutionData = useCallback(async (): Promise<void> => {
-        if (!account || !identityContract) return;
+        if (!address || !identityContract) return;
         try {
             setIsLoading(true);
             const institutions = await getUsersByRole(2);
@@ -581,14 +646,14 @@ export const useAppData = (): UseAppDataReturn => {
         } finally {
             setIsLoading(false);
         }
-    }, [account, identityContract]);
+    }, [address, identityContract]);
 
     useEffect(() => {
         loadAllInstitutionData();
-    }, [account, identityContract]);
+    }, [address, identityContract]);
 
     const verifyUser = async (userAddress: string): Promise<any> => {
-        if (!identityContract || !account) {
+        if (!identityContract || !address) {
             throw new Error('Contract or address not available');
         }
         try {
@@ -620,12 +685,14 @@ export const useAppData = (): UseAppDataReturn => {
         isInitialized,
         isCorrectNetwork,
         exams,
+        courses,
         certificates,
         selectedExamResults,
         examStatistics,
         institutionData,
         allInstitutions,
         userRole,
+        address,
         account,
         checkAccess,
         createNewExam,
@@ -638,5 +705,25 @@ export const useAppData = (): UseAppDataReturn => {
         issueNewCertificate,
         verifyUser,
         loadAllInstitutionData,
+        loadCourseByDepartment,
     };
+};
+
+type RoleString = 'none' | 'student' | 'institution' | 'employer' | 'admin' | 'unknown';
+
+export const getUserRoleText = (roleId: number): RoleString => {
+    switch (roleId) {
+        case 0:
+            return 'none';
+        case 1:
+            return 'student';
+        case 2:
+            return 'institution';
+        case 3:
+            return 'employer';
+        case 4:
+            return 'admin';
+        default:
+            return 'unknown';
+    }
 };

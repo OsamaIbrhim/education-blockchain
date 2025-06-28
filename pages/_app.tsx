@@ -1,15 +1,15 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import '../styles/globals.css'
 import type { AppProps } from 'next/app'
-import { ChakraProvider, extendTheme } from '@chakra-ui/react'
+import { ChakraProvider, ColorModeScript } from '@chakra-ui/react'
 import { http, createConfig } from 'wagmi'
 import { mainnet, sepolia } from 'viem/chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { useRouter } from 'next/router'
-import { useEffect } from 'react'
 import { LanguageProvider } from 'context/LanguageContext'
-import { AppProvider } from 'contexts/AppContext'
+import Layout from 'components/layout/Layout'
+import theme from '../styles/theme'
 
 const config = createConfig({
   chains: [mainnet, sepolia],
@@ -28,36 +28,10 @@ const queryClient = new QueryClient({
   }
 })
 
-const theme = extendTheme({
-  config: {
-    initialColorMode: 'light',
-    useSystemColorMode: false,
-  },
-  styles: {
-    global: {
-      body: {
-        bg: 'gray.50',
-      }
-    }
-  },
-  components: {
-    Button: {
-      defaultProps: {
-        colorScheme: 'red',
-      }
-    },
-    Toast: {
-      defaultProps: {
-        position: 'top',
-        isClosable: true,
-        duration: 3000,
-      }
-    }
-  }
-})
-
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
+  const noLayoutRoutes = ['/', '/login']
+  const showLayout = !noLayoutRoutes.includes(router.pathname)
 
   useEffect(() => {
     const handleRouteChange = (url: string) => {
@@ -83,21 +57,26 @@ export default function App({ Component, pageProps }: AppProps) {
     }
   }, [router])
 
-  return (
-    <LanguageProvider>
-    <LanguageProvider>
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={config}>
-          {/* <AppProvider> */}
-          {/* <AppProvider> */}
-          <Component {...pageProps} />
-          {/* </AppProvider> */}
-          {/* </AppProvider> */}
-        </WagmiProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-    </LanguageProvider>
-    </LanguageProvider>
+  const renderWithLayout = (
+    <Layout allowedValue={null}>
+      <Component {...pageProps} />
+    </Layout>
   )
-} 
+
+  const renderWithoutLayout = <Component {...pageProps} />
+
+  return (
+    <>
+      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+      <LanguageProvider>
+        <ChakraProvider theme={theme}>
+          <QueryClientProvider client={queryClient}>
+            <WagmiProvider config={config}>
+              {showLayout ? renderWithLayout : renderWithoutLayout}
+            </WagmiProvider>
+          </QueryClientProvider>
+        </ChakraProvider>
+      </LanguageProvider>
+    </>
+  )
+}

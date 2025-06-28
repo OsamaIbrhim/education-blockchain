@@ -173,5 +173,17 @@
   "noIpfsHashFound": "لم يتم العثور على بيانات المؤسسة",
   "viewAcademicCertificates": "عرض الشهادات الأكاديمية",
   "verifyCertificateAuthenticity": "التحقق من صحة الشهادة",
-  "trackIssueDates": "تتبع تواريخ الإصدار"
+  "trackIssueDates": "تتبع تواريخ الإصدار",
+  "departments": "الأقسام",
+  "addNewCourse": "إضافة دورة جديدة",
+  "courseName": "اسم الدورة",
+  "enterCourseName": "أدخل اسم الدورة",
+  "courseDescription": "وصف الدورة",
+  "enterCourseDescription": "أدخل وصف الدورة",
+  "save": "حفظ",
+  "coursesIn": "الدورات في",
+  "searchCourses": "ابحث عن الدورات",
+  "noCoursesAvailable": "لا توجد دورات متاحة",
+  "universityName": "اسم الجامعة",
+  "universityLogo": "شعار الجامعة"
 }

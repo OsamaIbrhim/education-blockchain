@@ -3,7 +3,7 @@
     "greeting": "Hello",
     "dashboard": "Dashboard",
     "settings": "Settings",
-    "systemTitle": "DECENTRALIZED CERTIFICATE SYSTEM",
+    "systemTitle": "Decentralized LMS",
     "systemDesc": "A platform for managing educational institutions, students, and employers.",
     "logout": "Logout",
     "userManagement": "User Management",
@@ -168,5 +168,17 @@
     "issue": "Issue",
     "viewAcademicCertificates": "View Academic Certificates",
     "verifyCertificateAuthenticity": "Verify Certificate Authenticity",
-    "trackIssueDates": "Track Issue Dates"
+    "trackIssueDates": "Track Issue Dates",
+    "departments": "Departments",
+    "addNewCourse": "Add New Course",
+    "courseName": "Course Name",
+    "enterCourseName": "Enter course name",
+    "courseDescription": "Course Description",
+    "enterCourseDescription": "Enter course description",
+    "save": "Save",
+    "coursesIn": "Courses in",
+    "searchCourses": "Search courses",
+    "noCoursesAvailable": "No courses available",
+    "universityName": "University Name",
+    "universityLogo": "University Logo"
 }

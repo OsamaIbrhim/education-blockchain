@@ -9,7 +9,7 @@ export default function Document() {
         <meta name="emotion-insertion-point" content="" />
       </Head>
       <body>
-        <ColorModeScript initialColorMode={theme.config?.initialColorMode} />
+        <ColorModeScript initialColorMode={theme.config.initialColorMode} />
         <Main />
         <NextScript />
       </body>

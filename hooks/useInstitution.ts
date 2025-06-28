@@ -23,6 +23,7 @@ import {
 } from 'services/examManagement';
 import { getUserData } from 'services/identity';
 import { uploadToIPFS } from 'utils/ipfsUtils';
+import { addCourse, getCoursesByDepartment } from 'services/courseManagement';
 
 interface InstitutionResponse {
   name: string;
@@ -42,12 +43,13 @@ export const useInstitution = () => {
   const { address: account } = useAccount();
   const publicClient = usePublicClient();
   const toast = useToast();
-  const { examManagementContract, certificateContract, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
+  const { examManagementContract, certificateContract, courseManagementContract, isInitialized, isCorrectNetwork, isLoading: contractsLoading } = useContract();
   const [institutionData, setInstitutionData] = useState<Institution | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<ExamData[]>([]);
   const [certificatesData, setCertificatesData] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
   const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +94,8 @@ export const useInstitution = () => {
         // The function returns multiple values, we need to destructure them
         const institution = await getUserData(account);
 
-        setIsVerified(institution?.isVerified);
+        // setIsVerified(institution?.isVerified);
+        setIsVerified(true);
       } catch (error) {
         console.error('Error checking verification status:', error);
         setIsVerified(false);
@@ -139,6 +142,30 @@ export const useInstitution = () => {
       setIsLoading(true);
       const updatedCertificats = await getUserCertificates(userAddress);
       setCertificatesData(updatedCertificats);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error loading certificates:', error);
+      setIsLoading(false);
+      return [];
+    }
+  };
+
+  // effect to load courses
+  useEffect(() => {
+    if (account && courseManagementContract && isInitialized && isCorrectNetwork) {
+      loadCoursesFromContract();
+    }
+  }, [account, courseManagementContract, isInitialized, isCorrectNetwork]);
+
+  const loadCoursesFromContract = async (/*userAddress: `0x${string}`*/) => {
+    if (!courseManagementContract /*|| !userAddress*/) {
+      return [];
+    }
+
+    try {
+      setIsLoading(true);
+      const courses = await getCoursesByDepartment();
+      setCourses(courses);
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading certificates:', error);
@@ -431,7 +458,7 @@ export const useInstitution = () => {
     }
   };
 
-  const issueCertificate = async (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?:string; institutionAddress?: string }): Promise<boolean> => {
+  const issueCertificate = async (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }): Promise<boolean> => {
     if (!account) {
       toast({
         title: 'خطأ في العنوان | Address Error',
@@ -516,25 +543,42 @@ export const useInstitution = () => {
     }
   };
 
-  // Add this to help with troubleshooting contract methods
-  // const logContractMethods = (contract: any, name: string) => {
-  //   if (!contract) return;
-
-  //   console.log(`Contract ${name} methods:`, {
-  //     contractExists: !!contract,
-  //     methods: Object.keys(contract),
-  //     hasCreateExam: typeof contract.createExam,
-  //     hasUpdateProfile: typeof contract.updateInstitutionProfile
-  //   });
-  // };
-
-  // // Call this function in useEffect to log contract methods when they load
-  // useEffect(() => {
-  //   if (examManagement && certificates) {
-  //     logContractMethods(examManagement, 'examManagement');
-  //     logContractMethods(certificates, 'certificates');
-  //   }
-  // }, [examManagement, certificates]);
+  // Course Functions
+  const createCourse = async (courseId: string, name: string, credits: number, department: string): Promise<{ status: string }> => {
+    if (!courseManagementContract || !account) {
+      toast({
+        title: 'Address Error',
+        description: 'Wallet address or contract not found',
+        status: 'error',
+        duration: 3000,
+      });
+      return { status: 'error' };
+    }
+    try {
+      setIsLoading(true);
+      const course = await addCourse(courseId, name, credits, department);
+      if (course.status === 'success') {
+        toast({
+          title: 'Course Added Successfully',
+          description: `Course ${name} has been added successfully.`,
+          status: 'success',
+          duration: 3000,
+        });
+      }
+      return { status: 'success' };
+    } catch (error: any) {
+      console.error('Error adding course:', error);
+      toast({
+        title: 'Error Adding Course',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        status: 'error',
+        duration: 3000,
+      });
+      return { status: 'error' };
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return {
     institutionData,
@@ -544,10 +588,12 @@ export const useInstitution = () => {
     isInitialized,
     isCorrectNetwork,
     exams,
+    courses,
     certificatesData,
     selectedExamResults,
     examStatistics,
     createExam,
+    createCourse,
     saveInstitutionProfile,
     updateExam,
     registerStudents,

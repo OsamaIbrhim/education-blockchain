@@ -15,8 +15,14 @@ contract Identity is Ownable, Pausable {
 
     struct User {
         address userAddress;
-        string ipfsHash;
         UserRole role;
+        string nationalId;
+        string firstName;
+        string lastName;
+        string phoneNumber;
+        string email;
+        string[] enrolledCourses;
+        uint8 status;
         bool isVerified;
     }
 
@@ -25,11 +31,13 @@ contract Identity is Ownable, Pausable {
     mapping(address => bool) public admins;
     mapping(address => mapping(address => bool)) public institutionStudents;
 
+    address public institutionOwner;
+
     event UserRegistered(address indexed userAddress, UserRole indexed role);
     event UserVerified(address indexed userAddress);
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
-    event IPFSHashUpdated(address indexed user, string ipfsHash);
+    event StudentStatusUpdated(address indexed studentAddress, uint8 oldStatus, uint8 newStatus);
     event UserRoleUpdated(address indexed user, UserRole oldRole, UserRole newRole);
 
     modifier onlyInstitution() {
@@ -47,22 +55,64 @@ contract Identity is Ownable, Pausable {
         _;
     }
 
-    constructor() {
-        // Set deployer as admin
-        _setupAdmin(msg.sender);
+    modifier onlyInstitutionOwner() {
+        require(msg.sender == institutionOwner, "Not institution owner");
+        _;
     }
 
-    function _setupAdmin(address _admin) private {
-        users[_admin] = User(_admin, "", UserRole.ADMIN, true);
-        admins[_admin] = true;
-        emit AdminAdded(_admin);
-        emit UserRegistered(_admin, UserRole.ADMIN);
-        emit UserVerified(_admin);
+    constructor(
+        address _institutionOwner,
+        string memory ownerNationalId,
+        string memory ownerFirstName,
+        string memory ownerLastName,
+        string memory ownerPhoneNumber,
+        string memory ownerEmail
+    ) {
+        require(_institutionOwner != address(0), "Invalid institution owner");
+        institutionOwner = _institutionOwner;
+        users[_institutionOwner] = User(
+            _institutionOwner,
+            UserRole.ADMIN,
+            ownerNationalId,
+            ownerFirstName,
+            ownerLastName,
+            ownerPhoneNumber,
+            ownerEmail,
+            new string[](0),
+            0,
+            true
+        );
+        admins[_institutionOwner] = true;
+        emit AdminAdded(_institutionOwner);
+        emit UserRegistered(_institutionOwner, UserRole.ADMIN);
+        emit UserVerified(_institutionOwner);
     }
 
-    function addAdmin(address _newAdmin) external onlyOwner {
+    function addAdmin(
+        address _newAdmin,
+        string memory nationalId,
+        string memory firstName,
+        string memory lastName,
+        string memory phoneNumber,
+        string memory email
+    ) external onlyOwner {
         require(!admins[_newAdmin], "Already an admin");
-        _setupAdmin(_newAdmin);
+        users[_newAdmin] = User(
+            _newAdmin,
+            UserRole.ADMIN,
+            nationalId,
+            firstName,
+            lastName,
+            phoneNumber,
+            email,
+            new string[](0),
+            0,
+            true
+        );
+        admins[_newAdmin] = true;
+        emit AdminAdded(_newAdmin);
+        emit UserRegistered(_newAdmin, UserRole.ADMIN);
+        emit UserVerified(_newAdmin);
     }
 
     function removeAdmin(address _admin) external onlyOwner {
@@ -86,39 +136,84 @@ contract Identity is Ownable, Pausable {
         return users[_userAddress].isVerified;
     }
 
+    function adminRegisterStudent(
+        address studentAddress,
+        string memory nationalId,
+        string memory firstName,
+        string memory lastName,
+        string memory phoneNumber,
+        string memory email
+    ) external onlyAdmin {
+        require(users[studentAddress].userAddress == address(0), "User already exists");
+        users[studentAddress] = User(
+            studentAddress,
+            UserRole.STUDENT,
+            nationalId,
+            firstName,
+            lastName,
+            phoneNumber,
+            email,
+            new string[](0),
+            0,
+            true // isVerified
+        );
+        emit UserRegistered(studentAddress, UserRole.STUDENT);
+        emit UserVerified(studentAddress);
+    }
+
     function registerUser(
         UserRole _role,
-        string memory _ipfsHash
+        address _institutionAddress,
+        string memory nationalId,
+        string memory firstName,
+        string memory lastName,
+        string memory phoneNumber,
+        string memory email
     ) external whenNotPaused {
-        require(
-            users[msg.sender].userAddress == address(0),
-            "User already exists"
-        );
-        require(
-            _role != UserRole.NONE && _role != UserRole.ADMIN,
-            "Invalid role"
-        );
+        require(users[msg.sender].userAddress == address(0), "User already exists");
+        require(_role == UserRole.STUDENT, "Only students can self-register");
+        require(_institutionAddress == institutionOwner, "Invalid institution");
 
         users[msg.sender] = User(
             msg.sender,
-            _ipfsHash,
             _role,
-            false
+            nationalId,
+            firstName,
+            lastName,
+            phoneNumber,
+            email,
+            new string[](0),
+            0,
+            false // isVerified
         );
-
-        if (_role == UserRole.INSTITUTION) {
-            institutions[msg.sender] = true;
-        }
 
         emit UserRegistered(msg.sender, _role);
     }
 
-    function verifyUser(address _userAddress) external onlyAdmin {
-        require(
-            users[_userAddress].userAddress != address(0),
-            "User does not exist"
-        );
+    function completeStudentProfile(
+        string memory nationalId,
+        string memory firstName,
+        string memory lastName,
+        string memory phoneNumber,
+        string memory email
+    ) external {
+        require(users[msg.sender].userAddress != address(0), "User does not exist");
+        require(users[msg.sender].role == UserRole.STUDENT, "Not a student");
+        // Allow update only if not verified
+        require(!users[msg.sender].isVerified, "Already verified");
+
+        users[msg.sender].nationalId = nationalId;
+        users[msg.sender].firstName = firstName;
+        users[msg.sender].lastName = lastName;
+        users[msg.sender].phoneNumber = phoneNumber;
+        users[msg.sender].email = email;
+        // No event needed, UI can fetch updated data
+    }
+
+    function verifyUser(address _userAddress) external onlyInstitutionOwner {
+        require(users[_userAddress].userAddress != address(0), "User does not exist");
         require(!users[_userAddress].isVerified, "User already verified");
+        require(users[_userAddress].role == UserRole.STUDENT, "Only students can be verified by institution");
 
         users[_userAddress].isVerified = true;
         emit UserVerified(_userAddress);
@@ -171,13 +266,47 @@ contract Identity is Ownable, Pausable {
         emit UserRoleUpdated(_userAddress, oldRole, _newRole);
     }
 
-    function updateUserIPFS(address _userAddress, string memory _newIpfsHash) external whenNotPaused {
+    function getStudentData(address _studentAddress)
+        external
+        view
+        returns (
+            string memory nationalId,
+            string memory firstName,
+            string memory lastName,
+            string memory phoneNumber,
+            string memory email,
+            string[] memory enrolledCourses,
+            uint8 role,
+            bool isVerified,
+            uint8 status
+        )
+    {
+        User memory user = users[_studentAddress];
+
+        require(user.userAddress != address(0), "User does not exist");
+
+        return (
+            user.nationalId,
+            user.firstName,
+            user.lastName,
+            user.phoneNumber,
+            user.email,
+            user.enrolledCourses,
+            uint8(user.role),
+            user.isVerified,
+            user.status
+        );
+    }
+
+    function updateStudentStatus(address _studentAddress, uint8 _newStatus) external onlyAdmin {
         require(
-            users[_userAddress].userAddress != address(0),
+            users[_studentAddress].userAddress != address(0),
             "User does not exist"
         );
-        users[_userAddress].ipfsHash = _newIpfsHash;
-        emit IPFSHashUpdated(_userAddress, _newIpfsHash);
+        uint8 oldStatus = users[_studentAddress].status;
+        users[_studentAddress].status = _newStatus;
+
+        emit StudentStatusUpdated(_studentAddress, oldStatus, _newStatus);
     }
 
     // Emergency functions

@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { usePublicClient, useAccount, useWalletClient } from 'wagmi';
 import { getContract, type PublicClient, type GetContractReturnType, type WalletClient } from 'viem';
-import { ExamManagementABI, IdentityABI, CertificatesABI } from '../constants/abis';
+import { ExamManagementABI, IdentityABI, CertificatesABI, CourseManagementABI, StudentAcademicManagerABI } from '../constants/abis';
 
 // Get contract addresses from environment variables
 const IDENTITY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_IDENTITY_CONTRACT_ADDRESS;
 const CERTIFICATES_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CERTIFICATES_CONTRACT_ADDRESS;
 const EXAM_MANAGEMENT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_EXAM_MANAGEMENT_CONTRACT_ADDRESS;
+const STUDENT_ACADEMIC_MANAGER_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STUDENT_ACADEMIC_MANAGER_CONTRACT_ADDRESS;
+const COURSE_MANAGEMENT_ADDRESS = process.env.NEXT_PUBLIC_COURSE_MANAGEMENT_ADDRESS;
 
 // Use a simplified type definition to avoid complex type errors
 type ContractType = any;
@@ -24,6 +26,8 @@ export function useContract() {
   const [examManagementContract, setExamManagementContract] = useState<ContractType | null>(null);
   const [identityContract, setIdentityContract] = useState<ContractType | null>(null);
   const [certificateContract, setCertificateContract] = useState<ContractType | null>(null);
+  const [studentAcademicManagerContract, setStudentAcademicManagerContract] = useState<ContractType | null>(null);
+  const [courseManagementContract, setCourseManagementContract] = useState<ContractType | null>(null);
 
   useEffect(() => {
     const initializeContracts = async () => {
@@ -61,7 +65,7 @@ export function useContract() {
         setIsCorrectNetwork(true);
 
         // Verify contract addresses are set
-        if (!IDENTITY_CONTRACT_ADDRESS || !CERTIFICATES_CONTRACT_ADDRESS || !EXAM_MANAGEMENT_CONTRACT_ADDRESS) {
+        if (!IDENTITY_CONTRACT_ADDRESS || !CERTIFICATES_CONTRACT_ADDRESS || !EXAM_MANAGEMENT_CONTRACT_ADDRESS || !STUDENT_ACADEMIC_MANAGER_CONTRACT_ADDRESS || !COURSE_MANAGEMENT_ADDRESS) {
           console.error('Missing contract addresses:', {
             identity: IDENTITY_CONTRACT_ADDRESS,
             certificates: CERTIFICATES_CONTRACT_ADDRESS,
@@ -77,8 +81,6 @@ export function useContract() {
             abi: ExamManagementABI,
             client: publicClient,
           });
-          
-          // Initialize state first with basic contract data
           setExamManagementContract(examManagementContract);
           
           const identityContract = getContract({
@@ -86,16 +88,29 @@ export function useContract() {
             abi: IdentityABI,
             client: publicClient,
           });
-          
           setIdentityContract(identityContract);
   
           const certificatesContract = getContract({
             address: CERTIFICATES_CONTRACT_ADDRESS as `0x${string}`,
             abi: CertificatesABI,
             client: publicClient,
-          });
-          
+          });  
           setCertificateContract(certificatesContract);
+          
+          const studentAcademicManagerContract = getContract({
+            address: STUDENT_ACADEMIC_MANAGER_CONTRACT_ADDRESS as `0x${string}`,
+            abi: StudentAcademicManagerABI,
+            client: publicClient,
+          });
+          setStudentAcademicManagerContract(studentAcademicManagerContract);
+
+          const courseManagementContract = getContract({
+            address: COURSE_MANAGEMENT_ADDRESS as `0x${string}`,
+            abi: CourseManagementABI,
+            client: publicClient,
+          });
+          setCourseManagementContract(courseManagementContract);
+          
           setIsInitialized(true);
         } catch (contractError: any) {
           console.error('Error creating contract instances:', contractError);
@@ -123,6 +138,8 @@ export function useContract() {
     examManagementContract,
     identityContract,
     certificateContract,
+    studentAcademicManagerContract,
+    courseManagementContract,
     isInitialized,
     isCorrectNetwork,
     isLoadingContract,

@@ -15,7 +15,7 @@ interface NavbarProps {
 
 const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
     const router = useRouter();
-    const { userRole, account: address } = useAppData();
+    const { userRole, account, address } = useAppData();
     const { language, setLanguage, t, translations } = useLanguage();
 
     if (Object.keys(translations).length === 0) {
@@ -24,15 +24,17 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
 
     const navLinks = [
         {
-            label: t('home'), // استخدم الترجمة هنا
+            label: t('home'),
             icon: <FaHome />,
-            href:
-                userRole === 'admin' ? '/dashboard/admin'
-                    : userRole === 'student' ? '/dashboard/student'
-                        : userRole === 'employer' ? '/dashboard/employer'
-                            : userRole === 'institution' ? '/dashboard/institution'
-                                : '/', show: !!userRole
+            href:`/dashboard/${userRole}`,
+            show: !!userRole
         },
+        {
+            label: t('courses'),
+            icon: <FaThLarge />,
+            href: '/dashboard/course',
+            show: true,
+        }
     ];
 
     const handleLogout = () => {
@@ -41,6 +43,10 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
 
     const glassHeaderBg = useColorModeValue('rgba(255,255,255,0.95)', 'rgba(26,32,44,0.95)');
     const borderColor = useColorModeValue('gray.200', 'gray.600');
+
+    const userName = account?.firstName && account?.lastName
+        ? `${account.firstName} ${account.lastName}`
+        : 'Unknown User';
 
     return (
         <Box
@@ -60,7 +66,7 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                 <HStack spacing={3} cursor="pointer" onClick={() => router.push('/')}>
                     <Icon as={FaUniversity} w={7} h={7} color="blue.500" />
                     <Heading size="md" bgGradient="linear(to-r, blue.400, blue.600)" bgClip="text">
-                        {t('systemTitle')}
+                        {userRole === 'admin' ? account.firstName + ' ' + account.lastName : t('universityName')}
                     </Heading>
                 </HStack>
                 <Spacer />
