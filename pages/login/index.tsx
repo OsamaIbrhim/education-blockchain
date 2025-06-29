@@ -27,6 +27,7 @@ import { selfRegister, getUserRole, isVerifiedUser, isOwner, loginUser } from 's
 import { useLanguage } from 'context/LanguageContext';
 import VisitorNavbar from 'components/layout/VisitorNavbar';
 import { connectAndFetchUserRole } from 'hooks/useAuthSession';
+import { useAppData } from 'hooks/useAppData';
 
 type RoleType = 'admin' | 'institution' | 'student' | 'employer' | 'unknown' | 'none';
 
@@ -38,10 +39,18 @@ const redirectMap: { [key: string]: string } = {
 };
 
 export default function Home() {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const styles = useMultiStyleConfig('LoginPage', {}); // Changed from useStyleConfig
-  const [account, setAccount] = useState<string>('');
-  const [currentRole, setCurrentRole] = useState<RoleType | null>(null);
+  const { 
+    address, 
+    account, 
+    userRole, 
+    isVerified, 
+    isLoading,
+    isUserOwner,
+    checkAccess 
+  } = useAppData();
+  
   const [selectedRole, setSelectedRole] = useState<RoleType>('none');
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -58,42 +67,23 @@ export default function Home() {
   const [formEmail, setFormEmail] = useState('');
 
   useEffect(() => {
-    checkConnection();
-  }, []);
-
-  const checkConnection = async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        const accounts = await getAccounts();
-        if (accounts.length > 0) {
-          const currentAccount = accounts[0];
-          setAccount(currentAccount);
-
-          // Check if user is admin first
-          try {
-            const isAdminUser = await isOwner(currentAccount);
-            if (isAdminUser) {
-              setCurrentRole('admin');
-              return;
-            }
-          } catch { }
-
-          // If not admin, check regular role
-          try {
-            const role = await getUserRole(currentAccount) as RoleType;
-            setCurrentRole(role);
-          } catch { }
-        }
-      } catch (error) {
-        console.error('Error checking connection:', error);
+    // useAppData already handles connection checking and role determination
+    if (address && userRole && userRole !== 'none') {
+      // If user has a valid role, check if we should redirect
+      if (isUserOwner) {
+        router.push('/dashboard/admin');
+      } else if (redirectMap[userRole]) {
+        router.push(redirectMap[userRole]);
       }
     }
-  };
+  }, [address, userRole, isUserOwner, router]);
+
+  // Remove the old checkConnection function since useAppData handles this
 
   const handleConnectWallet = async () => {
-    const { address, role } = await connectAndFetchUserRole();
+    const { address: connectedAddress, role } = await connectAndFetchUserRole();
 
-    if (!address) {
+    if (!connectedAddress) {
       toast({
         title: 'Error',
         description: t('noAddress'),
@@ -104,10 +94,7 @@ export default function Home() {
       return;
     }
 
-    setAccount(address);
-
     if (role) {
-      setCurrentRole(role);
       if (redirectMap[role]) {
         router.push(redirectMap[role]);
       }
@@ -129,22 +116,17 @@ export default function Home() {
     });
   };
 
-
   const handleRegister = async () => {
     try {
       setError('');
-      // Check if user is admin first
-      let isAdminUser = false;
-      try {
-        const adminStatus = await isOwner(account!);
-        isAdminUser = adminStatus;
-      } catch { }
-      if (isAdminUser) {
-        setCurrentRole('admin');
+      
+      // Check if user is admin using useAppData
+      if (isUserOwner) {
         setRedirecting(true);
         router.push('/dashboard/admin');
         return;
       }
+      
       if (!selectedRole || selectedRole === 'none') {
         throw new Error(t('pleaseSelectRole') || 'Please select a role');
       }
@@ -183,38 +165,39 @@ export default function Home() {
         firstName = '';
         lastName = '';
         phoneNumber = '';
-      }
+      }        await selfRegister(
+          selectedRole,
+          nationalId,
+          firstName,
+          lastName,
+          phoneNumber,
+          email,
+        );
 
-      await selfRegister(
-        selectedRole,
-        nationalId,
-        firstName,
-        lastName,
-        phoneNumber,
-        email,
-      );
-      setCurrentRole(selectedRole);
+        // Force refresh the data in useAppData
+        await checkAccess();
 
-      if (selectedRole === 'institution') {
-        const isVerified = await isVerifiedUser(account!);
-        if (!isVerified) {
-          toast({
-            title: t('notAuthorized'),
-            description: t('pleaseWaitForVerification'),
-            status: 'warning',
-            duration: 9000,
-            isClosable: true,
-            position: 'top',
-          });
+        if (selectedRole === 'institution') {
+          const isVerified = await isVerifiedUser(address!);
+          if (!isVerified) {
+            toast({
+              title: t('notAuthorized'),
+              description: t('pleaseWaitForVerification'),
+              status: 'warning',
+              duration: 9000,
+              isClosable: true,
+              position: 'top',
+            });
+          }
         }
-      }
-      // After successful registration, redirect based on role
-      const redirectPath = redirectMap[selectedRole];
-      if (redirectPath) {
-        setRedirecting(true);
-        router.push(redirectPath);
-      }
-      onClose();
+        
+        // After successful registration, redirect based on role
+        const redirectPath = redirectMap[selectedRole];
+        if (redirectPath) {
+          setRedirecting(true);
+          router.push(redirectPath);
+        }
+        onClose();
     } catch (error: any) {
       setError(error.message);
       toast({
@@ -231,24 +214,24 @@ export default function Home() {
 
   const handleLogin = async () => {
     try {
-      if (!account) {
+      if (!address) {
         throw new Error(t('pleaseConnectWallet') || 'Please connect your wallet first');
       }
       setLoading(true);
       setError('');
-      // 1. Get the user's role from the contract
-      const user = await loginUser(account);
+      
+      // Get the user's role from useAppData (already available)
+      const user = await loginUser(address);
 
-      // 2. Check if the user is the admin (owner)
-      const isAdminUser = await isOwner(account);
-      if (isAdminUser) {
+      // Check if the user is the admin using useAppData
+      if (isUserOwner) {
         setRedirecting(true);
         router.push('/dashboard/admin');
         return;
       }
-      // 3. If the user is an institution, check if verified
-      if (selectedRole === 'institution') {
-        const isVerified = await isVerifiedUser(account!);
+      
+      // If the user is an institution, check if verified
+      if (userRole === 'institution') {
         if (!isVerified) {
           toast({
             title: t('notAuthorized'),
@@ -258,7 +241,14 @@ export default function Home() {
             isClosable: true,
             position: 'top',
           });
+          return;
         }
+      }
+
+      // Redirect based on role
+      if (userRole && redirectMap[userRole]) {
+        setRedirecting(true);
+        router.push(redirectMap[userRole]);
       }
     } catch (error: any) {
       toast({
@@ -284,11 +274,11 @@ export default function Home() {
           </Box>
           <Box>
             <Text mb={2}>{t('connectedAccount')}:</Text>
-            <Text fontSize="sm" mb={4}>{account || t('noAddress')}</Text>
-            {!account ? (
+            <Text fontSize="sm" mb={4}>{address || t('noAddress')}</Text>
+            {!address ? (
               <Button
                 onClick={handleConnectWallet}
-                isLoading={loading}
+                isLoading={loading || isLoading}
                 sx={styles.connectButton}
               >
                 {t('connectWallet') || 'Connect Wallet'}
@@ -303,17 +293,30 @@ export default function Home() {
             )}
           </Box>
 
-          {account && (
+          {address && (
             <VStack spacing={4}>
-              {currentRole && currentRole !== 'none' ? (
+              {userRole && userRole !== 'none' ? (
                 <Box sx={styles.loginBox}>
                   <Text>
-                    {t('currentRole')} {currentRole}
+                    {t('currentRole')} {userRole}
                   </Text>
+                  {account && (
+                    <VStack spacing={2} mt={2}>
+                      <Text fontSize="sm">
+                        {t('firstName')}: {account.firstName || 'N/A'}
+                      </Text>
+                      <Text fontSize="sm">
+                        {t('lastName')}: {account.lastName || 'N/A'}
+                      </Text>
+                      <Text fontSize="sm">
+                        {t('verified')}: {isVerified ? 'Yes' : 'No'}
+                      </Text>
+                    </VStack>
+                  )}
                   <VStack spacing={4} width="full" mt={4}>
                     <Button
                       onClick={handleLogin}
-                      isLoading={loading || redirecting}
+                      isLoading={loading || redirecting || isLoading}
                       sx={styles.actionButton}
                     >
                       {t('login')}
@@ -337,7 +340,7 @@ export default function Home() {
                   </Select>
                   <Button
                     onClick={handleRegister}
-                    isLoading={loading || redirecting}
+                    isLoading={loading || redirecting || isLoading}
                     sx={styles.actionButton}
                   >
                     {t('register')}
