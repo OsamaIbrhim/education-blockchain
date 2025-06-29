@@ -58,7 +58,7 @@ export default function App({ Component, pageProps }: AppProps) {
   }, [router])
 
   const renderWithLayout = (
-    <Layout allowedValue={null}>
+    <Layout>
       <Component {...pageProps} />
     </Layout>
   )

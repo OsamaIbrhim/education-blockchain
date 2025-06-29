@@ -23,7 +23,7 @@ import {
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 import { connectWallet, getAccounts } from '../../utils/web3Provider';
-import { registerUser, getUserRole, isVerifiedUser, isOwner, loginUser } from 'services/identity';
+import { selfRegister, getUserRole, isVerifiedUser, isOwner, loginUser } from 'services/identity';
 import { useLanguage } from 'context/LanguageContext';
 import VisitorNavbar from 'components/layout/VisitorNavbar';
 import { connectAndFetchUserRole } from 'hooks/useAuthSession';
@@ -40,7 +40,7 @@ const redirectMap: { [key: string]: string } = {
 export default function Home() {
   const { t, language, setLanguage } = useLanguage();
   const styles = useMultiStyleConfig('LoginPage', {}); // Changed from useStyleConfig
-  const [account, setAccount] = useState<string | null>(null);
+  const [account, setAccount] = useState<string>('');
   const [currentRole, setCurrentRole] = useState<RoleType | null>(null);
   const [selectedRole, setSelectedRole] = useState<RoleType>('none');
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,7 @@ export default function Home() {
   const [formFirstName, setFormFirstName] = useState('');
   const [formLastName, setFormLastName] = useState('');
   const [formPhoneNumber, setFormPhoneNumber] = useState('');
+  const [formEmail, setFormEmail] = useState('');
 
   useEffect(() => {
     checkConnection();
@@ -70,7 +71,7 @@ export default function Home() {
 
           // Check if user is admin first
           try {
-            const { status: isAdminUser } = await isOwner(currentAccount);
+            const isAdminUser = await isOwner(currentAccount);
             if (isAdminUser) {
               setCurrentRole('admin');
               return;
@@ -89,44 +90,44 @@ export default function Home() {
     }
   };
 
-const handleConnectWallet = async () => {
-  const { address, role } = await connectAndFetchUserRole();
+  const handleConnectWallet = async () => {
+    const { address, role } = await connectAndFetchUserRole();
 
-  if (!address) {
-    toast({
-      title: 'Error',
-      description: t('noAddress'),
-      status: 'error',
-      duration: 3000,
-      isClosable: true,
-    });
-    return;
-  }
-
-  setAccount(address);
-
-  if (role) {
-    setCurrentRole(role);
-    if (redirectMap[role]) {
-      router.push(redirectMap[role]);
+    if (!address) {
+      toast({
+        title: 'Error',
+        description: t('noAddress'),
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
     }
-  } else {
+
+    setAccount(address);
+
+    if (role) {
+      setCurrentRole(role);
+      if (redirectMap[role]) {
+        router.push(redirectMap[role]);
+      }
+    } else {
+      toast({
+        title: t('userNotRegistered'),
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+
     toast({
-      title: t('userNotRegistered'),
-      status: 'info',
+      title: t('connectedAccount'),
+      description: t('success'),
+      status: 'success',
       duration: 3000,
       isClosable: true,
     });
-  }
-
-  toast({
-    title: t('connectedAccount'),
-    description: t('success'),
-    status: 'success',
-    duration: 3000,
-    isClosable: true,
-  });
-};
+  };
 
 
   const handleRegister = async () => {
@@ -136,7 +137,7 @@ const handleConnectWallet = async () => {
       let isAdminUser = false;
       try {
         const adminStatus = await isOwner(account!);
-        isAdminUser = adminStatus.status;
+        isAdminUser = adminStatus;
       } catch { }
       if (isAdminUser) {
         setCurrentRole('admin');
@@ -168,12 +169,14 @@ const handleConnectWallet = async () => {
       let firstName = '';
       let lastName = '';
       let phoneNumber = '';
+      let email = '';
 
       if (selectedRole === 'student') {
         nationalId = formNationalId;
         firstName = formFirstName;
         lastName = formLastName;
         phoneNumber = formPhoneNumber;
+        email = formEmail;
         // employer will need to updated <<<<<<<<<<< TODO
       } else if (selectedRole === 'institution' || selectedRole === 'employer') {
         nationalId = '';
@@ -182,13 +185,13 @@ const handleConnectWallet = async () => {
         phoneNumber = '';
       }
 
-      await registerUser(
+      await selfRegister(
         selectedRole,
         nationalId,
         firstName,
         lastName,
         phoneNumber,
-        // account || undefined
+        email,
       );
       setCurrentRole(selectedRole);
 
@@ -237,7 +240,7 @@ const handleConnectWallet = async () => {
       const user = await loginUser(account);
 
       // 2. Check if the user is the admin (owner)
-      const { status: isAdminUser } = await isOwner(account);
+      const isAdminUser = await isOwner(account);
       if (isAdminUser) {
         setRedirecting(true);
         router.push('/dashboard/admin');
@@ -398,6 +401,14 @@ const handleConnectWallet = async () => {
                       value={formPhoneNumber}
                       onChange={e => setFormPhoneNumber(e.target.value)}
                       placeholder={t('phoneNumber') || 'Phone Number'}
+                    />
+                  </FormControl>
+                  <FormControl mb={3} isRequired>
+                    <FormLabel>{t('email')}</FormLabel>
+                    <Input
+                      value={formEmail}
+                      onChange={e => setFormEmail(e.target.value)}
+                      placeholder={t('email')}
                     />
                   </FormControl>
                 </>

@@ -6,11 +6,7 @@ interface DynamicHeaderProps {
 }
 
 const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
-  const { t, translations } = useLanguage();
-
-  if (Object.keys(translations).length === 0) {
-    return <Spinner />;
-  }
+  const { t } = useLanguage();
 
   const headers = {
     admin: {
@@ -80,26 +76,38 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
 
   return (
     <Box
-      bgGradient={bgGradient}
-      color="white"
+      position="relative"
       py={8}
       px={4}
       mb={8}
-      shadow="xl"
-      position="relative"
       overflow="hidden"
+      color="white"
     >
+      <Box
+        as="video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        src="/videos/header_0.mp4"
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        objectFit="cover"
+        zIndex={-1}
+      />
       <Box
         position="absolute"
         top={0}
         left={0}
         right={0}
         bottom={0}
-        opacity={0.1}
-        bgGradient="linear(to-r, transparent 0%, white 50%, transparent 100%)"
-        transform="skewY(-12deg)"
-        transformOrigin="top right"
+        bg="blackAlpha.700"
+        zIndex={-1}
       />
+
       <Container maxW="container.xl">
         <ScaleFade initialScale={0.9} in={true}>
           <VStack spacing={4} align="center">
@@ -118,6 +126,7 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
         </ScaleFade>
       </Container>
     </Box>
+
   );
 };
 

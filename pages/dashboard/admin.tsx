@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Button,
   Container,
+  FormControl,
+  FormLabel,
   Grid,
   GridItem,
   VStack,
@@ -18,6 +21,10 @@ import {
   HStack,
   Icon,
   useColorModeValue,
+  Input,
+  InputGroup,
+  InputLeftAddon,
+  useToast,
 } from '@chakra-ui/react';
 import { FaShieldAlt } from 'react-icons/fa';
 import { useAppData } from 'hooks/useAppData';
@@ -26,9 +33,25 @@ import { useRouter } from 'next/router';
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
-  const { userRole, address, account } = useAppData();
+  const { userRole, isUserOwner, account, addAdmin: addAdminFromHook } = useAppData();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [adminData, setAdminData] = useState({
+    address: '',
+    nationalId: '',
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: '',
+  });
+  const [adminStatistics, setAdminStatistics] = useState({
+    studentCount: 0,
+    employerCount: 0,
+    adminCount: 0,
+    totalUserCount: 0
+  });
+  const [showAddAdminForm, setShowAddAdminForm] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (userRole && userRole !== 'admin') {
@@ -36,6 +59,58 @@ export default function AdminDashboard() {
     }
     setTimeout(() => setLoading(false), 2000);
   }, [userRole, router]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAdminData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddAdmin = async () => {
+    if (
+      !adminData.address ||
+      !adminData.nationalId ||
+      !adminData.firstName ||
+      !adminData.lastName ||
+      !adminData.phoneNumber ||
+      !adminData.email
+    ) {
+      toast({
+        title: t('error'),
+        description: t('pleaseFillAllFields'),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    try {
+      await addAdminFromHook(adminData);
+      toast({
+        title: t('success'),
+        description: t('adminAddedSuccessfully'),
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      setAdminData({
+        address: '',
+        nationalId: '',
+        firstName: '',
+        lastName: '',
+        phoneNumber: '',
+        email: '',
+      });
+    } catch (error) {
+      console.error('Failed to add admin:', error);
+      toast({
+        title: t('error'),
+        description: t('failedToAddAdmin'),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
 
   return (
     <Box minH="100vh">
@@ -69,38 +144,124 @@ export default function AdminDashboard() {
                   </>
                 )}
               </Box>
+              <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
+                <Heading size="md" mb={4}>{t('viewStatistics')}</Heading>
+                <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(false)}>
+                  {t('viewStatistics')}
+                </Button>
+              </Box>
+              <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
+                <Heading size="md" mb={4}>{t('adminStatic')}</Heading>
+                <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(true)}>
+                  {t('addAdmin')}
+                </Button>
+              </Box>
             </VStack>
           </GridItem>
 
           {/* Main Content */}
           <GridItem colSpan={{ base: 12, lg: 9 }}>
-            <Box borderRadius="xl" shadow="xl" borderWidth="1px" p={6}>
-              <Heading size="md" mb={4}>
-                {t('universityStatistics')}
-              </Heading>
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} height="150px" borderRadius="xl" />
-                  ))
-                ) : (
-                  <>
-                    <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
-                      <Stat>
-                        <StatLabel>{t('numberOfStudents')}</StatLabel>
-                        <StatNumber>0</StatNumber>
-                      </Stat>
-                    </Box>
-                    <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
-                      <Stat>
-                        <StatLabel>{t('certificatesIssued')}</StatLabel>
-                        <StatNumber>0</StatNumber>
-                      </Stat>
-                    </Box>
-                  </>
-                )}
-              </SimpleGrid>
-            </Box>
+            {loading ? (
+              <Skeleton height="150px" borderRadius="xl" />
+            ) : showAddAdminForm ? (
+              <Box borderRadius="xl" shadow="xl" borderWidth="1px" p={6}>
+                <Heading size="md" mb={4}>{t('addAdmin')}</Heading>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <FormControl isRequired>
+                    <FormLabel>{t('adminWalletAddress')}</FormLabel>
+                    <Input
+                      name="address"
+                      placeholder={t('enterAdminWalletAddress')}
+                      value={adminData.address}
+                      onChange={handleInputChange}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>{t('nationalId')}</FormLabel>
+                    <Input
+                      type="number"
+                      name="nationalId"
+                      placeholder={t('enterNationalId')}
+                      value={adminData.nationalId}
+                      onChange={handleInputChange}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>{t('firstName')}</FormLabel>
+                    <Input
+                      name="firstName"
+                      placeholder={t('enterFirstName')}
+                      value={adminData.firstName}
+                      onChange={handleInputChange}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>{t('lastName')}</FormLabel>
+                    <Input
+                      name="lastName"
+                      placeholder={t('enterLastName')}
+                      value={adminData.lastName}
+                      onChange={handleInputChange}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>{t('phoneNumber')}</FormLabel>
+                    <InputGroup>
+                      <Input
+                        type="number"
+                        name="phoneNumber"
+                        placeholder={t('enterPhoneNumber')}
+                        value={adminData.phoneNumber}
+                        onChange={handleInputChange}
+                      />
+                    </InputGroup>
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>{t('email')}</FormLabel>
+                    <Input
+                      type="email"
+                      name="email"
+                      placeholder={t('enterEmail')}
+                      value={adminData.email}
+                      onChange={handleInputChange}
+                    />
+                  </FormControl>
+                </SimpleGrid>
+                <Button mt={6} colorScheme="blue" onClick={handleAddAdmin}>
+                  {t('addAdmin')}
+                </Button>
+              </Box>
+            ) : (
+              <Box borderRadius="xl" shadow="xl" borderWidth="1px" p={6}>
+                <Heading size="md" mb={4}>{t('adminStatistics')}</Heading>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                    <Stat>
+                      <StatLabel>{t('numberOfAdmins')}</StatLabel>
+                      <StatNumber>{adminStatistics?.studentCount || 0}</StatNumber>
+                    </Stat>
+                  </Box>
+                  <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                    <Stat>
+                      <StatLabel>{t('activeAdmins')}</StatLabel>
+                      <StatNumber>{adminStatistics?.adminCount || 0}</StatNumber>
+                    </Stat>
+                  </Box>
+                  <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                    <Stat>
+                      <StatLabel>{t('employerCount')}</StatLabel>
+                      <StatNumber>{adminStatistics?.employerCount || 0}</StatNumber>
+                    </Stat>
+                  </Box>
+                  <Box p={6} borderRadius="xl" shadow="md" borderWidth="1px">
+                    <Stat>
+                      <StatLabel>{t('totalUserCount')}</StatLabel>
+                      <StatNumber>{adminStatistics?.totalUserCount || 0}</StatNumber>
+                    </Stat>
+                  </Box>
+                </SimpleGrid>
+              </Box>
+            )}
           </GridItem>
         </Grid>
       </Container>

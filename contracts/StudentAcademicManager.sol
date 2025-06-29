@@ -114,7 +114,6 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      */
     constructor(address _identityContractAddress, address _certificatesContractAddress) Pausable() {
         require(_identityContractAddress != address(0), "StudentAcademicManager: Invalid Identity contract address.");
-        require(_certificatesContractAddress != address(0), "StudentAcademicManager: Invalid Certificates contract address.");
         identityContract = Identity(_identityContractAddress);
         certificatesContract = Certificates(_certificatesContractAddress);
 
@@ -140,7 +139,8 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      */
     modifier onlyVerifiedStudent(address _studentAddress) {
         require(identityContract.isVerifiedUser(_studentAddress), "StudentAcademicManager: Student is not registered or not verified.");
-        require(identityContract.getUserRole(_studentAddress) == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
+        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         _;
     }
 
@@ -650,7 +650,8 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return An array of warning IDs.
      */
     function getStudentWarnings(address _studentAddress) external view returns (uint256[] memory) {
-        require(identityContract.getUserRole(_studentAddress) == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
+        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return studentWarnings[_studentAddress];
     }
 
@@ -676,7 +677,8 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return An array of academic action IDs.
      */
     function getStudentAcademicActions(address _studentAddress) external view returns (uint256[] memory) {
-        require(identityContract.getUserRole(_studentAddress) == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
+        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return studentAcademicActions[_studentAddress];
     }
 
@@ -703,8 +705,19 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return The current semester number.
      */
     function getCurrentSemesterNumber(address _studentAddress) external view returns (uint256) {
-        require(identityContract.getUserRole(_studentAddress) == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
+        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return currentSemesterNumber[_studentAddress];
+    }
+
+    /**
+     * @dev Sets the address of the Certificates contract.
+     * Can only be called by the contract owner or an admin.
+     * @param _certificatesContractAddress The address of the Certificates contract.
+     */
+    function setCertificatesContract(address _certificatesContractAddress) external onlyAdminOrOwner whenNotPaused {
+        require(_certificatesContractAddress != address(0), "StudentAcademicManager: Invalid Certificates contract address.");
+        certificatesContract = Certificates(_certificatesContractAddress);
     }
 
     /**

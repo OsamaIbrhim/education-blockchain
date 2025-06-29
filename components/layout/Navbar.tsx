@@ -1,13 +1,14 @@
 import React from 'react';
 import {
-    Box, Flex, HStack, Heading, Icon, Button, Avatar, useColorModeValue, Tooltip, Spacer,
+    Box, Flex, HStack, Heading, Button, Avatar, useColorModeValue, Tooltip, Spacer,
     Spinner
 } from '@chakra-ui/react';
-import { FaUniversity, FaSignOutAlt, FaHome, FaThLarge } from 'react-icons/fa';
+import { FaSignOutAlt, FaHome, FaThLarge, FaBook, FaPen, FaCertificate } from 'react-icons/fa';
 import { BellIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
 import { useAppData } from 'hooks/useAppData';
 import { useLanguage } from 'context/LanguageContext';
+import Image from 'next/image';
 
 interface NavbarProps {
     onNotificationsOpen?: () => void;
@@ -15,12 +16,8 @@ interface NavbarProps {
 
 const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
     const router = useRouter();
-    const { userRole, account, address } = useAppData();
-    const { language, setLanguage, t, translations } = useLanguage();
-
-    if (Object.keys(translations).length === 0) {
-        return <Spinner />;
-    }
+    const { userRole, account, address, isUserOwner } = useAppData();
+    const { language, setLanguage, t } = useLanguage();
 
     const navLinks = [
         {
@@ -31,8 +28,20 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
         },
         {
             label: t('courses'),
-            icon: <FaThLarge />,
+            icon: <FaBook />, 
             href: '/dashboard/course',
+            show: true,
+        },
+        {
+            label: t('exams'),
+            icon: <FaPen />, 
+            href: '/dashboard/exam',
+            show: true,
+        },
+        {
+            label: t('certificates'),
+            icon: <FaCertificate />, 
+            href: '/dashboard/certificate',
             show: true,
         }
     ];
@@ -43,10 +52,6 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
 
     const glassHeaderBg = useColorModeValue('rgba(255,255,255,0.95)', 'rgba(26,32,44,0.95)');
     const borderColor = useColorModeValue('gray.200', 'gray.600');
-
-    const userName = account?.firstName && account?.lastName
-        ? `${account.firstName} ${account.lastName}`
-        : 'Unknown User';
 
     return (
         <Box
@@ -64,9 +69,9 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
             <Flex align="center" maxW="container.xl" mx="auto">
                 {/* Logo & Title */}
                 <HStack spacing={3} cursor="pointer" onClick={() => router.push('/')}>
-                    <Icon as={FaUniversity} w={7} h={7} color="blue.500" />
+                    <Image src="/menofia-logo.png" alt="University Logo" width={40} height={40} />
                     <Heading size="md" bgGradient="linear(to-r, blue.400, blue.600)" bgClip="text">
-                        {userRole === 'admin' ? account.firstName + ' ' + account.lastName : t('universityName')}
+                        {userRole === 'admin' && isUserOwner ? t('universityName') : account.firstName + ' ' + account.lastName}
                     </Heading>
                 </HStack>
                 <Spacer />
@@ -101,7 +106,7 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
 
                 {/* User & Logout */}
                 <HStack spacing={2} marginStart={4}>
-                    {/* Notification Button */}
+                    {/* Notification Button, I havn't pass it yet <<<<<<<<<<<<<<<<<<<<<<<<<<<*/}
                     {onNotificationsOpen && (
                         <Tooltip label={t('notifications')} hasArrow>
                             <Button

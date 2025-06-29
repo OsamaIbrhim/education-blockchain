@@ -8,27 +8,17 @@ import DynamicHeader from './DynamicHeader';
 
 interface LayoutProps {
   children: React.ReactNode;
-  address?: string;
-  exams?: any[];
   onNotificationsOpen?: () => void;
-  pageName?: string;
-  allowedValue: any;
 }
 
 const Layout = ({
   children,
-  address,
-  exams,
   onNotificationsOpen,
-  pageName,
-  allowedValue,
 }: LayoutProps) => {
-  const { userRole } = useAppData();
-
   return (
     <Box minH="100vh" bgColor="chakra-body-bg" color="chakra-body-text">
       <Navbar onNotificationsOpen={onNotificationsOpen} />
-      <DynamicHeader /*userRole={userRole}*/ />
+      <DynamicHeader />
       <Box as="main" mt="4">
         {children}
       </Box>

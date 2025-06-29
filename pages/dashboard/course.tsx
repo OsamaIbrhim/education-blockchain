@@ -11,12 +11,9 @@ import {
   Container,
   Grid,
   GridItem,
-  useTheme,
-  Center,
-  Progress,
-  useColorModeValue,
+  useMultiStyleConfig,
+  Skeleton,
 } from '@chakra-ui/react';
-import Layout from 'components/layout/Layout';
 import { useLanguage } from 'context/LanguageContext';
 import { useAppData } from 'hooks/useAppData';
 import LoadingSpinner from 'components/LoadingSpinner';
@@ -29,12 +26,12 @@ const departments = new Map([
 
 const CoursePage = () => {
   const { t } = useLanguage();
-  const { loadCourseByDepartment, courses, isLoading: loading } = useAppData();
+  const { courses, isLoading: loading } = useAppData();
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [courseList, setCourseList] = useState(courses);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const theme = useTheme();
+  const styles = useMultiStyleConfig('CoursePage', {});
 
   useEffect(() => {
     if (selectedDepartment) {
@@ -50,7 +47,6 @@ const CoursePage = () => {
 
   const handleDepartmentClick = (department: string) => {
     setSelectedDepartment(department);
-    loadCourseByDepartment(department);
     setIsAddingCourse(false);
   };
 
@@ -63,29 +59,14 @@ const CoursePage = () => {
     setSelectedDepartment(null);
   };
 
-  if (loading) {
-    return (
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        <LoadingSpinner />
-      </Box>
-    );
-  }
-
   return (
-    <Box minH="100vh" bg={theme.colors.gray[50]}>
+    <Box sx={styles.container}>
       <Container maxW="container.xl" pb="100px">
         <Grid templateColumns="repeat(12, 1fr)" gap={6}>
           {/* Left Card: Department Selection */}
           <GridItem colSpan={{ base: 12, md: 3 }}>
-            <Box
-              bg={theme.colors.white}
-              borderRadius="xl"
-              shadow="xl"
-              borderWidth="1px"
-              borderColor={theme.colors.gray[200]}
-              p={6}
-            >
-              <Heading size="md" mb={4} color={theme.colors.gray[800]}>
+            <Box sx={styles.card}>
+              <Heading size="md" mb={4}>
                 {t('departments')}
               </Heading>
               <VStack spacing={4} align="stretch">
@@ -95,6 +76,7 @@ const CoursePage = () => {
                     variant={selectedDepartment === department ? 'solid' : 'outline'}
                     colorScheme="teal"
                     onClick={() => handleDepartmentClick(department)}
+                    sx={styles.departmentButton}
                   >
                     {departments.get(department)}
                   </Button>
@@ -105,95 +87,69 @@ const CoursePage = () => {
 
           {/* Main Content Card */}
           <GridItem colSpan={{ base: 12, md: 6 }}>
-            <Box
-              bg={theme.colors.white}
-              borderRadius="xl"
-              shadow="xl"
-              borderWidth="1px"
-              borderColor={theme.colors.gray[200]}
-              p={8}
-              position="relative"
-            >
-              {isAddingCourse ? (
-                <VStack spacing={4} align="stretch">
-                  <Heading size="md" mb={4} color={theme.colors.gray[800]}>
-                    {t('addNewCourse')}
-                  </Heading>
-                  <FormControl>
-                    <FormLabel>{t('courseName')}</FormLabel>
-                    <Input placeholder={t('enterCourseName')} />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>{t('courseDescription')}</FormLabel>
-                    <Input placeholder={t('enterCourseDescription')} />
-                  </FormControl>
-                  <Button colorScheme="teal" onClick={handleSaveCourse}>
-                    {t('save')}
-                  </Button>
-                </VStack>
-              ) : selectedDepartment ? (
-                <VStack spacing={4} align="stretch">
-                  <Heading size="md" mb={4} color={theme.colors.gray[800]}>
-                    {t('coursesIn')} {departments.get(selectedDepartment)}
-                  </Heading>
-                  <Input
-                    placeholder={t('searchCourses')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    mb={4}
-                  />
-                  {courseList.length > 0 ? (
-                    courseList.map((course) => (
-                      <Box
-                        key={course.id}
-                        p={4}
-                        borderWidth="1px"
-                        borderRadius="md"
-                        borderColor={theme.colors.gray[200]}
-                      >
-                        <Heading size="sm" mb={2} color={theme.colors.gray[800]}>
-                          {course.name}
-                        </Heading>
-                        <Text color={theme.colors.gray[600]}>{course.description}</Text>
-                      </Box>
-                    ))
-                  ) : (
-                    <Text color={theme.colors.gray[600]}>{t('noCoursesAvailable')}</Text>
-                  )}
-                </VStack>
-              ) : (
-                <VStack spacing={4} align="center">
-                  <Heading size="lg" color={theme.colors.gray[800]}>
-                    {t('universityName')}
-                  </Heading>
-                  <Box
-                    position="absolute"
-                    top="50%"
-                    left="50%"
-                    transform="translate(-50%, -50%)"
-                    opacity={0.1}
-                    fontSize="6xl"
-                    fontWeight="bold"
-                    color={theme.colors.gray[400]}
-                  >
-                    {t('universityLogo')}
-                  </Box>
-                </VStack>
-              )}
-            </Box>
+            {loading ? (
+              Array.from({ length: 1 }).map((_, index) => (
+                <Skeleton key={index} height="350px" borderRadius="xl" />
+              ))
+            ) : (
+              <Box sx={styles.card} position="relative" minH="350px">
+                {isAddingCourse ? (
+                  <VStack spacing={4} align="stretch">
+                    <Heading size="md" mb={4}>
+                      {t('addNewCourse')}
+                    </Heading>
+                    <FormControl>
+                      <FormLabel>{t('courseName')}</FormLabel>
+                      <Input placeholder={t('enterCourseName')} />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>{t('courseDescription')}</FormLabel>
+                      <Input placeholder={t('enterCourseDescription')} />
+                    </FormControl>
+                    <Button colorScheme="teal" onClick={handleSaveCourse}>
+                      {t('save')}
+                    </Button>
+                  </VStack>
+                ) : selectedDepartment ? (
+                  <VStack spacing={4} align="stretch">
+                    <Heading size="md" mb={4}>
+                      {t('coursesIn')} {departments.get(selectedDepartment)}
+                    </Heading>
+                    <Input
+                      placeholder={t('searchCourses')}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      mb={4}
+                    />
+                    {courseList.length > 0 ? (
+                      courseList.map((course) => (
+                        <Box key={course.id} sx={styles.courseItem}>
+                          <Heading size="sm" mb={2}>
+                            {course.name}
+                          </Heading>
+                          <Text>{course.description}</Text>
+                        </Box>
+                      ))
+                    ) : (
+                      <Text>{t('noCoursesAvailable')}</Text>
+                    )}
+                  </VStack>
+                ) : (
+                  <>
+                    <VStack sx={styles.welcomeMessage}>
+                      <Heading size="lg">{t('universityName')}</Heading>
+                    </VStack>
+                    <Box sx={styles.logo} />
+                  </>
+                )}
+              </Box>
+            )}
           </GridItem>
 
           {/* Right Card: Actions */}
           <GridItem colSpan={{ base: 12, md: 3 }}>
-            <Box
-              bg={theme.colors.white}
-              borderRadius="xl"
-              shadow="xl"
-              borderWidth="1px"
-              borderColor={theme.colors.gray[200]}
-              p={6}
-            >
-              <Heading size="md" mb={4} color={theme.colors.gray[800]}>
+            <Box sx={styles.card}>
+              <Heading size="md" mb={4}>
                 {t('actions')}
               </Heading>
               <Button

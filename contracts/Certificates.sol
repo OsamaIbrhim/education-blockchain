@@ -88,8 +88,14 @@ contract Certificates is ReentrancyGuard {
     ) external nonReentrant returns (bytes32) {
         // Ensure the caller is the authorized StudentAcademicManager contract
         require(msg.sender == address(academicManagerContract), "Certificates: Only Academic Manager can propose certificates.");
-        // Ensure the recipient is a registered student in Identity contract
-        require(identityContract.getUserRole(_student) == Identity.UserRole.STUDENT, "Certificates: Recipient is not a registered student.");
+        
+        // Ensure the recipient is a registered and verified student in the Identity contract
+        // Corrected destructuring to match the 9-field User struct getter (enrolledCourses is skipped)
+        ( , Identity.UserRole role, , , , , , uint8 status, bool isVerified) = identityContract.users(_student);
+        require(isVerified, "Certificates: Student is not verified.");
+        require(status > 0, "Certificates: Recipient is not an active student."); // status 1: Enrolled, 2: Graduated
+        require(role == Identity.UserRole.STUDENT, "Certificates: Recipient's role must be STUDENT.");
+
         require(bytes(_programName).length > 0, "Certificates: Program name cannot be empty.");
         require(bytes(_degreeType).length > 0, "Certificates: Degree type cannot be empty.");
         require(bytes(_institutionName).length > 0, "Certificates: Institution name cannot be empty.");

@@ -5,14 +5,14 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRole } from 'services/identity';
-import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
+import { getUserData, verifyUser as verifyUserService, isOwner, getUsersByRole, registerAdminUser, adminRole } from 'services/identity';
+import { createExam, getExamResult, getUserExams, registerStudentsForExam, submitResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
 import { getCoursesByDepartment } from 'services/courseManagement';
 
 // Types
-import { Exam, ExamData, ExamResult, ExamStatistics, NewExam, StudentStructOutput } from 'types/examManagement';
+import { ExamData, ExamResult, ExamStatistics, NewExam } from 'types/examManagement';
 import { Institution } from 'types/institution';
 import { Hash } from 'viem';
 import { useRouter } from 'next/router';
@@ -58,6 +58,14 @@ interface UseAppDataReturn {
     verifyUser: (userAddress: string) => Promise<any>;
     loadAllInstitutionData: () => Promise<void>;
     loadCourseByDepartment: (department: string) => Promise<any[]>;
+    addAdmin: (adminData: { address: string; nationalId: string; firstName: string; lastName: string; phoneNumber: string; email: string; }) => Promise<void>;
+    getAdminStats: (institutionAddress: string) => Promise<{
+        studentCount: number;
+        employerCount: number;
+        adminCount: number;
+        totalUserCount: number;
+    }>;
+    isUserOwner: boolean;
 }
 
 export const useAppData = (): UseAppDataReturn => {
@@ -76,6 +84,7 @@ export const useAppData = (): UseAppDataReturn => {
     const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [account, setAccount] = useState<any>({});
+    const [isUserOwner, setUserIsOwner] = useState<boolean>(false);
     const router = useRouter();
 
     // Access & Verification check
@@ -349,7 +358,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            await updateExam(examId, exam);
+            await updateExam(examId, exam, exam.date, exam.isActive);
             await loadExamsFromContract(address);
             return true;
         } catch (err: any) {
@@ -378,7 +387,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            const success = await registerStudentsForExam(examId, students, null);
+            const success = await registerStudentsForExam(examId, students);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
                 await loadExamsFromContract(address!);
@@ -412,7 +421,7 @@ export const useAppData = (): UseAppDataReturn => {
         try {
             setIsLoading(true);
             for (const result of results) {
-                await submitExamResult(examId, result.studentAddress, result.score, result.grade, '');
+                await submitResult(examId, result.studentAddress, result.score, result.grade, '');
             }
             await loadExamsFromContract(address);
             return true;
@@ -432,7 +441,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     const loadExamResults = async (examId: string) => {
         try {
-            const currentExam = exams.find(exam => exam.address === examId);
+            const currentExam = exams.find(exam => exam.examId === examId);
             if (!currentExam || !currentExam.students || currentExam.students.length === 0) {
                 console.warn('Exam not found or has no students:', examId);
                 setSelectedExamResults([]);
@@ -442,7 +451,7 @@ export const useAppData = (): UseAppDataReturn => {
 
             const examResultsPromises = currentExam.students.map(async (studentId: string) => {
                 try {
-                    const result = await getExamResults(examId, studentId);
+                    const result = await getExamResult(examId, studentId);
                     return { studentId, result };
                 } catch (err) {
                     console.error(`Failed to get result for student ${studentId} in exam ${examId}:`, err);
@@ -459,11 +468,11 @@ export const useAppData = (): UseAppDataReturn => {
 
             const finalResults: ExamResult[] = validRawResults.map(entry => ({
                 studentAddress: entry.studentId,
-                score: Number(entry.result[0]),
-                grade: entry.result[1],
-                ipfsHash: entry.result[2],
-                notes: '',
-                exists: true,
+                examId: examId,
+                score: Number(entry.result.score),
+                grade: entry.result.grade,
+                notes: entry.result.notes ?? '',
+                submissionTime: entry.result.submissionTime,
             }));
 
             setSelectedExamResults(finalResults);
@@ -488,18 +497,18 @@ export const useAppData = (): UseAppDataReturn => {
             const mostCommonGradeEntry = Object.entries(gradeCount).reduce((a, b) => a[1] >= b[1] ? a : b, ["", 0]);
             const mostCommonGrade = mostCommonGradeEntry[1] > 0 ? mostCommonGradeEntry[0] : 'N/A';
 
-            setExamStatistics({
-                totalStudents,
-                passingCount: passingStudents,
-                aCount: gradeCount.A,
-                bCount: gradeCount.B,
-                cCount: gradeCount.C,
-                dCount: gradeCount.D,
-                fCount: gradeCount.F,
-                averageScore: totalStudents > 0 ? totalScore / totalStudents : 0,
-                passRate: totalStudents > 0 ? (passingStudents * 100) / totalStudents : 0,
-                mostCommonGrade
-            });
+            // setExamStatistics({
+            //     totalStudents: BigInt(totalStudents),
+            //     passingCount: passingStudents,
+            //     aCount: gradeCount.A,
+            //     bCount: gradeCount.B,
+            //     cCount: gradeCount.C,
+            //     dCount: gradeCount.D,
+            //     fCount: gradeCount.F,
+            //     averageScore: BigInt(totalStudents > 0 ? totalScore / totalStudents : 0),
+            //     passRate: BigInt(totalStudents > 0 ? (passingStudents * 100) / totalStudents : 0),
+            //     mostCommonGrade
+            // });
 
         } catch (err: unknown) {
             console.error('Error loading exam results:', err);
@@ -527,7 +536,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            const success = await registerStudentsForExam(examId, studentAddresses, null);
+            const success = await registerStudentsForExam(examId, studentAddresses);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
                 await loadExamsFromContract(address!);
@@ -678,6 +687,97 @@ export const useAppData = (): UseAppDataReturn => {
         }
     }
 
+    const addAdmin = async (adminData: {
+        address: string;
+        nationalId: string;
+        firstName: string;
+        lastName: string;
+        phoneNumber: string;
+        email: string;
+    }): Promise<void> => {
+        if (!identityContract || !address) {
+            throw new Error('Contract or address not available');
+        }
+
+        try {
+            setIsLoading(true);
+            const { status } = await registerAdminUser(
+                adminData.address,
+                adminData.nationalId,
+                adminData.firstName,
+                adminData.lastName,
+                adminData.phoneNumber,
+                adminData.email
+            );
+            if (status === 'success') {
+                Toast({
+                    title: 'Admin Added Successfully',
+                    status: 'success',
+                    duration: 3000,
+                    isClosable: true,
+                });
+            }
+        } catch (error) {
+            console.error('Error adding admin:', error);
+            Toast({
+                title: 'Error Adding Admin',
+                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const getAdminStats = async (institutionAddress: string): Promise<{
+        studentCount: number;
+        employerCount: number;
+        adminCount: number;
+        totalUserCount: number;
+    }> => {
+        if (!examManagementContract || !institutionAddress) {
+            throw new Error('Contract or institution address not available');
+        }
+        try {
+            setIsLoading(true);
+            const {
+                studentCount,
+                employerCount,
+                adminCount,
+                totalUserCount,
+            } = await adminRole.getAdminStats();
+
+            return {
+                studentCount: Number(studentCount),
+                employerCount: Number(employerCount),
+                adminCount: Number(adminCount),
+                totalUserCount: Number(totalUserCount),
+            };
+        } catch (error) {
+            console.error('Error fetching admin stats:', error);
+            throw new Error(error instanceof Error ? error.message : 'An unknown error occurred');
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        const checkOwnerStatus = async () => {
+            if (!address) return;
+            try {
+                const ownerStatus = await isOwner(address);
+                setUserIsOwner(ownerStatus);
+            } catch (error) {
+                console.error('Error checking owner status:', error);
+            }
+        };
+
+        checkOwnerStatus();
+    }, [address]);
+
     return {
         isLoading: isLoading || isLoadingContract,
         isVerified,
@@ -706,6 +806,9 @@ export const useAppData = (): UseAppDataReturn => {
         verifyUser,
         loadAllInstitutionData,
         loadCourseByDepartment,
+        addAdmin,
+        getAdminStats,
+        isUserOwner,
     };
 };
 

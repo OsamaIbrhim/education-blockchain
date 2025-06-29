@@ -11,9 +11,7 @@ import * as studentRole from './role/student';
 import * as employerRole from './role/employer';
 import { initializeStudentAcademicRecord } from './studentAcademicManager';
 
-const institutionAddress = process.env.NEXT_PUBLIC_INSTITUTION_ADDRESS?.toString() || getConfig('INSTITUTION_ADDRESS');
-
-type RoleString = 'none' | 'student' | 'institution' | 'employer' | 'admin' | 'unknown';
+type RoleString = 'none' | 'student' | 'employer' | 'admin' | 'unknown';
 
 type IdentityContractType = ethers.Contract & {
   users(address: string): Promise<[
@@ -29,19 +27,52 @@ type IdentityContractType = ethers.Contract & {
     boolean // isVerified
   ]>;
   getUserRole(address: string): Promise<number>;
+  registerUser(
+    userAddress: string,
+    role: number,
+    nationalId: string,
+    firstName: string,
+    lastName: string,
+    phoneNumber: string,
+    email: string
+  ): Promise<any>;
+  selfRegister(
+    role: number,
+    nationalId: string,
+    firstName: string,
+    lastName: string,
+    phoneNumber: string,
+    email: string
+  ): Promise<any>;
+  completeUserProfile(
+    nationalId: string,
+    firstName: string,
+    lastName: string,
+    phoneNumber: string,
+    email: string
+  ): Promise<any>;
+  verifyUser(userAddress: string): Promise<any>;
+  revokeVerification(userAddress: string): Promise<any>;
+  getUnverifiedUsers(): Promise<string[]>;
+  isVerifiedUser(address: string): Promise<boolean>;
+  owner(): Promise<string>;
+  isStudentEnrolled(student: string): Promise<boolean>;
+  addStudents(userAddresses: string[]): Promise<any>;
+  removeStudents(userAddresses: string[]): Promise<any>;
+  updateUserIPFS(userAddress: string, data: any): Promise<any>;
 };
 
 interface User {
-    address: string; // userAddress
-    role: string; // role (uint8)
-    nationalId: string; // nationalId
-    firstName: string; // firstName
-    lastName: string; // lastName
-    phoneNumber: string; // phoneNumber
-    email: string; // email
-    // enrolledCourses: string[]; // enrolledCourses
-    status: number; // status (uint8)
-    isVerified: boolean // isVerified
+  address: string; // userAddress
+  role: string; // role (uint8)
+  nationalId: string; // nationalId
+  firstName: string; // firstName
+  lastName: string; // lastName
+  phoneNumber: string; // phoneNumber
+  email: string; // email
+  // enrolledCourses: string[]; // enrolledCourses
+  status: number; // status (uint8)
+  isVerified: boolean // isVerified
 }
 
 /**
@@ -61,28 +92,26 @@ export const getIdentityContract = async (signer?: ethers.Signer) => {
 /**
  * For all roles to register a user
  * @param role
- * @param institutionAddress
+ * @param userAddress
  * @param nationalId
  * @param firstName
  * @param lastName
  * @param phoneNumber
+ * @param email
  * @returns status
  */
-export const registerUser = async (
-  role: string,
+export const registerAdminUser = async (
+  userAddress: string,
   nationalId: string,
   firstName: string,
   lastName: string,
   phoneNumber: string,
-  userAddress?: string
+  email: string,
 ) => {
-  if (!role) {
-    throw new Error('Role is required');
+  if (!userAddress || !isAddress(userAddress)) {
+    throw new Error('A valid user address is required');
   }
-  if (!institutionAddress) {
-    throw new Error('Institution address is required');
-  }
-  if (!nationalId || !firstName || !lastName || !phoneNumber) {
+  if (!nationalId || !firstName || !lastName || !phoneNumber || !email) {
     throw new Error('All user details are required');
   }
 
@@ -96,36 +125,106 @@ export const registerUser = async (
 
     const identityContract = await getIdentityContract(signer);
 
-    // Convert role string to enum value
+    const tx = await identityContract.registerUser(
+      userAddress,
+      3,
+      nationalId,
+      firstName,
+      lastName,
+      phoneNumber,
+      email
+    );
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    throw error;
+  }
+};
+
+export const selfRegister = async (
+  role: string,
+  nationalId: string,
+  firstName: string,
+  lastName: string,
+  phoneNumber: string,
+  email: string,
+) => {
+  if (!role) {
+    throw new Error('Role is required');
+  }
+  if (!nationalId || !firstName || !lastName || !phoneNumber || !email) {
+    throw new Error('All user details are required');
+  }
+
+  try {
+    if (!window.ethereum) {
+      throw new Error('No ethereum provider found');
+    }
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const identityContract = await getIdentityContract(signer);
+
     const roleMap: { [key: string]: number } = {
       'student': 1,
-      'institution': 2,
-      'employer': 3
+      'employer': 2,
     };
 
     const roleValue = roleMap[role.toLowerCase()];
     if (roleValue === undefined) {
-      throw new Error(`Invalid role: ${role}. Must be one of: student, institution, employer`);
+      throw new Error(`Invalid role: ${role}. Must be one of: student, employer`);
     }
 
-    const tx = await identityContract.registerUser(
+    const tx = await identityContract.selfRegister(
       roleValue,
-      institutionAddress,
       nationalId,
       firstName,
       lastName,
-      phoneNumber
+      phoneNumber,
+      email,
     );
     await tx.wait();
 
     if (roleValue === 1) {
-      const address = userAddress || await signer.getAddress();
+      const address = await signer.getAddress();
       await initializeStudentAcademicRecord(address);
     }
 
     return { status: 'success' };
   } catch (error: any) {
-    console.error('Registration error:', error);
+    console.error('Self-registration error:', error);
+    throw error;
+  }
+};
+
+export const completeUserProfile = async (
+  nationalId: string,
+  firstName: string,
+  lastName: string,
+  phoneNumber: string,
+  email: string
+) => {
+  if (!nationalId || !firstName || !lastName || !phoneNumber || !email) {
+    throw new Error('All user details are required');
+  }
+
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+
+    const tx = await identityContract.completeUserProfile(
+      nationalId,
+      firstName,
+      lastName,
+      phoneNumber,
+      email
+    );
+    await tx.wait();
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Profile completion error:', error);
     throw error;
   }
 };
@@ -153,58 +252,65 @@ export const loginUser = async (userAddress: string) => {
  * @param userAddress
  * @returns status
  */
-export const verifyUser = async (useraddress: string) => {
-  if (!useraddress || !getAddress(useraddress)) {
+export const verifyUser = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
     throw new Error('Invalid address');
   }
 
   try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+    const tx = await identityContract.verifyUser(userAddress);
+    await tx.wait();
 
-    // check if the user is institution
-    const isInstitution = await getUserRole(useraddress);
-    if (!isInstitution) {
-      throw new Error('Only institution can be verified');
-    }
+    Toast({
+      title: 'User verified successfully',
+      description: `User ${userAddress} has been verified`,
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
 
-    const tx = await adminRole.verifyUser(useraddress);
+    return { status: 'success' };
 
-    if (tx.success) {
-      const institution = await getUserData(useraddress);
-
-      Toast({
-        title: 'User verified successfully',
-        description: `User ${useraddress} has been verified`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-
-      return { status: 'success' };
-
-    } else if (tx.success === false && tx.message === 'User is already verified') {
-      Toast({
-        title: 'User already verified',
-        description: 'User is already verified',
-        status: 'info',
-        duration: 3000,
-        isClosable: true,
-      });
-      return { status: 'already verified' };
-    } else if (tx.success === false && tx.message === 'Only admins can verify users') {
-      Toast({
-        title: 'Only admins can verify users',
-        description: 'You need to be an admin to verify users',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-      return { status: 'not admin' };
-    }
-    throw new Error(tx.message || 'Failed to verify user');
   } catch (error: any) {
+    console.error('Error verifying user:', error);
     Toast({
       title: 'Error verifying user:',
-      description: error.message || error,
+      description: error.message || 'An unexpected error occurred.',
+      status: 'error',
+      duration: 3000,
+      isClosable: true,
+    });
+    throw error;
+  }
+};
+
+export const revokeVerification = async (userAddress: string) => {
+  if (!userAddress || !getAddress(userAddress)) {
+    throw new Error('Invalid address');
+  }
+
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+    const tx = await identityContract.revokeVerification(userAddress);
+    await tx.wait();
+
+    Toast({
+      title: 'User verification revoked',
+      description: `Verification for ${userAddress} has been revoked.`,
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+
+    return { status: 'success' };
+  } catch (error: any) {
+    console.error('Error revoking verification:', error);
+    Toast({
+      title: 'Error Revoking Verification',
+      description: error.message || 'An unexpected error occurred.',
       status: 'error',
       duration: 3000,
       isClosable: true,
@@ -239,7 +345,7 @@ export const isVerifiedUser = async (address: string) => {
  * @param userAddress
  * @returns Boolean and owner address if true
  */
-export const isOwner = async (address: string) => {
+export const isOwner = async (address: string): Promise<boolean> => {
   if (!address) {
     throw new Error('Invalid address');
   }
@@ -262,8 +368,7 @@ export const isOwner = async (address: string) => {
     }
 
     // Always compare checksummed addresses
-    const isOwner = owner.toLowerCase() === checksummedAddress.toLowerCase();
-    return { status: isOwner, owner };
+    return owner.toLowerCase() === checksummedAddress.toLowerCase();
   } catch (error: any) {
     console.error('Error checking owner status:', error);
     throw new Error(`Error checking owner status: ${error.message || error}`);
@@ -273,18 +378,17 @@ export const isOwner = async (address: string) => {
 /**
  * Instiution function
  * Check if a student is enrolled in an institution
- * @param _institution
  * @param _student
  * @returns Boolean
  */
-export const isStudentEnrolled = async (_institution: string, _student: string) => {
-  if (!_institution || !_student) {
+export const isStudentEnrolled = async (_student: string) => {
+  if (!_student) {
     throw new Error('Invalid address');
   }
 
   try {
     const identityContract = await getIdentityContract();
-    const isEnrolled = await identityContract.isStudentEnrolled(_institution, _student);
+    const isEnrolled = await identityContract.isStudentEnrolled(_student);
     return isEnrolled;
   } catch (error: any) {
     console.error('Error checking enrollment status:', error);
@@ -312,6 +416,25 @@ export const addStudents = async (usersAddresses: string[]) => {
   }
   catch (error: any) {
     console.error('Error adding students:', error);
+    throw error;
+  }
+};
+
+export const removeStudents = async (usersAddresses: string[]) => {
+  if (!usersAddresses || usersAddresses.length === 0) {
+    throw new Error('No users addresses provided');
+  }
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+
+    const tx = await identityContract.removeStudents(usersAddresses);
+    await tx.wait();
+
+    return { status: 'success' };
+  }
+  catch (error: any) {
+    console.error('Error removing students:', error);
     throw error;
   }
 };
@@ -392,6 +515,23 @@ export const getUserRole = async (address: string): Promise<RoleString> => {
  * @param role
  * @returns Array of user addresses
  */
+export const getUnverifiedUsers = async () => {
+  try {
+    const signer = await getSigner();
+    const identityContract = await getIdentityContract(signer);
+    const addresses = await identityContract.getUnverifiedUsers();
+    return addresses;
+  } catch (error) {
+    console.error('Error fetching unverified users:', error);
+    throw error;
+  }
+};
+
+/**
+ * This function retrieves all users with a specific role from the identity contract.
+ * @param role
+ * @returns Array of user addresses
+ */
 export const getUsersByRole = async (role: number) => {
   try {
     const addressesFromAdminRole = await adminRole.getUsersByRole(role);
@@ -457,16 +597,13 @@ export const getUserRoleText = (roleId: number): RoleString => {
     case 1:
       return 'student';
     case 2:
-      return 'institution';
-    case 3:
       return 'employer';
-    case 4:
+    case 3:
       return 'admin';
     default:
       return 'unknown';
   }
 };
-
 
 export {
   adminRole,

@@ -1,5 +1,6 @@
 import { extendTheme, type ThemeConfig, createMultiStyleConfigHelpers } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
+import { mode } from '@chakra-ui/theme-tools';
 
 const config: ThemeConfig = {
   initialColorMode: 'dark',
@@ -227,6 +228,71 @@ const loginPageBaseStyle = definePartsStyle({
 
 export const loginPageTheme = defineMultiStyleConfig({ baseStyle: loginPageBaseStyle });
 
+// --- START: CoursePage Multipart Style Definition ---
+
+const coursePageParts = [
+  'container',
+  'card',
+  'departmentButton',
+  'courseItem',
+  'welcomeMessage',
+  'mainGrid'
+];
+
+const { definePartsStyle: defineCoursePagePartsStyle, defineMultiStyleConfig: defineCoursePageMultiStyleConfig } = createMultiStyleConfigHelpers(coursePageParts);
+
+const coursePageBaseStyle = defineCoursePagePartsStyle((props) => ({
+  container: {
+    minH: "100vh",
+    bg: mode('gray.50', 'gray.900')(props),
+  },
+  mainGrid: {
+    templateColumns: 'repeat(12, 1fr)',
+    gap: 4,
+  },
+  card: {
+    bg: mode('white', 'gray.800')(props),
+    borderRadius: "xl",
+    shadow: "xl",
+    borderWidth: "1px",
+    borderColor: mode('gray.200', 'gray.700')(props),
+    p: 6,
+  },
+  departmentButton: {
+    justifyContent: 'flex-start',
+  },
+  courseItem: {
+    p: 4,
+    borderWidth: "1px",
+    borderRadius: "md",
+    borderColor: mode('gray.200', 'gray.700')(props),
+  },
+  welcomeMessage: {
+    textAlign: 'center',
+    py: 20,
+  },
+  logo: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    opacity: 0.1,
+    width: '300px',
+    height: '300px',
+    backgroundImage: "url('/menofia-logo.png')",
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+    zIndex: 0,
+  },
+}));
+
+export const coursePageTheme = defineCoursePageMultiStyleConfig({
+  baseStyle: coursePageBaseStyle,
+});
+
+// --- END: CoursePage Multipart Style Definition ---
+
 const styles = {
   global: {
     body: {
@@ -251,8 +317,10 @@ const theme = extendTheme({
     ...components,
     LoginPage: loginPageTheme,
     VisitorNavbar: visitorNavbarTheme, // Add the new VisitorNavbar theme
+    CoursePage: coursePageTheme,
   },
   styles,
 });
 
 export default theme;
+

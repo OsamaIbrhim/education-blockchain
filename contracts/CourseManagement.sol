@@ -68,6 +68,15 @@ contract CourseManagement is Ownable, Pausable {
     }
 
     /**
+     * @dev Checks if a course exists and is active.
+     * @param _courseId The unique identifier of the course.
+     * @return bool True if the course exists and is active, false otherwise.
+     */
+    function isCourseExist(bytes32 _courseId) external view returns (bool) {
+        return courses[_courseId].courseId != bytes32(0) && courses[_courseId].isActive;
+    }
+
+    /**
      * @dev Adds a new static course definition to the system.
      * Only the owner (University) or an Admin can add courses.
      * @param _courseId Unique identifier for the course.

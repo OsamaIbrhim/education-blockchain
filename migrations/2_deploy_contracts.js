@@ -7,23 +7,8 @@ const CourseManagement = artifacts.require("CourseManagement");
 const StudentAcademicManager = artifacts.require("StudentAcademicManager");
 
 module.exports = async function(deployer, network, accounts) {
-    const _institutionOwner = accounts[0];
-
-    const ownerNationalId = "00000000000000";
-    const ownerFirstName = "Menofia";
-    const ownerLastName = "University";
-    const ownerPhoneNumber = "+2048 2224216";
-    const ownerEmail = "menofia@menofia.edu.eg";
-
-    await deployer.deploy(
-        Identity,
-        _institutionOwner,
-        ownerNationalId,
-        ownerFirstName,
-        ownerLastName,
-        ownerPhoneNumber,
-        ownerEmail
-    );
+    // The owner is automatically registered in the Identity constructor
+    await deployer.deploy(Identity);
     const identityInstance = await Identity.deployed();
     
     await deployer.deploy(SecurityUtils, identityInstance.address);
@@ -32,12 +17,17 @@ module.exports = async function(deployer, network, accounts) {
     await deployer.deploy(CourseManagement, identityInstance.address);
     const courseManagementInstance = await CourseManagement.deployed();
           
-    const dummyAddress = "0x0000000000000000000000000000000000000001";
-    await deployer.deploy(StudentAcademicManager, identityInstance.address, dummyAddress);
+    // Deploy StudentAcademicManager first with a placeholder for Certificates address
+    const dummyCertificatesAddress = "0x0000000000000000000000000000000000000000";
+    await deployer.deploy(StudentAcademicManager, identityInstance.address, dummyCertificatesAddress);
     const studentAcademicManagerInstance = await StudentAcademicManager.deployed();
 
+    // Deploy Certificates with the actual StudentAcademicManager address
     await deployer.deploy(Certificates, identityInstance.address, studentAcademicManagerInstance.address);
     const certificatesInstance = await Certificates.deployed();
+
+    // Now, update the StudentAcademicManager with the actual Certificates address
+    await studentAcademicManagerInstance.setCertificatesContract(certificatesInstance.address);
     
     await deployer.deploy(Examinations, identityInstance.address);
     const examinationsInstance = await Examinations.deployed();

@@ -38,7 +38,7 @@ export const ExamManagementABI = [
 // --- Identity ABI ---
 export const IdentityABI = [
   // Constructor
-  "constructor(address _institutionOwner, string ownerNationalId, string ownerFirstName, string ownerLastName, string ownerPhoneNumber, string ownerEmail)",
+  "constructor()",
 
   // Events
   "event AdminAdded(address indexed admin)",
@@ -48,6 +48,7 @@ export const IdentityABI = [
   "event Unpaused(address account)",
   "event UserRegistered(address indexed userAddress, uint8 indexed role)",
   "event UserVerified(address indexed userAddress)",
+  "event VerificationRevoked(address indexed userAddress)",
   "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)",
   "event StudentStatusUpdated(address indexed studentAddress, uint8 oldStatus, uint8 newStatus)",
 
@@ -55,27 +56,28 @@ export const IdentityABI = [
   "function admins(address) view returns (bool)",
   "function owner() view returns (address)",
   "function paused() view returns (bool)",
-  "function institutionOwner() view returns (address)",
   "function users(address) view returns (address userAddress, uint8 role, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified)",
 
   // Functions
-  "function addAdmin(address _newAdmin, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
-  "function adminRegisterStudent(address studentAddress, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
-  "function completeStudentProfile(string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function addStudents(address[] memory studentAddresses) external",
+  "function completeUserProfile(string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
   "function getStudentData(address _studentAddress) external view returns (string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string[] memory enrolledCourses, uint8 role, bool isVerified, uint8 status)",
+  "function getUnverifiedUsers() external view returns (address[] memory)",
   "function getUserRole(address _userAddress) external view returns (uint8)",
   "function isAdmin(address _address) public view returns (bool)",
-  "function isInstitution(address _address) public view returns (bool)",
+  "function isStudentEnrolled(address _student) external view returns (bool)",
   "function isVerifiedUser(address _userAddress) external view returns (bool)",
   "function pause() external",
-  "function registerUser(uint8 _role, address _institutionAddress, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function registerUser(address userAddress, uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
   "function removeAdmin(address _admin) external",
+  "function removeStudents(address[] memory studentAddresses) external",
+  "function revokeVerification(address _userAddress) external",
+  "function selfRegister(uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
   "function unpause() external",
   "function updateStudentStatus(address _studentAddress, uint8 _newStatus) external",
   "function updateUserRole(address _userAddress, uint8 _newRole) external",
-  "function verifyUser(address _userAddress) external",
   "function userExists(address _userAddress) external view returns (bool)",
-  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)"
+  "function verifyUser(address _userAddress) external"
 ];
 
 // --- Examinations ABI ---
@@ -218,5 +220,6 @@ export const StudentAcademicManagerABI = [
   "function getAcademicActionDetails(uint256 _actionId) external view returns (uint256 actionId, address studentAddress, uint8 actionType, string memory reason, uint256 startDate, uint256 endDate, bool isActive)",
   "function getCurrentSemesterNumber(address _studentAddress) external view returns (uint256)",
   "function pause() external",
-  "function unpause() external"
+  "function unpause() external",
+  "function setCertificatesContract(address _certificatesContractAddress) external"
 ];

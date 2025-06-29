@@ -278,25 +278,22 @@ export const verifyAllPendingInstitutions = async (getAllUsersByRole: (role: num
  * Get admin dashboard statistics
  * @returns Statistics for the admin dashboard
  */
-export const getAdminStats = async (getAllUsersByRole: (role: number) => Promise<string[]>) => {
+export const getAdminStats = async () =>  {
   try {
-    const students = await getAllUsersByRole(1); // Role 1 is Student
-    const institutions = await getAllUsersByRole(2); // Role 2 is Institution
-    const employers = await getAllUsersByRole(3); // Role 3 is Employer
-    const admins = await getAllUsersByRole(4); // Role 4 is Admin
+    const students = await getUsersByRole(1); // Role 1 is Student
+    const employers = await getUsersByRole(2); // Role 2 is Employer
+    const admins = await getUsersByRole(3); // Role 3 is Admin
 
     return {
       studentCount: students.length,
-      institutionCount: institutions.length,
       employerCount: employers.length,
       adminCount: admins.length,
-      totalUserCount: students.length + institutions.length + employers.length + admins.length
+      totalUserCount: students.length + employers.length + admins.length
     };
   } catch (error: any) {
     console.error('Error getting admin stats:', error);
     return {
       studentCount: 0,
-      institutionCount: 0,
       employerCount: 0,
       adminCount: 0,
       totalUserCount: 0
