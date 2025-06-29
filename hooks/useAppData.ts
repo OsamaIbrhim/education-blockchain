@@ -5,7 +5,7 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getUserData, verifyUser as verifyUserService, isOwner, getUsersByRole, registerAdminUser, adminRole } from 'services/identity';
+import { getUserData, verifyUser as verifyUserService, isOwner, registerAdminUser, getUsersByRoleService, getAdminStatsService } from 'services/identity';
 import { createExam, getExamResult, getUserExams, registerStudentsForExam, submitResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
@@ -45,6 +45,13 @@ interface UseAppDataReturn {
     userRole: string | null;
     address: `0x${string}` | undefined;
     account: User;
+    isUserOwner: boolean;
+    adminStatistics: {
+        studentCount: number;
+        employerCount: number;
+        adminCount: number;
+        totalUserCount: number;
+    };
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -56,16 +63,9 @@ interface UseAppDataReturn {
     issueNewCertificate: (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }) => Promise<boolean>;
     allInstitutions: Institution[];
     verifyUser: (userAddress: string) => Promise<any>;
-    loadAllInstitutionData: () => Promise<void>;
     loadCourseByDepartment: (department: string) => Promise<any[]>;
     addAdmin: (adminData: { address: string; nationalId: string; firstName: string; lastName: string; phoneNumber: string; email: string; }) => Promise<void>;
-    getAdminStats: (institutionAddress: string) => Promise<{
-        studentCount: number;
-        employerCount: number;
-        adminCount: number;
-        totalUserCount: number;
-    }>;
-    isUserOwner: boolean;
+    getUsersByRole: (role: number) => Promise<Map<string, any>>;
 }
 
 export const useAppData = (): UseAppDataReturn => {
@@ -85,6 +85,17 @@ export const useAppData = (): UseAppDataReturn => {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [account, setAccount] = useState<any>({});
     const [isUserOwner, setUserIsOwner] = useState<boolean>(false);
+    const [adminStatistics, setAdminStatistic] = useState<{
+        studentCount: number;
+        employerCount: number;
+        adminCount: number;
+        totalUserCount: number;
+    }>({
+        studentCount: 0,
+        employerCount: 0,
+        adminCount: 0,
+        totalUserCount: 0,
+    });
     const router = useRouter();
 
     // Access & Verification check
@@ -96,7 +107,7 @@ export const useAppData = (): UseAppDataReturn => {
 
             window.ethereum.on?.("accountsChanged", handleAccountsChanged);
 
-             return () => {
+            return () => {
                 window.ethereum?.removeListener?.("accountsChanged", handleAccountsChanged);
             };
         }
@@ -643,23 +654,42 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     // Admin functions
-    const loadAllInstitutionData = useCallback(async (): Promise<void> => {
-        if (!address || !identityContract) return;
+    // const loadAllInstitutionData = useCallback(async (): Promise<void> => {
+    //     if (!address || !identityContract) return;
+    //     try {
+    //         setIsLoading(true);
+    //         const institutions = await getUsersByRole(2);
+    //         setAllInstitutions(institutions);
+    //     } catch (error: any) {
+    //         console.error('Error loading institution data:', error);
+    //         setError(error?.message || 'Error loading institution data');
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // }, [address, identityContract]);
+
+    useEffect(() => {
+        loadAdminStats();
+    }, [address, identityContract, isInitialized]);
+
+    const loadAdminStats = async (): Promise<{
+        studentCount: number;
+        employerCount: number;
+        adminCount: number;
+        totalUserCount: number;
+    }> => {
         try {
             setIsLoading(true);
-            const institutions = await getUsersByRole(2);
-            setAllInstitutions(institutions);
-        } catch (error: any) {
-            console.error('Error loading institution data:', error);
-            setError(error?.message || 'Error loading institution data');
+            const stats = await getAdminStatsService();
+            setAdminStatistic(stats);
+            return stats;
+        } catch (error) {
+            console.error('Error loading admin statistics:', error);
+            throw error;
         } finally {
             setIsLoading(false);
         }
-    }, [address, identityContract]);
-
-    useEffect(() => {
-        loadAllInstitutionData();
-    }, [address, identityContract]);
+    }
 
     const verifyUser = async (userAddress: string): Promise<any> => {
         if (!identityContract || !address) {
@@ -669,7 +699,13 @@ export const useAppData = (): UseAppDataReturn => {
             setIsLoading(true);
             const { status } = await verifyUserService(userAddress);
             if (status === 'success') {
-                await loadAllInstitutionData();
+                // await loadAllInstitutionData();
+                Toast({
+                    title: 'User Verified Successfully',
+                    status: 'success',
+                    duration: 3000,
+                    isClosable: true,
+                });
             }
             return { status };
         } catch (error) {
@@ -716,6 +752,14 @@ export const useAppData = (): UseAppDataReturn => {
                     duration: 3000,
                     isClosable: true,
                 });
+            } else if (status === 'user already exists') {
+                Toast({
+                    title: 'User Already Exists',
+                    description: 'This user is already registered as an admin.',
+                    status: 'warning',
+                    duration: 3000,
+                    isClosable: true,
+                });
             }
         } catch (error) {
             console.error('Error adding admin:', error);
@@ -727,38 +771,6 @@ export const useAppData = (): UseAppDataReturn => {
                 isClosable: true,
             });
             throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    const getAdminStats = async (institutionAddress: string): Promise<{
-        studentCount: number;
-        employerCount: number;
-        adminCount: number;
-        totalUserCount: number;
-    }> => {
-        if (!examManagementContract || !institutionAddress) {
-            throw new Error('Contract or institution address not available');
-        }
-        try {
-            setIsLoading(true);
-            const {
-                studentCount,
-                employerCount,
-                adminCount,
-                totalUserCount,
-            } = await adminRole.getAdminStats();
-
-            return {
-                studentCount: Number(studentCount),
-                employerCount: Number(employerCount),
-                adminCount: Number(adminCount),
-                totalUserCount: Number(totalUserCount),
-            };
-        } catch (error) {
-            console.error('Error fetching admin stats:', error);
-            throw new Error(error instanceof Error ? error.message : 'An unknown error occurred');
         } finally {
             setIsLoading(false);
         }
@@ -778,6 +790,19 @@ export const useAppData = (): UseAppDataReturn => {
         checkOwnerStatus();
     }, [address]);
 
+    const getUsersByRole = async (role: number): Promise<Map<string, any>> => {
+        try {
+            setIsLoading(true);
+            const users = await getUsersByRoleService(role);
+            return users instanceof Map ? users : new Map();
+        } catch (error) {
+            console.error('Error loading users by role:', error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     return {
         isLoading: isLoading || isLoadingContract,
         isVerified,
@@ -794,6 +819,8 @@ export const useAppData = (): UseAppDataReturn => {
         userRole,
         address,
         account,
+        isUserOwner,
+        adminStatistics,
         checkAccess,
         createNewExam,
         saveInstitutionProfile,
@@ -804,11 +831,9 @@ export const useAppData = (): UseAppDataReturn => {
         loadExamResults,
         issueNewCertificate,
         verifyUser,
-        loadAllInstitutionData,
         loadCourseByDepartment,
         addAdmin,
-        getAdminStats,
-        isUserOwner,
+        getUsersByRole,
     };
 };
 
