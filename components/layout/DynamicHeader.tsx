@@ -1,4 +1,4 @@
-import { Box, Container, Heading, Text, VStack, ScaleFade, useColorModeValue, Spinner } from '@chakra-ui/react';
+import { Box, Container, Heading, Text, VStack, ScaleFade, useColorModeValue } from '@chakra-ui/react';
 import { useLanguage } from 'context/LanguageContext';
 
 interface DynamicHeaderProps {
@@ -72,7 +72,6 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
   };
 
   const header = headers[userRole as keyof typeof headers] || headers.default;
-  const bgGradient = useColorModeValue(header.gradient[0], header.gradient[1]);
 
   return (
     <Box
@@ -89,15 +88,16 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
         muted
         loop
         playsInline
-        src="/videos/header_0.mp4"
+        src="/videos/header_1.mp4"
         position="absolute"
         top={0}
         left={0}
         width="100%"
         height="100%"
         objectFit="cover"
-        zIndex={-1}
+        zIndex={0}
       />
+
       <Box
         position="absolute"
         top={0}
@@ -105,12 +105,19 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
         right={0}
         bottom={0}
         bg="blackAlpha.700"
-        zIndex={-1}
+        zIndex={1}
       />
 
-      <Container maxW="container.xl">
+      <Container maxW="container.xl" position="relative" zIndex={2}>
         <ScaleFade initialScale={0.9} in={true}>
-          <VStack spacing={4} align="center">
+          <VStack
+            spacing={4}
+            align="center"
+            // bg="blackAlpha.600"
+            p={6}
+            borderRadius="lg" 
+            backdropFilter="blur(0px)"
+          >
             <Heading
               size="xl"
               bgGradient="linear(to-r, white, red.100)"
@@ -119,7 +126,7 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
             >
               {header.title}
             </Heading>
-            <Text fontSize="lg" textAlign="center" maxW="2xl" opacity={0.8}>
+            <Text fontSize="lg" textAlign="center" maxW="2xl" opacity={0.9}>
               {header.description}
             </Text>
           </VStack>
