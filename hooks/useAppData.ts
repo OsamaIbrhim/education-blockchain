@@ -9,7 +9,7 @@ import { getUserData, verifyUser as verifyUserService, isOwner, registerAdminUse
 import { createExam, getExamResult, getUserExams, registerStudentsForExam, submitResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
-import { getCoursesByDepartment } from 'services/courseManagement';
+import { addCourseService, getAllCourses, getCoursesByDepartment, addDepartmentService, getAllDepartments } from 'services/courseManagement';
 
 // Types
 import { ExamData, ExamResult, ExamStatistics, NewExam } from 'types/examManagement';
@@ -52,6 +52,7 @@ interface UseAppDataReturn {
         adminCount: number;
         totalUserCount: number;
     };
+    departments: string[];
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -61,11 +62,12 @@ interface UseAppDataReturn {
     handleEnrollStudents: (examId: string, studentAddresses: string[]) => Promise<boolean>;
     loadExamResults: (examId: string) => Promise<void>;
     issueNewCertificate: (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }) => Promise<boolean>;
-    allInstitutions: Institution[];
     verifyUser: (userAddress: string) => Promise<any>;
-    loadCourseByDepartment: (department: string) => Promise<any[]>;
+    loadAllCourses: (department: string) => Promise<any[]>;
     addAdmin: (adminData: { address: string; nationalId: string; firstName: string; lastName: string; phoneNumber: string; email: string; }) => Promise<void>;
     getUsersByRole: (role: number) => Promise<Map<string, any>>;
+    addCourse: (courseId: string, name: string, credits: number, department: string) => Promise<void>;
+    addDepartment: (departmentName: string) => Promise<void>;
 }
 
 export const useAppData = (): UseAppDataReturn => {
@@ -77,6 +79,7 @@ export const useAppData = (): UseAppDataReturn => {
     const [exams, setExams] = useState<ExamData[]>([]);
     const [certificates, setCertificates] = useState<any[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<string[]>([]);
     const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
     const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
     const publicClient = usePublicClient();
@@ -265,14 +268,30 @@ export const useAppData = (): UseAppDataReturn => {
     //     }
     // }, [address, courseManagementContract, isInitialized, isCorrectNetwork]);
 
-    const loadCourseByDepartment = async (department: string): Promise<any[]> => {
-        if (!courseManagementContract /*|| !userAddress*/) {
+    const loadAllDepartments = async (): Promise<string[]> => {
+        if (!courseManagementContract || !isInitialized || !isCorrectNetwork) {
             return [];
         }
-
         try {
             setIsLoading(true);
-            const courses = await getCoursesByDepartment(department);
+            const departments = await getAllDepartments();
+            setDepartments(departments);
+            setIsLoading(false);
+            return departments;
+        } catch (error) {
+            console.error('Error loading departments:', error);
+            setIsLoading(false);
+            return [];
+        }
+    }
+
+    const loadAllCourses = async (): Promise<any[]> => {
+        if (!courseManagementContract || !isInitialized || !isCorrectNetwork) {
+            return [];
+        }
+        try {
+            setIsLoading(true);
+            const courses = await getAllCourses();
             setCourses(courses);
             setIsLoading(false);
             return courses;
@@ -803,6 +822,93 @@ export const useAppData = (): UseAppDataReturn => {
         }
     }
 
+    const addCourse = async (courseId: string, name: string, credits: number, department: string): Promise<void> => {
+        try {
+            setIsLoading(true);
+
+            const { status } = await addCourseService(courseId, name, credits, department);
+            if (status !== 'success') {
+                throw new Error('Failed to add course');
+            }
+
+            Toast({
+                title: 'Course Added Successfully',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+
+            // Reload courses after adding a new one
+            const updatedCourses = await loadAllCourses();
+            setCourses(updatedCourses);
+        } catch (error) {
+            console.error('Error adding course:', error);
+            Toast({
+                title: 'Error Adding Course',
+                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const addDepartment = async (departmentName: string): Promise<void> => {
+        try {
+            setIsLoading(true);
+
+            const { status } = await addDepartmentService(departmentName);
+            if (status !== 'success') {
+                throw new Error('Failed to add course');
+            }
+
+            Toast({
+                title: 'Department Added Successfully',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+
+            // Reload department after adding a new one
+            const updatedDepartments = await loadAllDepartments();
+            setDepartments(updatedDepartments);
+        } catch (error) {
+            console.error('Error adding department:', error);
+            Toast({
+                title: 'Error Adding Department',
+                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        const loadCoursesAndDepartments = async () => {
+            try {
+                setIsLoading(true);
+                const allCourses = await loadAllCourses();
+                const allDepartments = await loadAllDepartments();
+                setCourses(allCourses);
+                setDepartments(allDepartments);
+            } catch (error) {
+                console.error('Error loading courses and departments:', error);
+                setError(error instanceof Error ? error.message : 'An unknown error occurred');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadCoursesAndDepartments();
+    }, [courseManagementContract, isInitialized, isCorrectNetwork]);
+
     return {
         isLoading: isLoading || isLoadingContract,
         isVerified,
@@ -815,12 +921,12 @@ export const useAppData = (): UseAppDataReturn => {
         selectedExamResults,
         examStatistics,
         institutionData,
-        allInstitutions,
         userRole,
         address,
         account,
         isUserOwner,
         adminStatistics,
+        departments,
         checkAccess,
         createNewExam,
         saveInstitutionProfile,
@@ -831,9 +937,11 @@ export const useAppData = (): UseAppDataReturn => {
         loadExamResults,
         issueNewCertificate,
         verifyUser,
-        loadCourseByDepartment,
+        loadAllCourses,
         addAdmin,
         getUsersByRole,
+        addCourse,
+        addDepartment,
     };
 };
 

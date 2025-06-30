@@ -309,6 +309,39 @@ const styles = {
   },
 };
 
+// --- START: Dropdown Multipart Style Definition ---
+
+const dropdownParts = ['container', 'select'];
+
+const { definePartsStyle: defineDropdownPartsStyle, defineMultiStyleConfig: defineDropdownMultiStyleConfig } = createMultiStyleConfigHelpers(dropdownParts);
+
+const dropdownBaseStyle = defineDropdownPartsStyle((props) => ({
+  container: {
+    width: '100%',
+    borderRadius: 'md',
+    borderWidth: '1px',
+    borderColor: mode('gray.200', 'gray.700')(props),
+    bg: mode('gray.50', 'gray.900')(props),
+    color: mode('gray.900', 'gray.50')(props),
+    fontSize: 'md',
+    padding: '8px',
+  },
+  select: {
+    width: '100%',
+    borderRadius: 'md',
+    borderWidth: '1px',
+    borderColor: mode('gray.200', 'gray.700')(props),
+    bg: mode('gray.50', 'gray.900')(props),
+    color: mode('gray.900', 'gray.50')(props),
+    fontSize: 'md',
+    padding: '8px',
+  },
+}));
+
+export const dropdownTheme = defineDropdownMultiStyleConfig({ baseStyle: dropdownBaseStyle });
+
+// --- END: Dropdown Multipart Style Definition ---
+
 const theme = extendTheme({
   config,
   colors,
