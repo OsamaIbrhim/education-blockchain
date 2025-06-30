@@ -182,7 +182,7 @@ export default function AdminDashboard() {
               {isUserOwner &&
                 <>
                   <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
-                    <Heading size="md" mb={4}>{t('viewStatistics')}</Heading>
+                    <Heading size="md" mb={4}>{t('statistics')}</Heading>
                     <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(false)}>
                       {t('viewStatistics')}
                     </Button>
