@@ -5,17 +5,30 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getUserData, verifyUser as verifyUserService, isOwner, registerAdminUser, getUsersByRoleService, getAdminStatsService, selfRegisterService } from 'services/identity';
-import { createExam, getExamResult, getUserExams, registerStudentsForExam, submitResult, updateExam } from 'services/examManagement';
+import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRole } from 'services/identity';
+import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
-import { addCourseService, getAllCourses, getCoursesByDepartment, addDepartmentService, getAllDepartments } from 'services/courseManagement';
+import { getCoursesByDepartment } from 'services/courseManagement';
 
 // Types
-import { ExamData, ExamResult, ExamStatistics, NewExam } from 'types/examManagement';
-import { Institution, NewUser, User } from 'types/institution';
+import { Exam, ExamData, ExamResult, ExamStatistics, NewExam, StudentStructOutput } from 'types/examManagement';
+import { Institution } from 'types/institution';
 import { Hash } from 'viem';
 import { useRouter } from 'next/router';
+
+interface User {
+    address: string; // userAddress
+    role: number; // role (uint8)
+    nationalId: string; // nationalId
+    firstName: string; // firstName
+    lastName: string; // lastName
+    phoneNumber: string; // phoneNumber
+    email: string; // email
+    enrolledCourses: string[]; // enrolledCourses
+    status: number; // status (uint8)
+    isVerified: boolean // isVerified
+}
 
 interface UseAppDataReturn {
     isLoading: boolean;
@@ -32,14 +45,6 @@ interface UseAppDataReturn {
     userRole: string | null;
     address: `0x${string}` | undefined;
     account: User;
-    isUserOwner: boolean;
-    adminStatistics: {
-        studentCount: number;
-        employerCount: number;
-        adminCount: number;
-        totalUserCount: number;
-    };
-    departments: string[];
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -48,15 +53,11 @@ interface UseAppDataReturn {
     handleSubmitResults: (examId: string, results: ExamResult[]) => Promise<boolean>;
     handleEnrollStudents: (examId: string, studentAddresses: string[]) => Promise<boolean>;
     loadExamResults: (examId: string) => Promise<void>;
-    loadAllDepartments: () => Promise<string[]>;
     issueNewCertificate: (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }) => Promise<boolean>;
+    allInstitutions: Institution[];
     verifyUser: (userAddress: string) => Promise<any>;
-    loadAllCourses: (department?: string) => Promise<any[]>;
-    addAdmin: (adminData: { address: string; nationalId: string; firstName: string; lastName: string; phoneNumber: string; email: string; }) => Promise<void>;
-    getUsersByRole: (role: number) => Promise<Map<string, any>>;
-    addCourse: (courseId: string, name: string, credits: number, department: string) => Promise<void>;
-    addDepartment: (departmentName: string) => Promise<void>;
-    selfRegister: (user: NewUser) => Promise<boolean>;
+    loadAllInstitutionData: () => Promise<void>;
+    loadCourseByDepartment: (department: string) => Promise<any[]>;
 }
 
 export const useAppData = (): UseAppDataReturn => {
@@ -68,7 +69,6 @@ export const useAppData = (): UseAppDataReturn => {
     const [exams, setExams] = useState<ExamData[]>([]);
     const [certificates, setCertificates] = useState<any[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
-    const [departments, setDepartments] = useState<string[]>([]);
     const [selectedExamResults, setSelectedExamResults] = useState<ExamResult[]>([]);
     const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
     const publicClient = usePublicClient();
@@ -76,18 +76,6 @@ export const useAppData = (): UseAppDataReturn => {
     const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [account, setAccount] = useState<any>({});
-    const [isUserOwner, setUserIsOwner] = useState<boolean>(false);
-    const [adminStatistics, setAdminStatistic] = useState<{
-        studentCount: number;
-        employerCount: number;
-        adminCount: number;
-        totalUserCount: number;
-    }>({
-        studentCount: 0,
-        employerCount: 0,
-        adminCount: 0,
-        totalUserCount: 0,
-    });
     const router = useRouter();
 
     // Access & Verification check
@@ -109,8 +97,7 @@ export const useAppData = (): UseAppDataReturn => {
             !examManagementContract?.address ||
             !certificateContract?.address
         ) {
-            // Don't redirect - let the blockchain connection work normally
-            return;
+            router.push("/login");
         }
     }, [
         router,
@@ -189,12 +176,6 @@ export const useAppData = (): UseAppDataReturn => {
                     lastName: sanitizeString(user.lastName),
                     email: sanitizeString(user.email),
                     phoneNumber: sanitizeString(user.phoneNumber),
-                    nationalId: sanitizeString(user.nationalId),
-                    address: user.address as `0x${string}`,
-                    role: user.role,
-                    // enrolledCourses: user.enrolledCourses,
-                    isVerified: user.isVerified,
-                    department: sanitizeString(user.department),
                 };
 
                 const role = sanitizedUser.role;
@@ -263,30 +244,14 @@ export const useAppData = (): UseAppDataReturn => {
     //     }
     // }, [address, courseManagementContract, isInitialized, isCorrectNetwork]);
 
-    const loadAllDepartments = async (): Promise<string[]> => {
-        if (!courseManagementContract || !isInitialized || !isCorrectNetwork) {
+    const loadCourseByDepartment = async (department: string): Promise<any[]> => {
+        if (!courseManagementContract /*|| !userAddress*/) {
             return [];
         }
-        try {
-            setIsLoading(true);
-            const departments = await getAllDepartments();
-            setDepartments(departments);
-            setIsLoading(false);
-            return departments;
-        } catch (error) {
-            console.error('Error loading departments:', error);
-            setIsLoading(false);
-            return [];
-        }
-    }
 
-    const loadAllCourses = async (): Promise<any[]> => {
-        if (!courseManagementContract || !isInitialized || !isCorrectNetwork) {
-            return [];
-        }
         try {
             setIsLoading(true);
-            const courses = await getAllCourses();
+            const courses = await getCoursesByDepartment(department);
             setCourses(courses);
             setIsLoading(false);
             return courses;
@@ -296,42 +261,6 @@ export const useAppData = (): UseAppDataReturn => {
             return [];
         }
     };
-
-    const selfRegister = async (user: NewUser): Promise<boolean> => {
-        try {
-            setIsLoading(true);
-            const { status } = await selfRegisterService(
-                user.role,
-                user.nationalId,
-                user.firstName,
-                user.lastName,
-                user.phoneNumber,
-                user.email,
-                user.department
-            );
-            if (status === 'success') {
-                Toast({
-                    title: 'Registration Successful',
-                    description: 'You have been registered successfully.',
-                    status: 'success',
-                    duration: 3000,
-                });
-                return true;
-            } else {
-                throw new Error('Registration failed. Please try again.');
-            }
-        } catch (err: any) {
-            Toast({
-                title: 'Error during registration',
-                description: err instanceof Error ? err.message : 'An unknown error occurred',
-                status: 'error',
-                duration: 3000,
-            });
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    }
 
     // Exam Managment
     const createNewExam = async (exam: NewExam): Promise<any> => {
@@ -419,7 +348,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            await updateExam(examId, exam, exam.date, exam.isActive);
+            await updateExam(examId, exam);
             await loadExamsFromContract(address);
             return true;
         } catch (err: any) {
@@ -448,7 +377,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            const success = await registerStudentsForExam(examId, students);
+            const success = await registerStudentsForExam(examId, students, null);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
                 await loadExamsFromContract(address!);
@@ -482,7 +411,7 @@ export const useAppData = (): UseAppDataReturn => {
         try {
             setIsLoading(true);
             for (const result of results) {
-                await submitResult(examId, result.studentAddress, result.score, result.grade, '');
+                await submitExamResult(examId, result.studentAddress, result.score, result.grade, '');
             }
             await loadExamsFromContract(address);
             return true;
@@ -502,7 +431,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     const loadExamResults = async (examId: string) => {
         try {
-            const currentExam = exams.find(exam => exam.id === examId);
+            const currentExam = exams.find(exam => exam.address === examId);
             if (!currentExam || !currentExam.students || currentExam.students.length === 0) {
                 console.warn('Exam not found or has no students:', examId);
                 setSelectedExamResults([]);
@@ -512,7 +441,7 @@ export const useAppData = (): UseAppDataReturn => {
 
             const examResultsPromises = currentExam.students.map(async (studentId: string) => {
                 try {
-                    const result = await getExamResult(examId, studentId);
+                    const result = await getExamResults(examId, studentId);
                     return { studentId, result };
                 } catch (err) {
                     console.error(`Failed to get result for student ${studentId} in exam ${examId}:`, err);
@@ -529,11 +458,11 @@ export const useAppData = (): UseAppDataReturn => {
 
             const finalResults: ExamResult[] = validRawResults.map(entry => ({
                 studentAddress: entry.studentId,
-                examId: examId,
-                score: Number(entry.result.score),
-                grade: entry.result.grade,
-                notes: entry.result.notes ?? '',
-                submissionTime: entry.result.submissionTime,
+                score: Number(entry.result[0]),
+                grade: entry.result[1],
+                ipfsHash: entry.result[2],
+                notes: '',
+                exists: true,
             }));
 
             setSelectedExamResults(finalResults);
@@ -558,18 +487,18 @@ export const useAppData = (): UseAppDataReturn => {
             const mostCommonGradeEntry = Object.entries(gradeCount).reduce((a, b) => a[1] >= b[1] ? a : b, ["", 0]);
             const mostCommonGrade = mostCommonGradeEntry[1] > 0 ? mostCommonGradeEntry[0] : 'N/A';
 
-            // setExamStatistics({
-            //     totalStudents: BigInt(totalStudents),
-            //     passingCount: passingStudents,
-            //     aCount: gradeCount.A,
-            //     bCount: gradeCount.B,
-            //     cCount: gradeCount.C,
-            //     dCount: gradeCount.D,
-            //     fCount: gradeCount.F,
-            //     averageScore: BigInt(totalStudents > 0 ? totalScore / totalStudents : 0),
-            //     passRate: BigInt(totalStudents > 0 ? (passingStudents * 100) / totalStudents : 0),
-            //     mostCommonGrade
-            // });
+            setExamStatistics({
+                totalStudents,
+                passingCount: passingStudents,
+                aCount: gradeCount.A,
+                bCount: gradeCount.B,
+                cCount: gradeCount.C,
+                dCount: gradeCount.D,
+                fCount: gradeCount.F,
+                averageScore: totalStudents > 0 ? totalScore / totalStudents : 0,
+                passRate: totalStudents > 0 ? (passingStudents * 100) / totalStudents : 0,
+                mostCommonGrade
+            });
 
         } catch (err: unknown) {
             console.error('Error loading exam results:', err);
@@ -597,7 +526,7 @@ export const useAppData = (): UseAppDataReturn => {
 
         try {
             setIsLoading(true);
-            const success = await registerStudentsForExam(examId, studentAddresses);
+            const success = await registerStudentsForExam(examId, studentAddresses, null);
             if (success) {
                 Toast({ title: 'Student Registered', status: 'success' });
                 await loadExamsFromContract(address!);
@@ -704,42 +633,23 @@ export const useAppData = (): UseAppDataReturn => {
     };
 
     // Admin functions
-    // const loadAllInstitutionData = useCallback(async (): Promise<void> => {
-    //     if (!address || !identityContract) return;
-    //     try {
-    //         setIsLoading(true);
-    //         const institutions = await getUsersByRole(2);
-    //         setAllInstitutions(institutions);
-    //     } catch (error: any) {
-    //         console.error('Error loading institution data:', error);
-    //         setError(error?.message || 'Error loading institution data');
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // }, [address, identityContract]);
-
-    useEffect(() => {
-        loadAdminStats();
-    }, [address, identityContract, isInitialized]);
-
-    const loadAdminStats = async (): Promise<{
-        studentCount: number;
-        employerCount: number;
-        adminCount: number;
-        totalUserCount: number;
-    }> => {
+    const loadAllInstitutionData = useCallback(async (): Promise<void> => {
+        if (!address || !identityContract) return;
         try {
             setIsLoading(true);
-            const stats = await getAdminStatsService();
-            setAdminStatistic(stats);
-            return stats;
-        } catch (error) {
-            console.error('Error loading admin statistics:', error);
-            throw error;
+            const institutions = await getUsersByRole(2);
+            setAllInstitutions(institutions);
+        } catch (error: any) {
+            console.error('Error loading institution data:', error);
+            setError(error?.message || 'Error loading institution data');
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [address, identityContract]);
+
+    useEffect(() => {
+        loadAllInstitutionData();
+    }, [address, identityContract]);
 
     const verifyUser = async (userAddress: string): Promise<any> => {
         if (!identityContract || !address) {
@@ -749,13 +659,7 @@ export const useAppData = (): UseAppDataReturn => {
             setIsLoading(true);
             const { status } = await verifyUserService(userAddress);
             if (status === 'success') {
-                // await loadAllInstitutionData();
-                Toast({
-                    title: 'User Verified Successfully',
-                    status: 'success',
-                    duration: 3000,
-                    isClosable: true,
-                });
+                await loadAllInstitutionData();
             }
             return { status };
         } catch (error) {
@@ -773,173 +677,6 @@ export const useAppData = (): UseAppDataReturn => {
         }
     }
 
-    const addAdmin = async (adminData: {
-        address: string;
-        nationalId: string;
-        firstName: string;
-        lastName: string;
-        phoneNumber: string;
-        email: string;
-    }): Promise<void> => {
-        if (!identityContract || !address) {
-            throw new Error('Contract or address not available');
-        }
-
-        try {
-            setIsLoading(true);
-            const { status } = await registerAdminUser(
-                adminData.address,
-                adminData.nationalId,
-                adminData.firstName,
-                adminData.lastName,
-                adminData.phoneNumber,
-                adminData.email
-            );
-            if (status === 'success') {
-                Toast({
-                    title: 'Admin Added Successfully',
-                    status: 'success',
-                    duration: 3000,
-                    isClosable: true,
-                });
-            } else if (status === 'user already exists') {
-                Toast({
-                    title: 'User Already Exists',
-                    description: 'This user is already registered as an admin.',
-                    status: 'warning',
-                    duration: 3000,
-                    isClosable: true,
-                });
-            }
-        } catch (error) {
-            console.error('Error adding admin:', error);
-            Toast({
-                title: 'Error Adding Admin',
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-            });
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        const checkOwnerStatus = async () => {
-            if (!address) return;
-            try {
-                const ownerStatus = await isOwner(address);
-                setUserIsOwner(ownerStatus);
-            } catch (error) {
-                console.error('Error checking owner status:', error);
-            }
-        };
-
-        checkOwnerStatus();
-    }, [address]);
-
-    const getUsersByRole = async (role: number): Promise<Map<string, any>> => {
-        try {
-            setIsLoading(true);
-            const users = await getUsersByRoleService(role);
-            return users instanceof Map ? users : new Map();
-        } catch (error) {
-            console.error('Error loading users by role:', error);
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    const addCourse = async (courseId: string, name: string, credits: number, department: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-
-            const { status } = await addCourseService(courseId, name, credits, department);
-            if (status !== 'success') {
-                throw new Error('Failed to add course');
-            }
-
-            Toast({
-                title: 'Course Added Successfully',
-                status: 'success',
-                duration: 3000,
-                isClosable: true,
-            });
-
-            // Reload courses after adding a new one
-            const updatedCourses = await loadAllCourses();
-            setCourses(updatedCourses);
-        } catch (error) {
-            console.error('Error adding course:', error);
-            Toast({
-                title: 'Error Adding Course',
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-            });
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    const addDepartment = async (departmentName: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-
-            const { status } = await addDepartmentService(departmentName);
-            if (status !== 'success') {
-                throw new Error('Failed to add course');
-            }
-
-            Toast({
-                title: 'Department Added Successfully',
-                status: 'success',
-                duration: 3000,
-                isClosable: true,
-            });
-
-            // Reload department after adding a new one
-            const updatedDepartments = await loadAllDepartments();
-            setDepartments(updatedDepartments);
-        } catch (error) {
-            console.error('Error adding department:', error);
-            Toast({
-                title: 'Error Adding Department',
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-            });
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        const loadCoursesAndDepartments = async () => {
-            try {
-                setIsLoading(true);
-                const allCourses = await loadAllCourses();
-                const allDepartments = await loadAllDepartments();
-                setCourses(allCourses);
-                setDepartments(allDepartments);
-            } catch (error) {
-                console.error('Error loading courses and departments:', error);
-                setError(error instanceof Error ? error.message : 'An unknown error occurred');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadCoursesAndDepartments();
-    }, [courseManagementContract, isInitialized, isCorrectNetwork]);
-
     return {
         isLoading: isLoading || isLoadingContract,
         isVerified,
@@ -952,12 +689,10 @@ export const useAppData = (): UseAppDataReturn => {
         selectedExamResults,
         examStatistics,
         institutionData,
+        allInstitutions,
         userRole,
         address,
         account,
-        isUserOwner,
-        adminStatistics,
-        departments,
         checkAccess,
         createNewExam,
         saveInstitutionProfile,
@@ -966,15 +701,10 @@ export const useAppData = (): UseAppDataReturn => {
         handleSubmitResults,
         handleEnrollStudents,
         loadExamResults,
-        loadAllDepartments,
         issueNewCertificate,
         verifyUser,
-        loadAllCourses,
-        addAdmin,
-        getUsersByRole,
-        addCourse,
-        addDepartment,
-        selfRegister,
+        loadAllInstitutionData,
+        loadCourseByDepartment,
     };
 };
 

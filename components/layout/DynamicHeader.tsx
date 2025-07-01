@@ -1,4 +1,4 @@
-import { Box, Container, Heading, Text, VStack, ScaleFade, useColorModeValue } from '@chakra-ui/react';
+import { Box, Container, Heading, Text, VStack, ScaleFade, useColorModeValue, Spinner } from '@chakra-ui/react';
 import { useLanguage } from 'context/LanguageContext';
 
 interface DynamicHeaderProps {
@@ -6,7 +6,11 @@ interface DynamicHeaderProps {
 }
 
 const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
-  const { t } = useLanguage();
+  const { t, translations } = useLanguage();
+
+  if (Object.keys(translations).length === 0) {
+    return <Spinner />;
+  }
 
   const headers = {
     admin: {
@@ -72,49 +76,33 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
   };
 
   const header = headers[userRole as keyof typeof headers] || headers.default;
+  const bgGradient = useColorModeValue(header.gradient[0], header.gradient[1]);
 
   return (
     <Box
-      position="relative"
-      py={50}
-      mb={5}
-      overflow="hidden"
+      bgGradient={bgGradient}
       color="white"
+      py={8}
+      px={4}
+      mb={8}
+      shadow="xl"
+      position="relative"
+      overflow="hidden"
     >
       <Box
-        as="video"
-        autoPlay
-        muted
-        loop
-        playsInline
-        src="/videos/header_1.mp4"
         position="absolute"
         top={0}
         left={0}
-        width="100%"
-        height="100%"
-        objectFit="cover"
-        zIndex={0}
-        sx={{
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-          WebkitMaskSize: '100% 100%',
-          maskSize: '100% 100%',
-          WebkitMaskRepeat: 'no-repeat',
-          maskRepeat: 'no-repeat',
-        }}
+        right={0}
+        bottom={0}
+        opacity={0.1}
+        bgGradient="linear(to-r, transparent 0%, white 50%, transparent 100%)"
+        transform="skewY(-12deg)"
+        transformOrigin="top right"
       />
-
-      <Container maxW="container.xl" position="relative" zIndex={2}>
+      <Container maxW="container.xl">
         <ScaleFade initialScale={0.9} in={true}>
-          <VStack
-            spacing={4}
-            align="center"
-            // bg="blackAlpha.600"
-            p={6}
-            borderRadius="lg"
-            // backdropFilter="blur(50px)"
-          >
+          <VStack spacing={4} align="center">
             <Heading
               size="xl"
               bgGradient="linear(to-r, white, red.100)"
@@ -123,7 +111,7 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
             >
               {header.title}
             </Heading>
-            <Text fontSize="lg" textAlign="center" maxW="2xl" opacity={0.9}>
+            <Text fontSize="lg" textAlign="center" maxW="2xl" opacity={0.8}>
               {header.description}
             </Text>
           </VStack>

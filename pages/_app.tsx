@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { useRouter } from 'next/router'
 import { LanguageProvider } from 'context/LanguageContext'
+import { AppProvider } from 'contexts/AppContext'
 import Layout from 'components/layout/Layout'
 import theme from '../styles/theme'
 
@@ -29,51 +30,46 @@ const queryClient = new QueryClient({
 })
 
 export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
-  const noLayoutRoutes = ['/', '/login', '/404', '/about', '/contact', '/support', '/privacy-policy', '/terms-of-service'];
-  const showLayout = !noLayoutRoutes.includes(router.pathname);
+  const router = useRouter()
 
   useEffect(() => {
     const handleRouteChange = (url: string) => {
-      console.log('Route changing to:', url);
-    };
+      console.log('Route changing to:', url)
+    }
+
     const handleRouteChangeComplete = (url: string) => {
-      console.log('Route change completed:', url);
-    };
+      console.log('Route change completed:', url)
+    }
+
     const handleRouteChangeError = (err: any, url: string) => {
-      console.error('Route change error:', { url, err });
-    };
-    router.events.on('routeChangeStart', handleRouteChange);
-    router.events.on('routeChangeComplete', handleRouteChangeComplete);
-    router.events.on('routeChangeError', handleRouteChangeError);
+      console.error('Route change error:', { url, err })
+    }
+
+    router.events.on('routeChangeStart', handleRouteChange)
+    router.events.on('routeChangeComplete', handleRouteChangeComplete)
+    router.events.on('routeChangeError', handleRouteChangeError)
+
     return () => {
-      router.events.off('routeChangeStart', handleRouteChange);
-      router.events.off('routeChangeComplete', handleRouteChangeComplete);
-      router.events.off('routeChangeError', handleRouteChangeError);
-    };
-  }, [router]);
+      router.events.off('routeChangeStart', handleRouteChange)
+      router.events.off('routeChangeComplete', handleRouteChangeComplete)
+      router.events.off('routeChangeError', handleRouteChangeError)
+    }
+  }, [router])
 
-  const renderWithLayout = (
-    <Layout>
-      <Component {...pageProps} />
-    </Layout>
-  );
-
-  const renderWithoutLayout = <Component {...pageProps} />;
-
-  return (
-    <>
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      <LanguageProvider>
-        <ChakraProvider theme={theme}>
-          <QueryClientProvider client={queryClient}>
-            <WagmiProvider config={config}>
-              {/* Render 404 and other no-layout pages without layout */}
-              {showLayout ? renderWithLayout : renderWithoutLayout}
-            </WagmiProvider>
-          </QueryClientProvider>
-        </ChakraProvider>
-      </LanguageProvider>
-    </>
-  );
+return (
+  <>
+    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+    <LanguageProvider>
+      <ChakraProvider theme={theme}>
+        <QueryClientProvider client={queryClient}>
+          <WagmiProvider config={config}>
+            <Layout allowedValue={null}>
+              <Component {...pageProps} />
+            </Layout>
+          </WagmiProvider>
+        </QueryClientProvider>
+      </ChakraProvider>
+    </LanguageProvider>
+  </>
+)
 }

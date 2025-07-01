@@ -8,12 +8,12 @@ export const ExamManagementABI = [
   "event ExamUpdated(bytes32 indexed examId, string newTitle, uint256 newExamDate, bool newIsActive)",
   "event StudentsRegistered(bytes32 indexed examId, address[] students)",
   "event ResultSubmitted(bytes32 indexed examId, address indexed student, uint256 score, string grade)",
-  "event ExamDeactivated(bytes32 indexed examId)",
+  "event ExamDeactivated(bytes32 indexed examId)", // New event
 
   // State Variable Getters
-  "function academicManagerContract() view returns (address)",
-  "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, uint256 submissionTime)",
-  "function exams(bytes32) view returns (bytes32 examId, bytes32 courseId, bytes32 courseName, string description, uint256 duration, string title, uint256 date, string department, address[] students, bool isActive)",
+  "function academicManagerContract() view returns (address)", // New getter
+  "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, uint256 submissionTime)", // Updated returns
+  "function exams(bytes32) view returns (bytes32 examId, bytes32 courseId, string title, uint256 examDate, address[] students, bool isActive)", // Updated returns
   "function identityContract() view returns (address)",
   "function institutionExams(address, uint256) view returns (bytes32)",
   "function owner() view returns (address)",
@@ -21,14 +21,15 @@ export const ExamManagementABI = [
   "function studentExams(address, uint256) view returns (bytes32)",
 
   // Functions
-  "function createExam(bytes32 _examId, bytes32 _courseId, string memory _title, uint256 _examDate) external returns (bytes32)",
-  "function deactivateExam(bytes32 _examId) external",
-  "function getExam(bytes32 _examId) external view returns (bytes32 examId, bytes32 courseId, string memory title, uint256 examDate, address[] memory students, bool isActive)",
-  "function getExamResult(bytes32 _examId, address _student) external view returns (uint256 score, string memory grade, string memory notes, uint256 submissionTime)",
+  "function createExam(bytes32 _examId, bytes32 _courseId, string memory _title, uint256 _examDate) external returns (bytes32)", // Updated signature
+  "function deactivateExam(bytes32 _examId) external", // New function
+  "function getExam(bytes32 _examId) external view returns (bytes32 examId, bytes32 courseId, string memory title, uint256 examDate, address[] memory students, bool isActive)", // Updated returns
+  "function getExamResult(bytes32 _examId, address _student) external view returns (uint256 score, string memory grade, string memory notes, uint256 submissionTime)", // Updated returns
   "function getExamStatistics(bytes32 _examId) external view returns (uint256 totalStudents, uint256 passRate, uint256 averageScore)",
   "function getUserExams(address _user) external view returns (bytes32[] memory)",
   "function pause() external",
   "function registerStudentsForExam(bytes32 _examId, address[] memory _studentAddresses) external",
+  "function revokeCertificate(bytes32 _certificateId) external",
   "function submitResult(bytes32 _examId, address _student, uint256 _score, string memory _grade, string memory _notes) external",
   "function unpause() external",
   "function updateExam(bytes32 _examId, string memory _newTitle, uint256 _newExamDate, bool _newIsActive) external" // Updated signature
@@ -37,7 +38,7 @@ export const ExamManagementABI = [
 // --- Identity ABI ---
 export const IdentityABI = [
   // Constructor
-  "constructor()",
+  "constructor(address _institutionOwner, string ownerNationalId, string ownerFirstName, string ownerLastName, string ownerPhoneNumber, string ownerEmail)",
 
   // Events
   "event AdminAdded(address indexed admin)",
@@ -47,7 +48,6 @@ export const IdentityABI = [
   "event Unpaused(address account)",
   "event UserRegistered(address indexed userAddress, uint8 indexed role)",
   "event UserVerified(address indexed userAddress)",
-  "event VerificationRevoked(address indexed userAddress)",
   "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)",
   "event StudentStatusUpdated(address indexed studentAddress, uint8 oldStatus, uint8 newStatus)",
 
@@ -55,28 +55,27 @@ export const IdentityABI = [
   "function admins(address) view returns (bool)",
   "function owner() view returns (address)",
   "function paused() view returns (bool)",
-  "function users(address) view returns (address userAddress, uint8 role, string nationalId, string firstName, string lastName, string phoneNumber, string email, string department, string[] enrolledCourses, uint8 status, bool isVerified)",
+  "function institutionOwner() view returns (address)",
+  "function users(address) view returns (address userAddress, uint8 role, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified)",
 
   // Functions
-  "function addStudents(address[] memory studentAddresses) external",
-  "function completeUserProfile(string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
-  "function getStudentData(address _studentAddress) external view returns (string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department, string[] memory enrolledCourses, uint8 role, bool isVerified, uint8 status)",
-  "function getUnverifiedUsers() external view returns (address[] memory)",
+  "function addAdmin(address _newAdmin, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function adminRegisterStudent(address studentAddress, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function completeStudentProfile(string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function getStudentData(address _studentAddress) external view returns (string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string[] memory enrolledCourses, uint8 role, bool isVerified, uint8 status)",
   "function getUserRole(address _userAddress) external view returns (uint8)",
   "function isAdmin(address _address) public view returns (bool)",
-  "function isStudentEnrolled(address _student) external view returns (bool)",
+  "function isInstitution(address _address) public view returns (bool)",
   "function isVerifiedUser(address _userAddress) external view returns (bool)",
   "function pause() external",
-  "function registerUser(address userAddress, uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department) external",
+  "function registerUser(uint8 _role, address _institutionAddress, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
   "function removeAdmin(address _admin) external",
-  "function removeStudents(address[] memory studentAddresses) external",
-  "function revokeVerification(address _userAddress) external",
-  "function selfRegister(uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department) external",
   "function unpause() external",
   "function updateStudentStatus(address _studentAddress, uint8 _newStatus) external",
   "function updateUserRole(address _userAddress, uint8 _newRole) external",
+  "function verifyUser(address _userAddress) external",
   "function userExists(address _userAddress) external view returns (bool)",
-  "function verifyUser(address _userAddress) external"
+  "function isStudentEnrolled(address _institution, address _student) external view returns (bool)"
 ];
 
 // --- Examinations ABI ---
@@ -137,40 +136,35 @@ export const CourseManagementABI = [
   "constructor(address _identityContractAddress)",
 
   // Events
-  "event CourseAdded(string indexed courseId, string name, string department)",
-  "event CourseDetailsUpdated(string indexed courseId, string name, uint256 credits, string department)",
-  "event CourseDeactivated(string indexed courseId)",
-  "event CourseOfferingAdded(string indexed courseId, string indexed semester, string doctorName)",
-  "event CourseOfferingUpdated(string indexed courseId, string indexed semester, string doctorName, uint256 examDate, string bookTitle)",
+  "event CourseAdded(bytes32 indexed courseId, string name, string department)",
+  "event CourseDetailsUpdated(bytes32 indexed courseId, string name, uint256 credits, string department)",
+  "event CourseDeactivated(bytes32 indexed courseId)",
+  "event CourseOfferingAdded(bytes32 indexed courseId, string indexed semester, string doctorName)",
+  "event CourseOfferingUpdated(bytes32 indexed courseId, string indexed semester, string doctorName, uint256 examDate, string bookTitle)",
   "event CurrentActiveSemesterUpdated(string oldSemester, string newSemester)",
 
   // State Variable Getters
-  "function courses(string) view returns (string courseId, string name, uint256 credits, string department, bool isActive, uint256 creationDate)",
-  "function courseOfferings(string, string) view returns (string semester, string doctorName, uint256 examDate, string bookTitle, bool isAvailableForEnrollment)",
-  "function courseOfferingTerms(string, uint256) view returns (string)",
-  "function departmentCourses(string, uint256) view returns (string)",
+  "function courses(bytes32) view returns (bytes32 courseId, string name, uint256 credits, string department, bool isActive, uint256 creationDate)",
+  "function courseOfferings(bytes32, string) view returns (string semester, string doctorName, uint256 examDate, string bookTitle, bool isAvailableForEnrollment)",
+  "function courseOfferingTerms(bytes32, uint256) view returns (string)",
+  "function departmentCourses(string, uint256) view returns (bytes32)",
   "function currentActiveSemester() view returns (string)",
   "function identityContract() view returns (address)",
   "function owner() view returns (address)",
   "function paused() view returns (bool)",
-  "function departmentNames(uint256) view returns (string)",
-  "function isDepartmentExist(string) view returns (bool)",
 
   // Functions
-  "function addCourse(string memory _courseId, string memory _name, uint256 _credits, string memory _department) external",
-  "function updateCourseStaticDetails(string memory _courseId, string memory _newName, uint256 _newCredits, string memory _newDepartment) external",
-  "function deactivateCourse(string memory _courseId) external",
+  "function addCourse(bytes32 _courseId, string memory _name, uint256 _credits, string memory _department) external",
+  "function updateCourseStaticDetails(bytes32 _courseId, string memory _newName, uint256 _newCredits, string memory _newDepartment) external",
+  "function deactivateCourse(bytes32 _courseId) external",
   "function setCurrentActiveSemester(string memory _semester) external",
-  "function addCourseOffering(string memory _courseId, string memory _semester, string memory _doctorName, uint256 _examDate, string memory _bookTitle) external",
-  "function updateCourseOfferingDetails(string memory _courseId, string memory _semester, string memory _newDoctorName, uint256 _newExamDate, string memory _newBookTitle, bool _isAvailableForEnrollment) external",
-  "function getCourseStaticDetails(string memory _courseId) external view returns (string memory courseId, string memory name, uint256 credits, string memory department, bool isActive, uint256 creationDate)",
-  "function getCourseOfferingDetails(string memory _courseId, string memory _semester) external view returns (string memory semester, string memory doctorName, uint256 examDate, string memory bookTitle, bool isAvailableForEnrollment)",
-  "function getLatestCourseOfferingDetails(string memory _courseId) external view returns (string memory semester, string memory doctorName, uint256 examDate, string memory bookTitle, bool isAvailableForEnrollment)",
-  "function getAllCourseOfferingsForCourse(string memory _courseId) external view returns (tuple(string semester, string doctorName, uint256 examDate, string bookTitle, bool isAvailableForEnrollment)[] memory)",
-  "function getCoursesByDepartment(string memory _departmentName) external view returns (tuple(string courseId, string name, uint256 credits, string department, bool isActive, uint256 creationDate)[] memory)",
-  "function getAllCourses() external view returns (tuple(string courseId, string name, uint256 credits, string department, bool isActive, uint256 creationDate)[] memory)",
-  "function addDepartment(string memory _departmentName) external",
-  "function getAllDepartments() external view returns (string[] memory)",
+  "function addCourseOffering(bytes32 _courseId, string memory _semester, string memory _doctorName, uint256 _examDate, string memory _bookTitle) external",
+  "function updateCourseOfferingDetails(bytes32 _courseId, string memory _semester, string memory _newDoctorName, uint256 _newExamDate, string memory _newBookTitle, bool _isAvailableForEnrollment) external",
+  "function getCourseStaticDetails(bytes32 _courseId) external view returns (bytes32 courseId, string memory name, uint256 credits, string memory department, bool isActive, uint256 creationDate)",
+  "function getCourseOfferingDetails(bytes32 _courseId, string memory _semester) external view returns (string memory semester, string memory doctorName, uint256 examDate, string memory bookTitle, bool isAvailableForEnrollment)",
+  "function getLatestCourseOfferingDetails(bytes32 _courseId) external view returns (string memory semester, string memory doctorName, uint256 examDate, string memory bookTitle, bool isAvailableForEnrollment)",
+  "function getAllCourseOfferingsForCourse(bytes32 _courseId) external view returns (tuple(string semester, string doctorName, uint256 examDate, string bookTitle, bool isAvailableForEnrollment)[] memory)",
+  "function getCoursesByDepartment(string memory _departmentName) external view returns (bytes32[] memory)",
   "function pause() external",
   "function unpause() external"
 ];
@@ -224,6 +218,5 @@ export const StudentAcademicManagerABI = [
   "function getAcademicActionDetails(uint256 _actionId) external view returns (uint256 actionId, address studentAddress, uint8 actionType, string memory reason, uint256 startDate, uint256 endDate, bool isActive)",
   "function getCurrentSemesterNumber(address _studentAddress) external view returns (uint256)",
   "function pause() external",
-  "function unpause() external",
-  "function setCertificatesContract(address _certificatesContractAddress) external"
+  "function unpause() external"
 ];
