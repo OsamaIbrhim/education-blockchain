@@ -8,12 +8,12 @@ export const ExamManagementABI = [
   "event ExamUpdated(bytes32 indexed examId, string newTitle, uint256 newExamDate, bool newIsActive)",
   "event StudentsRegistered(bytes32 indexed examId, address[] students)",
   "event ResultSubmitted(bytes32 indexed examId, address indexed student, uint256 score, string grade)",
-  "event ExamDeactivated(bytes32 indexed examId)", // New event
+  "event ExamDeactivated(bytes32 indexed examId)",
 
   // State Variable Getters
-  "function academicManagerContract() view returns (address)", // New getter
-  "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, uint256 submissionTime)", // Updated returns
-  "function exams(bytes32) view returns (bytes32 examId, bytes32 courseId, string title, uint256 examDate, address[] students, bool isActive)", // Updated returns
+  "function academicManagerContract() view returns (address)",
+  "function examResults(bytes32, address) view returns (uint256 score, string grade, string notes, uint256 submissionTime)",
+  "function exams(bytes32) view returns (bytes32 examId, bytes32 courseId, bytes32 courseName, string description, uint256 duration, string title, uint256 date, string department, address[] students, bool isActive)",
   "function identityContract() view returns (address)",
   "function institutionExams(address, uint256) view returns (bytes32)",
   "function owner() view returns (address)",
@@ -21,15 +21,14 @@ export const ExamManagementABI = [
   "function studentExams(address, uint256) view returns (bytes32)",
 
   // Functions
-  "function createExam(bytes32 _examId, bytes32 _courseId, string memory _title, uint256 _examDate) external returns (bytes32)", // Updated signature
-  "function deactivateExam(bytes32 _examId) external", // New function
-  "function getExam(bytes32 _examId) external view returns (bytes32 examId, bytes32 courseId, string memory title, uint256 examDate, address[] memory students, bool isActive)", // Updated returns
-  "function getExamResult(bytes32 _examId, address _student) external view returns (uint256 score, string memory grade, string memory notes, uint256 submissionTime)", // Updated returns
+  "function createExam(bytes32 _examId, bytes32 _courseId, string memory _title, uint256 _examDate) external returns (bytes32)",
+  "function deactivateExam(bytes32 _examId) external",
+  "function getExam(bytes32 _examId) external view returns (bytes32 examId, bytes32 courseId, string memory title, uint256 examDate, address[] memory students, bool isActive)",
+  "function getExamResult(bytes32 _examId, address _student) external view returns (uint256 score, string memory grade, string memory notes, uint256 submissionTime)",
   "function getExamStatistics(bytes32 _examId) external view returns (uint256 totalStudents, uint256 passRate, uint256 averageScore)",
   "function getUserExams(address _user) external view returns (bytes32[] memory)",
   "function pause() external",
   "function registerStudentsForExam(bytes32 _examId, address[] memory _studentAddresses) external",
-  "function revokeCertificate(bytes32 _certificateId) external",
   "function submitResult(bytes32 _examId, address _student, uint256 _score, string memory _grade, string memory _notes) external",
   "function unpause() external",
   "function updateExam(bytes32 _examId, string memory _newTitle, uint256 _newExamDate, bool _newIsActive) external" // Updated signature
@@ -56,23 +55,23 @@ export const IdentityABI = [
   "function admins(address) view returns (bool)",
   "function owner() view returns (address)",
   "function paused() view returns (bool)",
-  "function users(address) view returns (address userAddress, uint8 role, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified)",
+  "function users(address) view returns (address userAddress, uint8 role, string nationalId, string firstName, string lastName, string phoneNumber, string email, string department, string[] enrolledCourses, uint8 status, bool isVerified)",
 
   // Functions
   "function addStudents(address[] memory studentAddresses) external",
   "function completeUserProfile(string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
-  "function getStudentData(address _studentAddress) external view returns (string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string[] memory enrolledCourses, uint8 role, bool isVerified, uint8 status)",
+  "function getStudentData(address _studentAddress) external view returns (string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department, string[] memory enrolledCourses, uint8 role, bool isVerified, uint8 status)",
   "function getUnverifiedUsers() external view returns (address[] memory)",
   "function getUserRole(address _userAddress) external view returns (uint8)",
   "function isAdmin(address _address) public view returns (bool)",
   "function isStudentEnrolled(address _student) external view returns (bool)",
   "function isVerifiedUser(address _userAddress) external view returns (bool)",
   "function pause() external",
-  "function registerUser(address userAddress, uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function registerUser(address userAddress, uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department) external",
   "function removeAdmin(address _admin) external",
   "function removeStudents(address[] memory studentAddresses) external",
   "function revokeVerification(address _userAddress) external",
-  "function selfRegister(uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function selfRegister(uint8 _role, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email, string memory department) external",
   "function unpause() external",
   "function updateStudentStatus(address _studentAddress, uint8 _newStatus) external",
   "function updateUserRole(address _userAddress, uint8 _newRole) external",

@@ -1,3 +1,26 @@
+// --- START: ComingSoon Multipart Style Definition ---
+const comingSoonParts = ['container', 'badge'];
+const { definePartsStyle: defineComingSoonPartsStyle, defineMultiStyleConfig: defineComingSoonMultiStyleConfig } = createMultiStyleConfigHelpers(comingSoonParts);
+
+const comingSoonBaseStyle = defineComingSoonPartsStyle((props) => ({
+  container: {
+    minH: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+        fontSize: 'xl',
+    fontWeight: 'bold',
+    letterSpacing: '1px',
+  },
+  badge: {
+    fontSize: 'xl',
+    fontWeight: 'bold',
+    letterSpacing: '1px',
+  },
+}));
+
+export const comingSoonTheme = defineComingSoonMultiStyleConfig({ baseStyle: comingSoonBaseStyle });
+// --- END: ComingSoon Multipart Style Definition ---
 import { extendTheme, type ThemeConfig, createMultiStyleConfigHelpers } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
 import { mode } from '@chakra-ui/theme-tools';
@@ -109,8 +132,42 @@ const components = {
       },
     },
   },
-  // The old VisitorNavbar style is removed from here.
 };
+
+// --- START: Footer Multipart Style Definition ---
+const footerParts = ['container', 'text', 'link'];
+const { definePartsStyle: defineFooterPartsStyle, defineMultiStyleConfig: defineFooterMultiStyleConfig } = createMultiStyleConfigHelpers(footerParts);
+
+const footerBaseStyle = defineFooterPartsStyle((props) => ({
+  container: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    bg: mode('gray.50', 'gray.900')(props),
+    borderTop: '1px solid',
+    borderColor: mode('gray.200', 'gray.700')(props),
+    py: 4,
+    px: 8,
+    shadow: 'lg',
+    zIndex: 999,
+  },
+  text: {
+    fontSize: 'sm',
+    color: mode('gray.700', 'gray.300')(props),
+  },
+  link: {
+    color: 'primary.500',
+    fontSize: 'sm',
+    _hover: {
+      textDecoration: 'underline',
+      color: 'primary.400',
+    },
+  },
+}));
+
+export const footerTheme = defineFooterMultiStyleConfig({ baseStyle: footerBaseStyle });
+// --- END: Footer Multipart Style Definition ---
 
 // --- START: VisitorNavbar Multipart Style Definition ---
 
@@ -257,6 +314,7 @@ const coursePageBaseStyle = defineCoursePagePartsStyle((props) => ({
     borderWidth: "1px",
     borderColor: mode('gray.200', 'gray.700')(props),
     p: 6,
+    zIndex: 1,
   },
   departmentButton: {
     justifyContent: 'flex-start',
@@ -283,7 +341,7 @@ const coursePageBaseStyle = defineCoursePagePartsStyle((props) => ({
     backgroundSize: 'contain',
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'center',
-    zIndex: 0,
+    zIndex: -1,
   },
 }));
 
@@ -349,8 +407,10 @@ const theme = extendTheme({
   components: {
     ...components,
     LoginPage: loginPageTheme,
-    VisitorNavbar: visitorNavbarTheme, // Add the new VisitorNavbar theme
+    VisitorNavbar: visitorNavbarTheme,
     CoursePage: coursePageTheme,
+    Footer: footerTheme,
+    ComingSoon: comingSoonTheme,
   },
   styles,
 });

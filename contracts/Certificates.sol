@@ -90,8 +90,8 @@ contract Certificates is ReentrancyGuard {
         require(msg.sender == address(academicManagerContract), "Certificates: Only Academic Manager can propose certificates.");
         
         // Ensure the recipient is a registered and verified student in the Identity contract
-        // Corrected destructuring to match the 9-field User struct getter (enrolledCourses is skipped)
-        ( , Identity.UserRole role, , , , , , uint8 status, bool isVerified) = identityContract.users(_student);
+        // Corrected destructuring to match the 10-field User struct getter
+        ( , Identity.UserRole role, , , , , , , uint8 status, bool isVerified) = identityContract.users(_student);
         require(isVerified, "Certificates: Student is not verified.");
         require(status > 0, "Certificates: Recipient is not an active student."); // status 1: Enrolled, 2: Graduated
         require(role == Identity.UserRole.STUDENT, "Certificates: Recipient's role must be STUDENT.");

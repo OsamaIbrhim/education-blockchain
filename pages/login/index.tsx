@@ -22,12 +22,12 @@ import {
   useMultiStyleConfig, // Changed from useStyleConfig
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import { connectWallet, getAccounts } from '../../utils/web3Provider';
-import { selfRegister, getUserRole, isVerifiedUser, isOwner, loginUser } from 'services/identity';
+import { loginUser } from 'services/identity';
 import { useLanguage } from 'context/LanguageContext';
 import VisitorNavbar from 'components/layout/VisitorNavbar';
 import { connectAndFetchUserRole } from 'hooks/useAuthSession';
 import { useAppData } from 'hooks/useAppData';
+import { NewUser } from 'types/institution';
 
 type RoleType = 'admin' | 'institution' | 'student' | 'employer' | 'unknown' | 'none';
 
@@ -41,16 +41,17 @@ const redirectMap: { [key: string]: string } = {
 export default function Home() {
   const { t } = useLanguage();
   const styles = useMultiStyleConfig('LoginPage', {}); // Changed from useStyleConfig
-  const { 
-    address, 
-    account, 
-    userRole, 
-    isVerified, 
+  const {
+    address,
+    account,
+    userRole,
+    isVerified,
     isLoading,
     isUserOwner,
-    checkAccess 
+    checkAccess,
+    selfRegister,
   } = useAppData();
-  
+
   const [selectedRole, setSelectedRole] = useState<RoleType>('none');
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -60,25 +61,41 @@ export default function Home() {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Registration form state
-  const [formNationalId, setFormNationalId] = useState('');
-  const [formFirstName, setFormFirstName] = useState('');
-  const [formLastName, setFormLastName] = useState('');
-  const [formPhoneNumber, setFormPhoneNumber] = useState('');
-  const [formEmail, setFormEmail] = useState('');
+  const initialNewUser: NewUser = {
+    role: 'none',
+    nationalId: '',
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: '',
+    department: '',
+  };
+  const [newUser, setNewUser] = useState<NewUser>(initialNewUser);
+  const { departments, loadAllDepartments } = useAppData();
+  // Load departments on mount
+  useEffect(() => {
+    loadAllDepartments();
+  }, []);
+
+  // Reset newUser state when modal opens/closes or role changes
+  useEffect(() => {
+    if (!isOpen) {
+      setNewUser(initialNewUser);
+    } else {
+      setNewUser(prev => ({ ...initialNewUser, role: selectedRole }));
+    }
+  }, [isOpen, selectedRole]);
+
 
   useEffect(() => {
-    // useAppData already handles connection checking and role determination
     if (address && userRole && userRole !== 'none') {
-      // If user has a valid role, check if we should redirect
-      if (isUserOwner) {
+      if (isUserOwner || userRole === 'admin') {
         router.push('/dashboard/admin');
       } else if (redirectMap[userRole]) {
         router.push(redirectMap[userRole]);
       }
     }
   }, [address, userRole, isUserOwner, router]);
-
-  // Remove the old checkConnection function since useAppData handles this
 
   const handleConnectWallet = async () => {
     const { address: connectedAddress, role } = await connectAndFetchUserRole();
@@ -119,14 +136,14 @@ export default function Home() {
   const handleRegister = async () => {
     try {
       setError('');
-      
+
       // Check if user is admin using useAppData
       if (isUserOwner) {
         setRedirecting(true);
         router.push('/dashboard/admin');
         return;
       }
-      
+
       if (!selectedRole || selectedRole === 'none') {
         throw new Error(t('pleaseSelectRole') || 'Please select a role');
       }
@@ -147,57 +164,27 @@ export default function Home() {
   const handleModalRegister = async () => {
     setLoading(true);
     try {
-      let nationalId = '';
-      let firstName = '';
-      let lastName = '';
-      let phoneNumber = '';
-      let email = '';
+      const result = await selfRegister({
+        ...newUser,
+        role: selectedRole,
+      });
 
-      if (selectedRole === 'student') {
-        nationalId = formNationalId;
-        firstName = formFirstName;
-        lastName = formLastName;
-        phoneNumber = formPhoneNumber;
-        email = formEmail;
-        // employer will need to updated <<<<<<<<<<< TODO
-      } else if (selectedRole === 'institution' || selectedRole === 'employer') {
-        nationalId = '';
-        firstName = '';
-        lastName = '';
-        phoneNumber = '';
-      }        await selfRegister(
-          selectedRole,
-          nationalId,
-          firstName,
-          lastName,
-          phoneNumber,
-          email,
-        );
+      toast({
+        title: t('registrationSuccess'),
+        description: t('welcome') + ' ' + newUser.firstName,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      await checkAccess();
 
-        // Force refresh the data in useAppData
-        await checkAccess();
-
-        if (selectedRole === 'institution') {
-          const isVerified = await isVerifiedUser(address!);
-          if (!isVerified) {
-            toast({
-              title: t('notAuthorized'),
-              description: t('pleaseWaitForVerification'),
-              status: 'warning',
-              duration: 9000,
-              isClosable: true,
-              position: 'top',
-            });
-          }
-        }
-        
-        // After successful registration, redirect based on role
-        const redirectPath = redirectMap[selectedRole];
-        if (redirectPath) {
-          setRedirecting(true);
-          router.push(redirectPath);
-        }
-        onClose();
+      // After successful registration, redirect based on role
+      const redirectPath = redirectMap[selectedRole];
+      if (redirectPath) {
+        setRedirecting(true);
+        router.push(redirectPath);
+      }
+      onClose();
     } catch (error: any) {
       setError(error.message);
       toast({
@@ -219,7 +206,7 @@ export default function Home() {
       }
       setLoading(true);
       setError('');
-      
+
       // Get the user's role from useAppData (already available)
       const user = await loginUser(address);
 
@@ -229,7 +216,7 @@ export default function Home() {
         router.push('/dashboard/admin');
         return;
       }
-      
+
       // If the user is an institution, check if verified
       if (userRole === 'institution') {
         if (!isVerified) {
@@ -293,9 +280,9 @@ export default function Home() {
             )}
           </Box>
 
-          {address && (
-            <VStack spacing={4}>
-              {userRole && userRole !== 'none' ? (
+          {/* {address && ( */}
+          <VStack spacing={4}>
+            {/* {userRole && userRole !== 'none' ? (
                 <Box sx={styles.loginBox}>
                   <Text>
                     {t('currentRole')} {userRole}
@@ -322,33 +309,33 @@ export default function Home() {
                       {t('login')}
                     </Button>
                   </VStack>
-                </Box>
-              ) : (
-                <Box sx={styles.registerBox}>
-                  <Text mb={4}>
-                    {t('accountNotRegistered')}
-                  </Text>
-                  <Select
-                    placeholder={t('selectYourRole')}
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as RoleType)}
-                    sx={styles.roleSelect}
-                  >
-                    <option value="student">{t('studentRole')}</option>
-                    <option value="institution">{t('institutionRole')}</option>
-                    <option value="employer">{t('employerRole')}</option>
-                  </Select>
-                  <Button
-                    onClick={handleRegister}
-                    isLoading={loading || redirecting || isLoading}
-                    sx={styles.actionButton}
-                  >
-                    {t('register')}
-                  </Button>
-                </Box>
-              )}
-            </VStack>
-          )}
+                </Box> */}
+            {/* ) : ( */}
+            <Box sx={styles.registerBox}>
+              <Text mb={4}>
+                {t('accountNotRegistered')}
+              </Text>
+              <Select
+                placeholder={t('selectYourRole')}
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as RoleType)}
+                sx={styles.roleSelect}
+              >
+                <option value="student">{t('studentRole')}</option>
+                <option value="institution">{t('institutionRole')}</option>
+                <option value="employer">{t('employerRole')}</option>
+              </Select>
+              <Button
+                onClick={handleRegister}
+                isLoading={loading || redirecting || isLoading}
+                sx={styles.actionButton}
+              >
+                {t('register')}
+              </Button>
+            </Box>
+            {/* )} */}
+          </VStack>
+          {/* )} */}
 
           {error && (
             <Box sx={styles.errorBox}>
@@ -358,15 +345,14 @@ export default function Home() {
         </VStack>
 
         {/* Registration Modal */}
-        {selectedRole === 'student' && (
-          <Modal isOpen={isOpen} onClose={onClose} isCentered>
-            <ModalOverlay />
-            <ModalContent>
-              <ModalHeader>{t('register')}</ModalHeader>
-              <ModalCloseButton />
-              <ModalBody>
-                <>
-                  {/* <FormControl mb={3} isRequired>
+        <Modal isOpen={isOpen} onClose={onClose} isCentered>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>{t('register')}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <>
+                {/* <FormControl mb={3} isRequired>
                   <FormLabel>{t('institutionAddress') || 'Institution Address'}</FormLabel>
                   <Input
                     value={formInstitutionAddress}
@@ -374,59 +360,70 @@ export default function Home() {
                     placeholder={t('institutionAddress') || 'Institution Address'}
                   />
                 </FormControl> */}
-                  <FormControl mb={3} isRequired>
-                    <FormLabel>{t('nationalId') || 'National ID'}</FormLabel>
-                    <Input
-                      value={formNationalId}
-                      onChange={e => setFormNationalId(e.target.value)}
-                      placeholder={t('nationalId') || 'National ID'}
-                    />
-                  </FormControl>
-                  <FormControl mb={3} isRequired>
-                    <FormLabel>{t('firstName') || 'First Name'}</FormLabel>
-                    <Input
-                      value={formFirstName}
-                      onChange={e => setFormFirstName(e.target.value)}
-                      placeholder={t('firstName') || 'First Name'}
-                    />
-                  </FormControl>
-                  <FormControl mb={3} isRequired>
-                    <FormLabel>{t('lastName') || 'Last Name'}</FormLabel>
-                    <Input
-                      value={formLastName}
-                      onChange={e => setFormLastName(e.target.value)}
-                      placeholder={t('lastName') || 'Last Name'}
-                    />
-                  </FormControl>
-                  <FormControl mb={3} isRequired>
-                    <FormLabel>{t('phoneNumber') || 'Phone Number'}</FormLabel>
-                    <Input
-                      value={formPhoneNumber}
-                      onChange={e => setFormPhoneNumber(e.target.value)}
-                      placeholder={t('phoneNumber') || 'Phone Number'}
-                    />
-                  </FormControl>
-                  <FormControl mb={3} isRequired>
-                    <FormLabel>{t('email')}</FormLabel>
-                    <Input
-                      value={formEmail}
-                      onChange={e => setFormEmail(e.target.value)}
-                      placeholder={t('email')}
-                    />
-                  </FormControl>
-                </>
-              </ModalBody>
-              <ModalFooter>
-                <Button colorScheme="blue" mr={3} onClick={handleModalRegister} isLoading={loading}>
-                  {t('register')}
-                </Button>
-                <Button variant="ghost" onClick={onClose}>
-                  {t('cancel') || 'Cancel'}
-                </Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
-        )}
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('department') || 'Department'}</FormLabel>
+                  <Select
+                    placeholder={t('selectDepartment') || 'Select Department'}
+                    value={newUser.department}
+                    onChange={e => setNewUser(prev => ({ ...prev, department: e.target.value }))}
+                  >
+                    {departments && departments.length > 0 && departments.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('firstName') || 'First Name'}</FormLabel>
+                  <Input
+                    value={newUser.firstName}
+                    onChange={e => setNewUser(prev => ({ ...prev, firstName: e.target.value }))}
+                    placeholder={t('firstName') || 'First Name'}
+                  />
+                </FormControl>
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('lastName') || 'Last Name'}</FormLabel>
+                  <Input
+                    value={newUser.lastName}
+                    onChange={e => setNewUser(prev => ({ ...prev, lastName: e.target.value }))}
+                    placeholder={t('lastName') || 'Last Name'}
+                  />
+                </FormControl>
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('nationalId') || 'National ID'}</FormLabel>
+                  <Input
+                    value={newUser.nationalId}
+                    onChange={e => setNewUser(prev => ({ ...prev, nationalId: e.target.value }))}
+                    placeholder={t('nationalId') || 'National ID'}
+                  />
+                </FormControl>
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('phoneNumber') || 'Phone Number'}</FormLabel>
+                  <Input
+                    value={newUser.phoneNumber}
+                    onChange={e => setNewUser(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                    placeholder={t('phoneNumber') || 'Phone Number'}
+                  />
+                </FormControl>
+                <FormControl mb={3} isRequired>
+                  <FormLabel>{t('email')}</FormLabel>
+                  <Input
+                    value={newUser.email}
+                    onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder={t('email')}
+                  />
+                </FormControl>
+              </>
+            </ModalBody>
+            <ModalFooter>
+              <Button colorScheme="blue" mr={3} onClick={handleModalRegister} isLoading={loading}>
+                {t('register')}
+              </Button>
+              <Button variant="ghost" onClick={onClose}>
+                {t('cancel') || 'Cancel'}
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </Container>
     </Box>
   );

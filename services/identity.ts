@@ -4,7 +4,7 @@ import { IdentityABI } from '../constants/abis';
 import { getProvider, getSigner } from 'utils/ethersConfig';
 import { Toast } from '@chakra-ui/react';
 import { getFromIPFS, uploadToIPFS } from 'utils/ipfsUtils';
-import { Institution } from 'types/institution';
+import { Institution, User } from 'types/institution';
 import * as adminRole from './role/admin';
 import * as institutionRole from './role/institution';
 import * as studentRole from './role/student';
@@ -22,6 +22,7 @@ type IdentityContractType = ethers.Contract & {
     string, // lastName
     string, // phoneNumber
     string, // email
+    string, // department
     string[], // enrolledCourses
     number, // status (uint8)
     boolean // isVerified
@@ -34,7 +35,8 @@ type IdentityContractType = ethers.Contract & {
     firstName: string,
     lastName: string,
     phoneNumber: string,
-    email: string
+    email: string,
+    department: string
   ): Promise<any>;
   selfRegister(
     role: number,
@@ -42,7 +44,8 @@ type IdentityContractType = ethers.Contract & {
     firstName: string,
     lastName: string,
     phoneNumber: string,
-    email: string
+    email: string,
+    department: string
   ): Promise<any>;
   completeUserProfile(
     nationalId: string,
@@ -61,19 +64,6 @@ type IdentityContractType = ethers.Contract & {
   removeStudents(userAddresses: string[]): Promise<any>;
   updateUserIPFS(userAddress: string, data: any): Promise<any>;
 };
-
-interface User {
-  address: string; // userAddress
-  role: string; // role (uint8)
-  nationalId: string; // nationalId
-  firstName: string; // firstName
-  lastName: string; // lastName
-  phoneNumber: string; // phoneNumber
-  email: string; // email
-  // enrolledCourses: string[]; // enrolledCourses
-  status: number; // status (uint8)
-  isVerified: boolean // isVerified
-}
 
 /**
  * @param signer 
@@ -148,7 +138,8 @@ export const registerAdminUser = async (
       firstName,
       lastName,
       phoneNumber,
-      email
+      email,
+      'N/A',
     );
     await tx.wait();
 
@@ -159,18 +150,19 @@ export const registerAdminUser = async (
   }
 };
 
-export const selfRegister = async (
+export const selfRegisterService = async (
   role: string,
   nationalId: string,
   firstName: string,
   lastName: string,
   phoneNumber: string,
   email: string,
+  department: string,
 ) => {
   if (!role) {
     throw new Error('Role is required');
   }
-  if (!nationalId || !firstName || !lastName || !phoneNumber || !email) {
+  if (!nationalId || !firstName || !lastName || !phoneNumber || !email || !department) {
     throw new Error('All user details are required');
   }
 
@@ -199,6 +191,7 @@ export const selfRegister = async (
       lastName,
       phoneNumber,
       email,
+      department,
     );
     await tx.wait();
 
@@ -471,20 +464,44 @@ export const getUserData = async (userAddress: string) => {
     try {
       const userFromContract = await identityContract.users(userAddress);
 
-      // Validate and sanitize string fields
-      const sanitizeString = (value: any): string => (typeof value === 'string' ? value.trim() : '');
+      // Defensive: Ensure the returned array has the expected length
+      if (!userFromContract || userFromContract.length < 11) {
+        throw new Error('User data is incomplete or user does not exist');
+      }
 
-      const user: User = {
+      const role = getUserRoleText(Number(userFromContract[1]));
+
+      let user: User;
+
+      if (role === 'admin') {
+        user = {
+          address: userFromContract[0],
+          role: getUserRoleText(Number(userFromContract[1])),
+          nationalId: userFromContract[2],
+          firstName: userFromContract[3],
+          lastName: userFromContract[4],
+          phoneNumber: userFromContract[5],
+          email: userFromContract[6],
+          department: 'N/A',
+          // enrolledCourses:[],
+          status: Number(userFromContract[9]),
+          isVerified: Boolean(userFromContract[10]),
+        };
+        return user
+      }
+
+      user = {
         address: userFromContract[0],
         role: getUserRoleText(Number(userFromContract[1])),
-        nationalId: sanitizeString(userFromContract[2]),
-        firstName: sanitizeString(userFromContract[3]),
-        lastName: sanitizeString(userFromContract[4]),
-        phoneNumber: sanitizeString(userFromContract[5]),
-        email: sanitizeString(userFromContract[6]),
-        // enrolledCourses, // Use the decoded or fallback value
-        status: userFromContract[8],
-        isVerified: userFromContract[9],
+        nationalId: userFromContract[2],
+        firstName: userFromContract[3],
+        lastName: userFromContract[4],
+        phoneNumber: userFromContract[5],
+        email: userFromContract[6],
+        department: userFromContract[7],
+        // enrolledCourses: userFromContract[8],
+        status: Number(userFromContract.length > 9 ? userFromContract[9] : 0),
+        isVerified: Boolean(userFromContract.length > 10 ? userFromContract[10] : false),
       };
 
       return user;
@@ -678,7 +695,7 @@ export const getAdminStatsService = async (): Promise<{
 }> => {
   try {
 
-    const { 
+    const {
       studentCount,
       employerCount,
       adminCount,

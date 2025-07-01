@@ -59,8 +59,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (userRole && userRole !== 'admin') {
       router.replace('/');
+    } else if (userRole) {
+      setLoading(false);
     }
-    setTimeout(() => setLoading(false), 2000);
   }, [userRole, router]);
 
   useEffect(() => {
@@ -160,13 +161,13 @@ export default function AdminDashboard() {
                 ) : (
                   <>
                     <Heading size="md" mb={4}>
-                      {account.firstName + ' ' + account.lastName || t('connectedAccount')}
+                      {(account?.firstName && account?.lastName) ? `${account.firstName} ${account.lastName}` : t('connectedAccount')}
                     </Heading>
                     <Text fontSize="sm" mb={2}>
-                      {account?.email}
+                      {account ? account.email : t('noEmail')}
                     </Text>
                     <Text fontSize="sm" mb={2}>
-                      {account?.phoneNumber}
+                      {account ? account.phoneNumber : t('noPhoneNumber')}
                     </Text>
                     <Tooltip label={t('userRole')} placement="top">
                       <Badge colorScheme="red" px={3} py={1} borderRadius="full">
@@ -182,15 +183,8 @@ export default function AdminDashboard() {
               {isUserOwner &&
                 <>
                   <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
-                    <Heading size="md" mb={4}>{t('statistics')}</Heading>
-                    <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(false)}>
-                      {t('viewStatistics')}
-                    </Button>
-                  </Box>
-                  <Box p={6} borderRadius="xl" shadow="xl" borderWidth="1px">
-                    <Heading size="md" mb={4}>{t('adminStatic')}</Heading>
-                    <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(true)}>
-                      {t('addAdmin')}
+                    <Button mt={4} colorScheme="blue" onClick={() => setShowAddAdminForm(!showAddAdminForm)}>
+                      {showAddAdminForm ? t('viewStatistics') : t('addAdmin')}
                     </Button>
                   </Box>
                 </>
@@ -269,7 +263,7 @@ export default function AdminDashboard() {
                   </FormControl>
                 </SimpleGrid>
                 <Button mt={6} colorScheme="blue" onClick={handleAddAdmin}>
-                  {t('submet')}
+                  {t('submit')}
                 </Button>
               </Box>
             ) : (
@@ -297,9 +291,13 @@ export default function AdminDashboard() {
                       ))}
                     </SimpleGrid>
                   )}
-                  <Button mt={6} colorScheme="blue" onClick={() => setSelectedUserType(null)}>
+                  <Button mt={6} colorScheme="blue" onClick={() => {
+                    setSelectedUserType(null);
+                    setShowAddAdminForm(false);
+                  }}>
                     {t('backToStats')}
                   </Button>
+
                 </Box>
               ) : (
                 <Box borderRadius="xl" shadow="xl" borderWidth="1px" p={6}>

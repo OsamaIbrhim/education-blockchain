@@ -26,11 +26,19 @@ export const getExamManagementContract = async (signer?: ethers.Signer): Promise
 export const createExam = async (exam: NewExam): Promise<string> => {
     try {
         const contract = await getExamManagementContract();
-        const examIdBytes32 = toBytes32(exam.examId);
         const courseIdBytes32 = toBytes32(exam.courseId);
-        const examDate = BigInt(exam.date);
+        let examDate: bigint;
+        if (typeof exam.date === 'number') {
+            examDate = BigInt(exam.date);
+        } else if (typeof exam.date === 'string') {
+            examDate = BigInt(new Date(exam.date).getTime());
+        } else if (exam.date instanceof Date) {
+            examDate = BigInt(exam.date.getTime());
+        } else {
+            throw new Error('Invalid exam date');
+        }
 
-        const tx = await contract.createExam(examIdBytes32, courseIdBytes32, exam.title, examDate);
+        const tx = await contract.createExam(courseIdBytes32, courseIdBytes32, exam.courseName, examDate);
         const receipt = await tx.wait();
 
         const event = receipt?.logs?.find((log: Log | EventLog) => (log as EventLog).eventName === 'ExamCreated') as EventLog | undefined;
@@ -99,10 +107,13 @@ export const getExam = async (examId: string): Promise<ExamData | null> => {
         }
 
         return {
-            examId: ethers.decodeBytes32String(exam.examId),
+            id: ethers.decodeBytes32String(exam.examId),
             courseId: ethers.decodeBytes32String(exam.courseId),
-            title: exam.title,
-            examDate: Number(exam.examDate),
+            courseName: exam.title,
+            description: exam.description,
+            date: new Date(Number(exam.examDate)),
+            duration: Number(exam.duration),
+            department: exam.department,
             students: exam.students,
             isActive: exam.isActive,
         };

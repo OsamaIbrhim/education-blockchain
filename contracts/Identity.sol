@@ -23,6 +23,7 @@ contract Identity is Ownable, Pausable {
         string lastName;
         string phoneNumber;
         string email;
+        string department;
         string[] enrolledCourses;
         uint8 status;
         bool isVerified;
@@ -66,6 +67,7 @@ contract Identity is Ownable, Pausable {
             "Admin",
             "N/A",
             "N/A",
+            "N/A", // department
             new string[](0),
             0,
             true
@@ -102,7 +104,8 @@ contract Identity is Ownable, Pausable {
         string memory firstName,
         string memory lastName,
         string memory phoneNumber,
-        string memory email
+        string memory email,
+        string memory department
     ) external whenNotPaused onlyAdmin {
         require(users[userAddress].userAddress == address(0), "User already exists");
         require(_role != UserRole.NONE, "Invalid role");
@@ -121,6 +124,7 @@ contract Identity is Ownable, Pausable {
             lastName,
             phoneNumber,
             email,
+            department,
             new string[](0),
             0, // Status will be updated below if student
             true // isVerified by default when registered by admin
@@ -144,7 +148,8 @@ contract Identity is Ownable, Pausable {
         string memory firstName,
         string memory lastName,
         string memory phoneNumber,
-        string memory email
+        string memory email,
+        string memory department
     ) external whenNotPaused {
         require(users[msg.sender].userAddress == address(0), "User already exists");
         require(_role == UserRole.STUDENT || _role == UserRole.EMPLOYER, "Self-registration only for students or employers");
@@ -157,6 +162,7 @@ contract Identity is Ownable, Pausable {
             lastName,
             phoneNumber,
             email,
+            department,
             new string[](0),
             0, // Status will be updated below if student
             false // isVerified is false for self-registration
@@ -264,6 +270,7 @@ contract Identity is Ownable, Pausable {
             string memory lastName,
             string memory phoneNumber,
             string memory email,
+            string memory department,
             string[] memory enrolledCourses,
             uint8 role,
             bool isVerified,
@@ -280,6 +287,7 @@ contract Identity is Ownable, Pausable {
             user.lastName,
             user.phoneNumber,
             user.email,
+            user.department,
             user.enrolledCourses,
             uint8(user.role),
             user.isVerified,
@@ -329,5 +337,16 @@ contract Identity is Ownable, Pausable {
 
     function isStudentEnrolled(address _student) external view returns (bool) {
         return institutionStudents[owner()][_student];
+    }
+    
+    /**
+     * @dev Sets the enrolled courses for a student. Only callable by another contract (e.g., StudentAcademicManager) or admin.
+     * @param student The address of the student.
+     * @param courseIds The array of enrolled course IDs.
+     */
+    function setEnrolledCourses(address student, string[] memory courseIds) external onlyAdmin {
+        require(users[student].userAddress != address(0), "User does not exist");
+        require(users[student].role == UserRole.STUDENT, "Not a student");
+        users[student].enrolledCourses = courseIds;
     }
 }

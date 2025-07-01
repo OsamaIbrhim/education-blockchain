@@ -30,7 +30,7 @@ const queryClient = new QueryClient({
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const noLayoutRoutes = ['/', '/login', '/404'];
+  const noLayoutRoutes = ['/', '/login', '/404', '/about', '/contact', '/support', '/privacy-policy', '/terms-of-service'];
   const showLayout = !noLayoutRoutes.includes(router.pathname);
 
   useEffect(() => {

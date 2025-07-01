@@ -29,25 +29,25 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
         {
             label: t('courses'),
             icon: <FaBook />, 
-            href: '/dashboard/course',
+            href: `/dashboard/${userRole}/course`,
             show: true,
         },
-        {
-            label: t('exams'),
-            icon: <FaPen />, 
-            href: '/dashboard/exam',
-            show: true,
-        },
+        // {
+        //     label: t('exams'),
+        //     icon: <FaPen />, 
+        //     href: '/dashboard/exam',
+        //     show: true,
+        // },
         {
             label: t('certificates'),
             icon: <FaCertificate />, 
-            href: '/dashboard/certificate',
+            href: `/dashboard/${userRole}/certificate`,
             show: true,
         }
     ];
 
     const handleLogout = () => {
-        router.push('/');
+        router.push('/login');
     };
 
     const glassHeaderBg = useColorModeValue('rgba(255,255,255,0.95)', 'rgba(26,32,44,0.95)');
@@ -71,7 +71,7 @@ const Navbar = ({ onNotificationsOpen }: NavbarProps) => {
                 <HStack spacing={3} cursor="pointer" onClick={() => router.push('/')}>
                     <Image src="/menofia-logo.png" alt="University Logo" width={40} height={40} />
                     <Heading size="md" bgGradient="linear(to-r, blue.400, blue.600)" bgClip="text">
-                        {userRole === 'admin' && isUserOwner ? t('universityName') : account.firstName + ' ' + account.lastName}
+                        {t('universityName')}
                     </Heading>
                 </HStack>
                 <Spacer />

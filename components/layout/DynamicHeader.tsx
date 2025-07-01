@@ -76,9 +76,8 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
   return (
     <Box
       position="relative"
-      py={8}
-      px={4}
-      mb={8}
+      py={50}
+      mb={5}
       overflow="hidden"
       color="white"
     >
@@ -96,16 +95,14 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
         height="100%"
         objectFit="cover"
         zIndex={0}
-      />
-
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        bg="blackAlpha.700"
-        zIndex={1}
+        sx={{
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+          WebkitMaskSize: '100% 100%',
+          maskSize: '100% 100%',
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat',
+        }}
       />
 
       <Container maxW="container.xl" position="relative" zIndex={2}>
@@ -115,8 +112,8 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
             align="center"
             // bg="blackAlpha.600"
             p={6}
-            borderRadius="lg" 
-            backdropFilter="blur(0px)"
+            borderRadius="lg"
+            // backdropFilter="blur(50px)"
           >
             <Heading
               size="xl"
@@ -133,7 +130,6 @@ const DynamicHeader = ({ userRole }: DynamicHeaderProps) => {
         </ScaleFade>
       </Container>
     </Box>
-
   );
 };
 

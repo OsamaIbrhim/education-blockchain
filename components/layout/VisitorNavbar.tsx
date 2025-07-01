@@ -100,8 +100,8 @@ const VisitorNavbar = () => {
             </NextLink>
           </Box>
           <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
-            <Link as={NextLink} href="#about">{t('about')}</Link>
-            <Link as={NextLink} href="#support">{t('support')}</Link>
+            <Link as={NextLink} href="/about">{t('about')}</Link>
+            <Link as={NextLink} href="/support">{t('support')}</Link>
           </HStack>
         </HStack>
         <Flex alignItems="center">

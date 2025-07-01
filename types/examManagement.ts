@@ -41,7 +41,7 @@ export type ExamManagementContractType = ethers.Contract & {
     owner(): Promise<string>;
     paused(): Promise<boolean>;
 
-    createExam(examId: string, courseId: string, title: string, examDate: bigint): Promise<ethers.ContractTransactionResponse>;
+    createExam(courseId: string, title: string, examDate: bigint): Promise<ethers.ContractTransactionResponse>;
     updateExam(examId: string, newTitle: string, newExamDate: bigint, newIsActive: boolean): Promise<ethers.ContractTransactionResponse>;
     deactivateExam(examId: string): Promise<ethers.ContractTransactionResponse>;
     registerStudentsForExam(examId: string, studentAddresses: string[]): Promise<ethers.ContractTransactionResponse>;
@@ -56,17 +56,22 @@ export type ExamManagementContractType = ethers.Contract & {
 
 // Interface for frontend
 export interface NewExam {
-    examId: string;
     courseId: string;
-    title: string;
-    date: number; // timestamp
+    courseName: string;
+    description: string;
+    duration: number; // in minutes
+    date: Date;
+    department: string;
 }
 
 export interface ExamData {
-    examId: string;
+    id: string;
     courseId: string;
-    title: string;
-    examDate: number; // timestamp
+    courseName: string;
+    description: string;
+    duration: number; // in minutes
+    date: Date;
+    department: string;
     students: string[];
     isActive: boolean;
 }

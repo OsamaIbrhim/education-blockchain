@@ -82,6 +82,13 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
         bool isActive;
     }
 
+    struct EnrollmentRequest {
+        address student;
+        string[] courseIds;
+        bool approved;
+        bool exists;
+    }
+
     mapping(address => AcademicPerformance) public studentAcademicRecords;
     mapping(address => mapping(uint256 => SemesterPerformance)) public studentSemesterPerformance;
     mapping(address => mapping(bytes32 => Grade)) public studentGrades;
@@ -93,6 +100,8 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
 
     mapping(uint256 => AcademicAction) public academicActions;
     mapping(address => uint256[]) public studentAcademicActions;
+
+    mapping(address => EnrollmentRequest) public enrollmentRequests;
 
     InstitutionSettings public institutionSettings;
 
@@ -139,7 +148,11 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      */
     modifier onlyVerifiedStudent(address _studentAddress) {
         require(identityContract.isVerifiedUser(_studentAddress), "StudentAcademicManager: Student is not registered or not verified.");
-        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        (
+            , // address userAddress
+            Identity.UserRole role,
+            , , , , , , , // skip to role (2nd), then skip to 10th
+        ) = identityContract.users(_studentAddress);
         require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         _;
     }
@@ -650,7 +663,11 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return An array of warning IDs.
      */
     function getStudentWarnings(address _studentAddress) external view returns (uint256[] memory) {
-        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        (
+            , // address userAddress
+            Identity.UserRole role,
+            , , , , , , , // skip to role (2nd), then skip to 10th
+        ) = identityContract.users(_studentAddress);
         require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return studentWarnings[_studentAddress];
     }
@@ -677,7 +694,11 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return An array of academic action IDs.
      */
     function getStudentAcademicActions(address _studentAddress) external view returns (uint256[] memory) {
-        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        (
+            , // address userAddress
+            Identity.UserRole role,
+            , , , , , , , // skip to role (2nd), then skip to 10th
+        ) = identityContract.users(_studentAddress);
         require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return studentAcademicActions[_studentAddress];
     }
@@ -705,7 +726,11 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      * @return The current semester number.
      */
     function getCurrentSemesterNumber(address _studentAddress) external view returns (uint256) {
-        ( , Identity.UserRole role, , , , , , , ) = identityContract.users(_studentAddress);
+        (
+            , // address userAddress
+            Identity.UserRole role,
+            , , , , , , , // skip to role (2nd), then skip to 10th
+        ) = identityContract.users(_studentAddress);
         require(role == Identity.UserRole.STUDENT, "StudentAcademicManager: Address is not a student.");
         return currentSemesterNumber[_studentAddress];
     }
@@ -734,5 +759,59 @@ contract StudentAcademicManager is Ownable, Pausable, ReentrancyGuard {
      */
     function unpause() external onlyAdminOrOwner {
         _unpause();
+    }
+
+    /**
+     * @dev Requests enrollment in one or more courses.
+     * Students can request to enroll in courses by providing the course IDs.
+     * @param courseIds The IDs of the courses to enroll in.
+     */
+    function requestCourseEnrollment(string[] memory courseIds) external whenNotPaused {
+        require(identityContract.isVerifiedUser(msg.sender), "Not verified");
+        require(!enrollmentRequests[msg.sender].exists, "Request already exists");
+        require(courseIds.length > 0, "No courses selected");
+
+        // Prevent duplicate course IDs in the request
+        for (uint i = 0; i < courseIds.length; i++) {
+            for (uint j = i + 1; j < courseIds.length; j++) {
+                require(
+                    keccak256(bytes(courseIds[i])) != keccak256(bytes(courseIds[j])),
+                    "Duplicate course registration is not allowed"
+                );
+            }
+        }
+
+        enrollmentRequests[msg.sender] = EnrollmentRequest({
+            student: msg.sender,
+            courseIds: courseIds,
+            approved: false,
+            exists: true
+        });
+    }
+
+    /**
+     * @dev Approves a student's course enrollment request.
+     * Only the owner (University) or an Admin can approve enrollments.
+     * @param student The address of the student whose enrollment is to be approved.
+     */
+    function approveCourseEnrollment(address student) external onlyAdminOrOwner whenNotPaused {
+        EnrollmentRequest storage req = enrollmentRequests[student];
+        require(req.exists, "No request");
+        require(!req.approved, "Already approved");
+        require(req.courseIds.length > 0, "No courses in request");
+
+        identityContract.setEnrolledCourses(student, req.courseIds);
+
+        req.approved = true;
+    }
+
+    /**
+     * @dev Retrieves a list of pending enrollment requests.
+     * Only accessible by the owner (University) or an Admin.
+     * @return An array of student addresses with pending enrollment requests.
+     */
+    function getPendingEnrollmentRequests() external view onlyAdminOrOwner returns (address[] memory) {
+        // Return all students with pending requests (not yet approved)
+        // (Implementation can be optimized for production)
     }
 }

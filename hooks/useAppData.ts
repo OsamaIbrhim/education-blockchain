@@ -5,7 +5,7 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getUserData, verifyUser as verifyUserService, isOwner, registerAdminUser, getUsersByRoleService, getAdminStatsService } from 'services/identity';
+import { getUserData, verifyUser as verifyUserService, isOwner, registerAdminUser, getUsersByRoleService, getAdminStatsService, selfRegisterService } from 'services/identity';
 import { createExam, getExamResult, getUserExams, registerStudentsForExam, submitResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
@@ -13,22 +13,9 @@ import { addCourseService, getAllCourses, getCoursesByDepartment, addDepartmentS
 
 // Types
 import { ExamData, ExamResult, ExamStatistics, NewExam } from 'types/examManagement';
-import { Institution } from 'types/institution';
+import { Institution, NewUser, User } from 'types/institution';
 import { Hash } from 'viem';
 import { useRouter } from 'next/router';
-
-interface User {
-    address: string; // userAddress
-    role: number; // role (uint8)
-    nationalId: string; // nationalId
-    firstName: string; // firstName
-    lastName: string; // lastName
-    phoneNumber: string; // phoneNumber
-    email: string; // email
-    enrolledCourses: string[]; // enrolledCourses
-    status: number; // status (uint8)
-    isVerified: boolean // isVerified
-}
 
 interface UseAppDataReturn {
     isLoading: boolean;
@@ -61,13 +48,15 @@ interface UseAppDataReturn {
     handleSubmitResults: (examId: string, results: ExamResult[]) => Promise<boolean>;
     handleEnrollStudents: (examId: string, studentAddresses: string[]) => Promise<boolean>;
     loadExamResults: (examId: string) => Promise<void>;
+    loadAllDepartments: () => Promise<string[]>;
     issueNewCertificate: (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }) => Promise<boolean>;
     verifyUser: (userAddress: string) => Promise<any>;
-    loadAllCourses: (department: string) => Promise<any[]>;
+    loadAllCourses: (department?: string) => Promise<any[]>;
     addAdmin: (adminData: { address: string; nationalId: string; firstName: string; lastName: string; phoneNumber: string; email: string; }) => Promise<void>;
     getUsersByRole: (role: number) => Promise<Map<string, any>>;
     addCourse: (courseId: string, name: string, credits: number, department: string) => Promise<void>;
     addDepartment: (departmentName: string) => Promise<void>;
+    selfRegister: (user: NewUser) => Promise<boolean>;
 }
 
 export const useAppData = (): UseAppDataReturn => {
@@ -200,6 +189,12 @@ export const useAppData = (): UseAppDataReturn => {
                     lastName: sanitizeString(user.lastName),
                     email: sanitizeString(user.email),
                     phoneNumber: sanitizeString(user.phoneNumber),
+                    nationalId: sanitizeString(user.nationalId),
+                    address: user.address as `0x${string}`,
+                    role: user.role,
+                    // enrolledCourses: user.enrolledCourses,
+                    isVerified: user.isVerified,
+                    department: sanitizeString(user.department),
                 };
 
                 const role = sanitizedUser.role;
@@ -301,6 +296,42 @@ export const useAppData = (): UseAppDataReturn => {
             return [];
         }
     };
+
+    const selfRegister = async (user: NewUser): Promise<boolean> => {
+        try {
+            setIsLoading(true);
+            const { status } = await selfRegisterService(
+                user.role,
+                user.nationalId,
+                user.firstName,
+                user.lastName,
+                user.phoneNumber,
+                user.email,
+                user.department
+            );
+            if (status === 'success') {
+                Toast({
+                    title: 'Registration Successful',
+                    description: 'You have been registered successfully.',
+                    status: 'success',
+                    duration: 3000,
+                });
+                return true;
+            } else {
+                throw new Error('Registration failed. Please try again.');
+            }
+        } catch (err: any) {
+            Toast({
+                title: 'Error during registration',
+                description: err instanceof Error ? err.message : 'An unknown error occurred',
+                status: 'error',
+                duration: 3000,
+            });
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     // Exam Managment
     const createNewExam = async (exam: NewExam): Promise<any> => {
@@ -471,7 +502,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     const loadExamResults = async (examId: string) => {
         try {
-            const currentExam = exams.find(exam => exam.examId === examId);
+            const currentExam = exams.find(exam => exam.id === examId);
             if (!currentExam || !currentExam.students || currentExam.students.length === 0) {
                 console.warn('Exam not found or has no students:', examId);
                 setSelectedExamResults([]);
@@ -935,6 +966,7 @@ export const useAppData = (): UseAppDataReturn => {
         handleSubmitResults,
         handleEnrollStudents,
         loadExamResults,
+        loadAllDepartments,
         issueNewCertificate,
         verifyUser,
         loadAllCourses,
@@ -942,6 +974,7 @@ export const useAppData = (): UseAppDataReturn => {
         getUsersByRole,
         addCourse,
         addDepartment,
+        selfRegister,
     };
 };
 

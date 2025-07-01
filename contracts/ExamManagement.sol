@@ -15,10 +15,14 @@ contract ExamManagement is Ownable, Pausable {
 
     // هيكل بيانات الامتحان
     struct Exam {
-        bytes32 examId;        // معرف فريد للامتحان
-        bytes32 courseId;      // معرف المقرر الذي يتبع له هذا الامتحان
+        bytes32 examId;        // <-- changed from id to examId
+        bytes32 courseId; 
+        bytes32 courseName;
+        string description;  // معرف المقرر الذي يتبع له هذا الامتحان
+        uint256 duration;
         string title;          // عنوان الامتحان (مثل "امتحان برمجة متقدمة - منتصف الترم")
-        uint256 examDate;      // تاريخ ووقت الامتحان (timestamp)
+        uint256 date;      // تاريخ ووقت الامتحان (timestamp)
+        string department;
         address[] students;    // قائمة الطلاب المسجلين لهذا الامتحان
         bool isActive;         // هل الامتحان نشط (متاح لتسجيل الطلاب أو إرسال النتائج)
     }
@@ -69,7 +73,9 @@ contract ExamManagement is Ownable, Pausable {
     modifier onlyAdminOrOwner() {
         // Check if the caller is the owner of the Identity contract or has an ADMIN role.
         bool isOwner = (msg.sender == owner());
-        (, , , , , , , uint8 status, bool isVerified) = identityContract.users(msg.sender);
+        (
+            , , , , , , , , uint8 status, bool isVerified
+        ) = identityContract.users(msg.sender);
         bool isAdmin = (status == 2 && isVerified); // Assuming 2 is the enum value for ADMIN
         require(isOwner || isAdmin, "ExamManagement: Caller is not an admin or owner.");
         _;
@@ -108,8 +114,12 @@ contract ExamManagement is Ownable, Pausable {
         exams[_examId] = Exam({
             examId: _examId,
             courseId: _courseId,
+            courseName: bytes32(0), // or set as needed
+            description: "",
+            duration: 0,
             title: _title,
-            examDate: _examDate,
+            date: _examDate,
+            department: "",
             students: new address[](0),
             isActive: true
         });
@@ -140,7 +150,7 @@ contract ExamManagement is Ownable, Pausable {
 
         Exam storage examToUpdate = exams[_examId];
         examToUpdate.title = _newTitle;
-        examToUpdate.examDate = _newExamDate;
+        examToUpdate.date = _newExamDate; // changed from examDate to date
         examToUpdate.isActive = _newIsActive; // Allow deactivating an exam
 
         emit ExamUpdated(_examId, _newTitle, _newExamDate, _newIsActive);
@@ -173,7 +183,7 @@ contract ExamManagement is Ownable, Pausable {
         for (uint i = 0; i < _studentAddresses.length; i++) {
             address studentAddress = _studentAddresses[i];
             // التحقق من أن الطالب مسجل ومفعل في نظام الهوية
-            (, , , , , , , uint8 status, bool isVerified) = identityContract.users(studentAddress);
+            ( , , , , , , , , uint8 status, bool isVerified) = identityContract.users(studentAddress);
             require(isVerified && status == 1, "ExamManagement: All students must be verified and have a STUDENT role."); // Assuming 1 is STUDENT
 
             // إضافة الطالب إلى قائمة المسجلين في الامتحان
@@ -300,7 +310,9 @@ contract ExamManagement is Ownable, Pausable {
      */
     function getUserExams(address _user) external view returns (bytes32[] memory) {
         // Check the user's role from the Identity contract
-        (, , , , , , , uint8 status, ) = identityContract.users(_user);
+        (
+            , , , , , , , , uint8 status, 
+        ) = identityContract.users(_user);
         
         // Assuming role 2 is ADMIN/Owner, they can see all exams created by the institution
         if (status == 2) { // ADMIN
@@ -339,7 +351,7 @@ contract ExamManagement is Ownable, Pausable {
             exam.examId,
             exam.courseId,
             exam.title,
-            exam.examDate,
+            exam.date, // changed from exam.examDate to exam.date
             exam.students,
             exam.isActive
         );

@@ -29,7 +29,7 @@ const CoursePage = () => {
   const { t } = useLanguage();
   const { courses, isLoading: loading, addCourse, departments, addDepartment } = useAppData();
   const toast = useToast();
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(departments.length > 0 ? departments[0] : null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [courseList, setCourseList] = useState(courses);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isAddingDepartment, setIsAddingDepartment] = useState(false);
@@ -51,6 +51,12 @@ const CoursePage = () => {
       setCourseList(filteredCourses);
     }
   }, [selectedDepartment, courses, searchQuery]);
+
+  useEffect(() => {
+  if (departments.length > 0 && !selectedDepartment) {
+    setSelectedDepartment(departments[0]);
+  }
+}, [departments]);
 
   const handleDepartmentClick = (department: string) => {
     setSelectedDepartment(department);
@@ -179,7 +185,7 @@ const CoursePage = () => {
                 <Skeleton key={index} height="350px" borderRadius="xl" />
               ))
             ) : (
-              <Box sx={styles.card} position="relative" minH="350px">
+              <Box sx={styles.card} position="relative" minH="350px" >
                 {isAddingDepartment ? (
                   <VStack spacing={4} align="stretch">
                     <Heading size="md" mb={4}>{t('addDepartment')}</Heading>
@@ -314,7 +320,7 @@ const CoursePage = () => {
                     <Heading size="lg">{t('universityName')}</Heading>
                   </VStack>
                 )}
-                <Box sx={styles.logo} />
+                <Box sx={styles.logo}/>
               </Box>
             )}
           </GridItem>
