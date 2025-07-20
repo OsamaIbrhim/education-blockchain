@@ -1,4 +1,16 @@
 {
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_app",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__app_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_error",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__error_js.js"
+    ]
+  },
   "node_modules\\viem\\_esm\\actions\\public\\call.js -> ../../utils/ccip.js": {
     "id": "node_modules\\viem\\_esm\\actions\\public\\call.js -> ../../utils/ccip.js",
     "files": []
@@ -6,7 +18,7 @@
   "node_modules\\viem\\_esm\\utils\\rpc\\webSocket.js -> isows": {
     "id": "node_modules\\viem\\_esm\\utils\\rpc\\webSocket.js -> isows",
     "files": [
-      "static/chunks/node_modules_isows__esm_native_js.js"
+      "static/chunks/_pages-dir-browser_node_modules_isows__esm_native_js.js"
     ]
   },
   "node_modules\\viem\\_esm\\utils\\signature\\recoverPublicKey.js -> @noble/curves/secp256k1": {
@@ -16,13 +28,13 @@
   "pages\\dashboard\\admin.tsx -> ../../components/dashboard/InstitutionsTable": {
     "id": "pages\\dashboard\\admin.tsx -> ../../components/dashboard/InstitutionsTable",
     "files": [
-      "static/chunks/components_dashboard_InstitutionsTable_tsx.js"
+      "static/chunks/_pages-dir-browser_components_dashboard_InstitutionsTable_tsx.js"
     ]
   },
   "pages\\dashboard\\admin.tsx -> ../../components/dashboard/StatsGrid": {
     "id": "pages\\dashboard\\admin.tsx -> ../../components/dashboard/StatsGrid",
     "files": [
-      "static/chunks/components_dashboard_StatsGrid_tsx.js"
+      "static/chunks/_pages-dir-browser_components_dashboard_StatsGrid_tsx.js"
     ]
   },
   "utils\\ipfsUtils.ts -> ../constants/abis": {
