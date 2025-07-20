@@ -79,7 +79,6 @@ import { Institution } from 'types/institution';
 
 // Layout
 import Layout from '../../components/layout/Layout';
-import ProtectedRoute from '../../components/auth/ProtectedRoute';
 import { useLanguage } from 'context/LanguageContext';
 
 // Lazy load components

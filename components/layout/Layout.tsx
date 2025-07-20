@@ -2,7 +2,6 @@ import React from 'react';
 import { Box } from '@chakra-ui/react';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import ProtectedRoute from 'components/auth/ProtectedRoute';
 import { useAppData } from 'hooks/useAppData';
 import DynamicHeader from './DynamicHeader';
 
