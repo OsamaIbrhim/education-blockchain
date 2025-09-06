@@ -1,98 +1,63 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import {
-  Container,
-  VStack,
-  Heading,
-  Text,
   Box,
   Button,
-  Input,
-  FormControl,
-  FormLabel,
-  useToast,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  SimpleGrid,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Spinner,
   Center,
-  HStack,
+  Container,
   Divider,
-  useColorModeValue,
+  FormControl,
+  FormHelperText,
+  FormLabel,
   Grid,
   GridItem,
-  Tooltip,
-  useDisclosure,
+  Heading,
+  HStack,
+  Icon,
+  IconButton,
+  Input,
   Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
   ModalBody,
   ModalCloseButton,
+  ModalContent,
+  ModalHeader,
+  ModalOverlay,
   Progress,
-  Icon,
-  Fade,
   ScaleFade,
-  Skeleton,
+  Spinner,
+  Stack,
+  Text,
+  Tooltip,
+  useColorModeValue,
+  useDisclosure,
+  useToast,
+  VStack,
   Alert,
   AlertIcon,
-  Link,
-  FormHelperText,
-  BoxProps,
-  IconButton,
-  createIcon,
+  Badge,
 } from '@chakra-ui/react';
-import { getUserRole, isOwner } from 'services/identity';
-import { connectWallet } from '../../utils/web3Provider';
+import { createIcon } from '@chakra-ui/icons';
+import { FiArrowUp } from 'react-icons/fi';
 import { IconType } from 'react-icons';
-import {
-  FiUserCheck,
-  FiCheckCircle,
-  FiAlertCircle,
-  FiInfo,
-  FiUser,
-  FiShield,
-  FiDatabase,
-  FiActivity,
-  FiSettings,
-  FiBriefcase,
-  FiUsers,
-  FiArrowUp
-} from 'react-icons/fi';
-import React from 'react';
-import { getConfig } from '../../utils/config';
+
+import { getUserRole, isOwner } from 'services/identity';
 import { useAppData } from 'hooks/useAppData';
-
-// Import the new SimpleLogoutButton
-import SimpleLogoutButton from '../../components/SimpleLogoutButton';
-import { Institution } from 'types/institution';
-
-// Layout
-import Layout from '../../components/layout/Layout';
+import { getConfig } from '../../utils/config';
 import { useLanguage } from 'context/LanguageContext';
+import Layout from '../../components/layout/Layout';
 
-// Lazy load components
+// Lazy loaded components
 const StatsGrid = dynamic(() => import('../../components/dashboard/StatsGrid'), {
   loading: () => <Spinner />,
-  ssr: false
+  ssr: false,
 });
-
 const InstitutionsTable = dynamic(() => import('../../components/dashboard/InstitutionsTable'), {
   loading: () => <Spinner />,
-  ssr: false
+  ssr: false,
 });
 
-// تعريف الأيقونات كمكونات Chakra UI
+// Custom Chakra Icons
 const UserIcon = createIcon({
   displayName: 'UserIcon',
   viewBox: '0 0 24 24',
@@ -198,21 +163,12 @@ const SettingsIcon = createIcon({
   ),
 });
 
-interface IconComponentProps extends BoxProps {
-  icon: IconType;
-}
-
-const IconComponent = ({ icon: IconComponent, ...props }: IconComponentProps) => (
-  <Box as="span" display="inline-flex" alignItems="center" justifyContent="center" {...props}>
-    {IconComponent && <IconComponent />}
-  </Box>
-);
-
-// Update the TutorialModal component to use t
-const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+// Tutorial Modal Component
+const TutorialModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>{t('welcomeAdminDashboard')}</ModalHeader>
@@ -228,7 +184,7 @@ const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
               <br />
               • {t('manageSystem')}
             </Text>
-            <Button colorScheme="red" onClick={onClose}>
+            <Button colorScheme="red" onClick={onClose} alignSelf="flex-end">
               {t('gotIt')}
             </Button>
           </VStack>
@@ -238,189 +194,176 @@ const TutorialModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   );
 };
 
-export default function AdminDashboard() {
+const AdminDashboard: React.FC = () => {
   const { t, translations } = useLanguage();
   const { allInstitutions, verifyUser, account, userRole, isLoading } = useAppData();
   const router = useRouter();
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // State
   const [loading, setLoading] = useState(true);
   const [institutionAddress, setInstitutionAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isFirstVisit, setIsFirstVisit] = useState(true);
   const [verificationProgress, setVerificationProgress] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const bgColor = useColorModeValue('white', 'gray.800');
   const [isAdmin, setIsAdmin] = useState(false);
-  const institutionsSectionRef = useRef<HTMLDivElement>(null);
+
+  // Refs for scrolling
   const totalInstitutionsRef = useRef<HTMLDivElement>(null);
   const verifiedInstitutionsRef = useRef<HTMLDivElement>(null);
   const pendingInstitutionsRef = useRef<HTMLDivElement>(null);
 
   // Colors
-  const bgGradient = useColorModeValue(
-    'linear-gradient(120deg, red.700 0%, red.900 100%)',
-    'linear-gradient(120deg, red.500 0%, red.700 100%)'
-  );
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('red.100', 'red.700');
-  const textColor = useColorModeValue('gray.800', 'white');
   const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
+  const textColor = useColorModeValue('gray.800', 'white');
 
+  // Check access on mount
   useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        setLoading(true);
+
+        if (typeof window === 'undefined' || !window.ethereum) {
+          throw new Error(t('metamaskNotInstalled'));
+        }
+
+        if (!account) {
+          throw new Error(t('notAuthorized'));
+        }
+
+        const adminAddress = getConfig('ADMIN_ADDRESS');
+        if (account.toLowerCase() !== adminAddress.toLowerCase()) {
+          throw new Error(t('notAuthorized'));
+        }
+
+        const role = Number(await getUserRole(account));
+        const isSystemOwner = await isOwner(account);
+
+        if (role !== 4 && !isSystemOwner) {
+          throw new Error(t('insufficientPermissions'));
+        }
+
+        localStorage.setItem('adminAddress', account);
+        localStorage.setItem('userRole', role.toString());
+        setIsAdmin(true);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || t('unknownError'));
+        setIsAdmin(false);
+        setTimeout(() => router.push('/'), 2000);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     checkAccess();
-    const hasVisited = localStorage.getItem('hasVisitedAdminDashboard');
-    if (!hasVisited) {
+
+    // Show tutorial modal on first visit
+    if (!localStorage.getItem('hasVisitedAdminDashboard')) {
       onOpen();
       localStorage.setItem('hasVisitedAdminDashboard', 'true');
     }
-  }, []);
+  }, [account, router, t, onOpen]);
 
+  // Redirect non-admin users immediately
   useEffect(() => {
     if (userRole && userRole !== 'admin') {
       router.replace('/');
     }
   }, [userRole, router]);
 
-  const checkAccess = async () => {
-    try {
-      setLoading(true);
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error(t('metamaskNotInstalled'));
-        throw new Error(t('metamaskNotInstalled'));
+  // Verification handler
+  const handleVerifyUser = useCallback(
+    async (address?: string) => {
+      const targetAddress = address || institutionAddress.trim();
+
+      if (!targetAddress) {
+        toast({
+          title: t('error'),
+          description: t('pleaseEnterInstitutionAddress'),
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'top',
+        });
+        return;
       }
 
-      const adminAddress = getConfig('ADMIN_ADDRESS');
-
-      if (!account || account.toLowerCase() !== adminAddress.toLowerCase()) {
-        throw new Error(t('notAuthorized'));
-        throw new Error(t('notAuthorized'));
-      }
-
-      const role = Number(await getUserRole(account));
-      const isSystemOwner = await isOwner(account);
-
-      if (role !== 4 && !isSystemOwner) {
-        throw new Error(t('insufficientPermissions'));
-        throw new Error(t('insufficientPermissions'));
-      }
-
-      localStorage.setItem('adminAddress', account);
-      localStorage.setItem('userRole', role.toString());
-      setIsAdmin(true);
-      setLoading(false);
-
-    } catch (error: any) {
-      console.error('Access Check Error:', error);
-      setError(error.message);
-      setLoading(false);
-      setIsAdmin(false);
-
-      setTimeout(() => {
-        router.push('/');
-      }, 2000);
-    }
-  };
-
-  const handleverifyUser = async (address?: string) => {
-    if (!institutionAddress && !address) {
-      toast({
-        title: t('error'),
-        description: t('pleaseEnterInstitutionAddress'),
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-      return;
-    }
-
-    try {
       setLoading(true);
       setVerificationProgress(25);
 
-      const institution = address || institutionAddress.trim();
+      let progressInterval: NodeJS.Timeout | null = null;
 
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setVerificationProgress(prev => Math.min(prev + 15, 90));
-      }, 500);
+      try {
+        progressInterval = setInterval(() => {
+          setVerificationProgress((prev) => Math.min(prev + 15, 90));
+        }, 500);
 
-      const { status } = await verifyUser(institution);
-      setVerificationProgress(95);
+        const { status } = await verifyUser(targetAddress);
 
-      setInstitutionAddress('');
+        setVerificationProgress(95);
+        setInstitutionAddress('');
 
-      if (status === 'success') {
+        if (status === 'success') {
+          toast({
+            title: t('success'),
+            description: t('institutionVerified'),
+            status: 'success',
+            duration: 5000,
+            isClosable: true,
+            position: 'top-right',
+          });
+        } else if (status === 'already verified') {
+          toast({
+            title: t('warning'),
+            description: t('alreadyVerified'),
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+            position: 'top-right',
+          });
+        }
+      } catch (err: any) {
         toast({
-          title: t('success'),
-          description: t('institutionVerified'),
-          status: 'success',
-          duration: 5000,
+          title: t('error'),
+          description: err.message || t('failedToVerifyInstitution'),
+          status: 'error',
+          duration: 3000,
           isClosable: true,
-          position: 'top-right',
+          position: 'top',
         });
-      } else if (status === 'already verified') {
-        toast({
-          title: t('warning'),
-          description: t('alreadyVerified'),
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-          position: 'top-right',
-        });
+      } finally {
+        if (progressInterval) clearInterval(progressInterval);
+        setVerificationProgress(100);
+        setTimeout(() => setVerificationProgress(0), 1000);
+        setLoading(false);
       }
+    },
+    [institutionAddress, toast, t, verifyUser]
+  );
 
-      clearInterval(progressInterval);
-      setVerificationProgress(100);
-
-      // Reset progress after completion
-      setTimeout(() => {
-        setVerificationProgress(0);
-      }, 1000);
-
-    } catch (error: any) {
-      console.error('Error verifying institution:', error);
-      toast({
-        title: t('error'),
-        description: error.message || t('failedToVerifyInstitution'),
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-    } finally {
-      setLoading(false);
-    }
+  // Scroll handlers
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const scrollToInstitutions = () => {
-    institutionsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  const scrollToTotal = () => totalInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const scrollToVerified = () => verifiedInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const scrollToPending = () => pendingInstitutionsRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Memoized filtered institutions
+  const verifiedInstitutions = useMemo(() => allInstitutions.filter((i) => i.isVerified), [allInstitutions]);
+  const pendingInstitutions = useMemo(() => allInstitutions.filter((i) => !i.isVerified), [allInstitutions]);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  if (Object.keys(translations).length === 0) {
-    return <Spinner />;
-  }
-
-  if (loading) {
+  // Loading or error states
+  if (Object.keys(translations).length === 0 || loading) {
     return (
-      <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+      <Center h="100vh" bg={bgColor}>
         <VStack spacing={4}>
           <Spinner size="xl" color="red.500" thickness="4px" speed="0.65s" />
           <Text fontSize="lg">{t('loading')}</Text>
-          <Progress
-            size="xs"
-            isIndeterminate
-            width="200px"
-            colorScheme="red"
-          />
+          <Progress size="xs" isIndeterminate width="200px" colorScheme="red" />
         </VStack>
       </Center>
     );
@@ -428,7 +371,7 @@ export default function AdminDashboard() {
 
   if (error) {
     return (
-      <Center h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+      <Center h="100vh" bg={bgColor}>
         <ScaleFade initialScale={0.9} in={true}>
           <Alert
             status="error"
@@ -446,12 +389,7 @@ export default function AdminDashboard() {
             <Text color="red.500" fontSize="xl" mt={4}>
               {error}
             </Text>
-            <Button
-              colorScheme="red"
-              size="lg"
-              onClick={checkAccess}
-              mt={4}
-            >
+            <Button colorScheme="red" size="lg" onClick={() => window.location.reload()} mt={4}>
               {t('retry')}
             </Button>
           </Alert>
@@ -462,13 +400,13 @@ export default function AdminDashboard() {
 
   return (
     <Layout pageName={t('adminDashboard')} address={account} allowedValue={userRole}>
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        {isOpen && <TutorialModal isOpen={isOpen} onClose={onClose} />}
+      <Box minH="100vh" bg={bgColor} pb="100px">
+        <TutorialModal isOpen={isOpen} onClose={onClose} />
 
-        <Container maxW="container.xl" pb="100px">
-          <Grid templateColumns="repeat(12, 1fr)" gap={6}>
-            {/* Enhanced Sidebar with Animations */}
-            <GridItem colSpan={{ base: 12, lg: 3 }}>
+        <Container maxW="container.xl" pt={6}>
+          <Grid templateColumns={{ base: '1fr', lg: 'repeat(12, 1fr)' }} gap={6}>
+            {/* Sidebar */}
+            <GridItem colSpan={{ base: 1, lg: 3 }}>
               <VStack spacing={6} align="stretch">
                 <ScaleFade initialScale={0.9} in={true}>
                   <Box
@@ -516,7 +454,6 @@ export default function AdminDashboard() {
                   </Box>
                 </ScaleFade>
 
-                {/* System Info Box with Icons */}
                 <ScaleFade initialScale={0.9} in={true} delay={0.1}>
                   <Box
                     bg={useColorModeValue('red.50', 'red.900')}
@@ -559,21 +496,19 @@ export default function AdminDashboard() {
               </VStack>
             </GridItem>
 
-            {/* Enhanced Main Content with Animations */}
-            <GridItem colSpan={{ base: 12, lg: 9 }}>
+            {/* Main Content */}
+            <GridItem colSpan={{ base: 1, lg: 9 }}>
               <VStack spacing={6} align="stretch">
-                {/* Enhanced Stats with Hover Effects */}
                 <StatsGrid
                   institutions={allInstitutions}
-                  scrollToTotal={scrollToTotal}
-                  scrollToVerified={scrollToVerified}
-                  scrollToPending={scrollToPending}
+                  scrollToTotal={() => scrollToRef(totalInstitutionsRef)}
+                  scrollToVerified={() => scrollToRef(verifiedInstitutionsRef)}
+                  scrollToPending={() => scrollToRef(pendingInstitutionsRef)}
                   cardBg={cardBg}
                   borderColor={borderColor}
                   mutedTextColor={mutedTextColor}
                 />
 
-                {/* Enhanced Institution Verification Form */}
                 <ScaleFade initialScale={0.9} in={true}>
                   <Box
                     bg={cardBg}
@@ -582,113 +517,99 @@ export default function AdminDashboard() {
                     overflow="hidden"
                     borderWidth="1px"
                     borderColor={borderColor}
+                    p={6}
                   >
-                    <Box p={6}>
-                      <VStack spacing={4} align="stretch">
-                        <Heading size="md" color={textColor}>
-                          {t('verifyNewInstitution')}
-                        </Heading>
-                        <Text color={mutedTextColor}>
-                          {t('enterInstitutionWallet')}
-                        </Text>
-                        <FormControl>
-                          <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
-                          <Input
-                            value={institutionAddress}
-                            onChange={(e) => setInstitutionAddress(e.target.value)}
-                            placeholder="0x..."
-                            size="lg"
-                            bg={useColorModeValue('white', 'gray.700')}
-                            _focus={{
-                              borderColor: "red.400",
-                              boxShadow: "0 0 0 1px red.400"
-                            }}
-                          />
-                          <FormHelperText color={mutedTextColor}>
-                            {t('mustBeValidEthereum')}
-                          </FormHelperText>
-                        </FormControl>
-                        <Button
-                          colorScheme="red"
+                    <VStack spacing={4} align="stretch">
+                      <Heading size="md" color={textColor}>
+                        {t('verifyNewInstitution')}
+                      </Heading>
+                      <Text color={mutedTextColor}>{t('enterInstitutionWallet')}</Text>
+                      <FormControl>
+                        <FormLabel fontWeight="bold">{t('institutionAddress')}</FormLabel>
+                        <Input
+                          value={institutionAddress}
+                          onChange={(e) => setInstitutionAddress(e.target.value)}
+                          placeholder="0x..."
                           size="lg"
-                          onClick={() => handleverifyUser()}
-                          isLoading={loading}
-                          loadingText={t('verifying')}
-                          leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
-                          _hover={{
-                            transform: 'translateY(-2px)',
-                            boxShadow: 'lg',
+                          bg={useColorModeValue('white', 'gray.700')}
+                          _focus={{
+                            borderColor: 'red.400',
+                            boxShadow: '0 0 0 1px red.400',
                           }}
-                        >
-                          <HStack spacing={2}>
-                            <Icon as={CheckIcon} w={5} h={5} />
-                            <Text>{t('verifyInstitution')}</Text>
-                          </HStack>
-                        </Button>
-                        {verificationProgress > 0 && (
-                          <Progress
-                            value={verificationProgress}
-                            size="xs"
-                            colorScheme="red"
-                            borderRadius="full"
-                            isAnimated
-                            hasStripe
-                          />
-                        )}
-                      </VStack>
-                    </Box>
+                          aria-label={t('institutionAddress')}
+                        />
+                        <FormHelperText color={mutedTextColor}>{t('mustBeValidEthereum')}</FormHelperText>
+                      </FormControl>
+                      <Button
+                        colorScheme="red"
+                        size="lg"
+                        onClick={() => handleVerifyUser()}
+                        isLoading={loading}
+                        loadingText={t('verifying')}
+                        leftIcon={<Icon as={CheckIcon} w={5} h={5} />}
+                        _hover={{
+                          transform: 'translateY(-2px)',
+                          boxShadow: 'lg',
+                        }}
+                        aria-label={t('verifyInstitution')}
+                      >
+                        {t('verifyInstitution')}
+                      </Button>
+                      {verificationProgress > 0 && (
+                        <Progress
+                          value={verificationProgress}
+                          size="xs"
+                          colorScheme="red"
+                          borderRadius="full"
+                          isAnimated
+                          hasStripe
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={verificationProgress}
+                        />
+                      )}
+                    </VStack>
                   </Box>
-                  <Divider />
-                  {/* Enhanced Institutions List */}
-                  {/* <Box
-                  {/* <Box
-                    bg={cardBg}
-                    borderRadius="xl"
-                    marginTop={2.5}
-                    shadow="xl"
-                    overflow="hidden"
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                  > */}
-                    {/* Total Institutions Table */}
-                    {/* <Box p={6} ref={totalInstitutionsRef}>
-                    {/* <Box p={6} ref={totalInstitutionsRef}>
-                      <InstitutionsTable
-                        institutions={allInstitutions}
-                        onVerify={handleverifyUser}
-                        isLoading={isLoading}
-                      />
-                    </Box>
-                  </Box> */}
+
+                  <Divider my={6} />
+
+                  {/* Verified Institutions */}
                   <Box
                     bg={cardBg}
                     borderRadius="xl"
-                    marginTop={2.5}
                     shadow="xl"
                     overflow="hidden"
                     borderWidth="1px"
                     borderColor={borderColor}
+                    ref={verifiedInstitutionsRef}
+                    p={6}
                   >
-                    {/* Verified Institutions Table */}
-                    <Box ref={verifiedInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>{t('verifiedInstitutions')}</Heading>
-                      <InstitutionsTable institutions={allInstitutions.filter(i => i.isVerified)} isLoading={isLoading} />
-                    </Box>
+                    <Heading size="md" mb={4}>
+                      {t('verifiedInstitutions')}
+                    </Heading>
+                    <InstitutionsTable institutions={verifiedInstitutions} isLoading={isLoading} />
                   </Box>
+
+                  {/* Pending Institutions */}
                   <Box
                     bg={cardBg}
                     borderRadius="xl"
-                    marginTop={2.5}
                     shadow="xl"
                     overflow="hidden"
                     borderWidth="1px"
                     borderColor={borderColor}
+                    ref={pendingInstitutionsRef}
+                    p={6}
+                    mt={6}
                   >
-                    {/* Pending Institutions Table */}
-                    <Box ref={pendingInstitutionsRef} p={6} mt={6}>
-                      <Heading size="md" mb={2}>{t('pendingInstitutions')}</Heading>
-                      <InstitutionsTable institutions={allInstitutions.filter(i => !i.isVerified)} onVerify={handleverifyUser} isLoading={isLoading} />
-                    </Box>
+                    <Heading size="md" mb={4}>
+                      {t('pendingInstitutions')}
+                    </Heading>
+                    <InstitutionsTable
+                      institutions={pendingInstitutions}
+                      onVerify={handleVerifyUser}
+                      isLoading={isLoading}
+                    />
                   </Box>
                 </ScaleFade>
               </VStack>
@@ -696,6 +617,7 @@ export default function AdminDashboard() {
           </Grid>
         </Container>
 
+        {/* Scroll to Top Button */}
         <IconButton
           aria-label={t('scrollToTop')}
           icon={<Icon as={FiArrowUp} />}
@@ -712,4 +634,6 @@ export default function AdminDashboard() {
       </Box>
     </Layout>
   );
-}
+};
+
+export default AdminDashboard;

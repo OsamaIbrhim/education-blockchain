@@ -3,6 +3,8 @@ const Certificates = artifacts.require("Certificates");
 const Examinations = artifacts.require("Examinations");
 const ExamManagement = artifacts.require("ExamManagement");
 const SecurityUtils = artifacts.require("SecurityUtils");
+const CourseManagement = artifacts.require("CourseManagement");
+const StudentAcademicManager = artifacts.require("StudentAcademicManager");
 
 module.exports = async function(deployer, network, accounts) {
     // Deploy SecurityUtils first
@@ -12,6 +14,14 @@ module.exports = async function(deployer, network, accounts) {
     // Deploy Identity contract
     await deployer.deploy(Identity);
     const identityInstance = await Identity.deployed();
+    
+    // Deploy CourseManagement with Identity address
+    await deployer.deploy(CourseManagement, identityInstance.address);
+    const courseManagementInstance = await CourseManagement.deployed();
+          
+    // Deploy StudentAcademicManager with required addresses
+    await deployer.deploy(StudentAcademicManager, identityInstance.address, courseManagementInstance.address);
+    const studentAcademicManagerInstance = await StudentAcademicManager.deployed();
     
     // Deploy Certificates contract with Identity contract address
     await deployer.deploy(Certificates, identityInstance.address);

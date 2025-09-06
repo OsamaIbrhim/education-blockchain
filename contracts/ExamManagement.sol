@@ -19,10 +19,18 @@ contract ExamManagement is Ownable, Pausable {
 
     IIdentity public identityContract;
 
+    enum ExamStatus { UPCOMING, IN_PROGRESS, COMPLETED }
+
     struct Exam {
-        string ipfsHash;
-        address[] students;
-        bool exists;
+        address institution;      // Institution that created the exam
+        string title;            // Exam title
+        string description;      // Exam description
+        uint256 date;           // Exam date in unix timestamp
+        uint256 duration;       // Duration in minutes
+        string ipfsHash;        // TODO: IPFS implementation will be added later for PDF file storage
+        address[] students;     // Enrolled students
+        bool exists;            // Whether the exam exists
+        ExamStatus status;      // Exam status
     }
 
     struct ExamResult {
@@ -42,8 +50,17 @@ contract ExamManagement is Ownable, Pausable {
     Counters.Counter private _examIds;
 
     // Events
-    event ExamCreated(bytes32 indexed examId, string title);
-    event ExamUpdated(bytes32 indexed examId, string ipfsHash, bool exists);
+    // TODO: IPFS hash will be added to event later
+    event ExamCreated(
+        bytes32 indexed examId,
+        address indexed institution,
+        string title,
+        string description,
+        uint256 date,
+        uint256 duration,
+        ExamStatus status
+    );
+    event ExamUpdated(bytes32 indexed examId, string title, uint256 date, ExamStatus status);
     event StudentsRegistered(bytes32 indexed examId, address[] students);
     event ResultSubmitted(bytes32 indexed examId, address indexed student);
 
@@ -64,32 +81,78 @@ contract ExamManagement is Ownable, Pausable {
     }
     
     // Exam Management
+    // TODO: IPFS parameter will be added later for PDF storage
     function createExam(
-        string memory ipfsHash
+        string memory title,
+        string memory description,
+        uint256 examDate,
+        uint256 duration
     ) external onlyVerifiedInstitution returns (bytes32) {
         _examIds.increment();
         bytes32 examId = keccak256(abi.encodePacked(_examIds.current(), msg.sender));
         
+        // Determine initial status based on date
+        ExamStatus initialStatus;
+        if (examDate < block.timestamp) {
+            revert("Exam date must be in the future");
+        } else if (examDate == block.timestamp) {
+            initialStatus = ExamStatus.IN_PROGRESS;
+        } else {
+            initialStatus = ExamStatus.UPCOMING;
+        }
+
         exams[examId] = Exam({
-            ipfsHash: ipfsHash,
+            institution: msg.sender,
+            title: title,
+            description: description,
+            date: examDate,
+            duration: duration,
+            ipfsHash: "", // TODO: Will be implemented later
             students: new address[](0),
-            exists: true
+            exists: true,
+            status: initialStatus
         });
 
         institutionExams[msg.sender].push(examId);
 
-        emit ExamCreated(examId, ipfsHash);
+        emit ExamCreated(
+            examId,
+            msg.sender,
+            title,
+            description,
+            examDate,
+            duration,
+            initialStatus
+        );
         return examId;
     }
 
+    // TODO: Will add IPFS update functionality later
     function updateExam(
         bytes32 examId,
-        string memory newIpfsHash,
+        string memory newTitle,
+        string memory newDescription,
+        uint256 newDate,
+        uint256 newDuration,
         bool newExists
     ) external onlyVerifiedInstitution onlyExistingExam(examId) {
-        exams[examId].ipfsHash = newIpfsHash;
-        exams[examId].exists = newExists;
-        emit ExamUpdated(examId, newIpfsHash, newExists);
+        Exam storage exam = exams[examId];
+        exam.title = newTitle;
+        exam.description = newDescription;
+        exam.date = newDate;
+        exam.duration = newDuration;
+        exam.exists = newExists;
+        
+        // Update status based on new date
+        if (newDate < block.timestamp) {
+            exam.status = ExamStatus.COMPLETED;
+        } else if (newDate == block.timestamp) {
+            exam.status = ExamStatus.IN_PROGRESS;
+        } else {
+            exam.status = ExamStatus.UPCOMING;
+        }
+        
+        emit ExamUpdated(examId, newTitle, newDate, exam.status);
     }
 
     function registerStudentsForExam(
@@ -195,6 +258,71 @@ contract ExamManagement is Ownable, Pausable {
         } else {
             revert("Unsupported role or user does not exist");
         }
+    }
+
+    function getStudentExamsWithStatus(address studentAddress) 
+        external 
+        view 
+        returns (
+            bytes32[] memory upcomingExams,
+            bytes32[] memory inProgressExams,
+            bytes32[] memory completedExams,
+            ExamResult[] memory completedResults
+        ) 
+    {
+        require(
+            identityContract.getUserRole(studentAddress) == IIdentity.UserRole.STUDENT,
+            "Address is not a student"
+        );
+
+        bytes32[] memory allExams = studentExams[studentAddress];
+        
+        // First count exams of each type
+        uint256 upcomingCount = 0;
+        uint256 inProgressCount = 0;
+        uint256 completedCount = 0;
+        
+        for (uint i = 0; i < allExams.length; i++) {
+            Exam memory exam = exams[allExams[i]];
+            if (exam.status == ExamStatus.UPCOMING) {
+                upcomingCount++;
+            } else if (exam.status == ExamStatus.IN_PROGRESS) {
+                inProgressCount++;
+            } else if (exam.status == ExamStatus.COMPLETED) {
+                completedCount++;
+            }
+        }
+        
+        // Initialize arrays with correct sizes
+        upcomingExams = new bytes32[](upcomingCount);
+        inProgressExams = new bytes32[](inProgressCount);
+        completedExams = new bytes32[](completedCount);
+        completedResults = new ExamResult[](completedCount);
+        
+        // Reset counters to use as indices
+        upcomingCount = 0;
+        inProgressCount = 0;
+        completedCount = 0;
+        
+        // Fill arrays
+        for (uint i = 0; i < allExams.length; i++) {
+            bytes32 examId = allExams[i];
+            Exam memory exam = exams[examId];
+            
+            if (exam.status == ExamStatus.UPCOMING) {
+                upcomingExams[upcomingCount] = examId;
+                upcomingCount++;
+            } else if (exam.status == ExamStatus.IN_PROGRESS) {
+                inProgressExams[inProgressCount] = examId;
+                inProgressCount++;
+            } else if (exam.status == ExamStatus.COMPLETED) {
+                completedExams[completedCount] = examId;
+                completedResults[completedCount] = examResults[examId][studentAddress];
+                completedCount++;
+            }
+        }
+        
+        return (upcomingExams, inProgressExams, completedExams, completedResults);
     }
 
     function getExam(bytes32 examId) external view returns (Exam memory) {

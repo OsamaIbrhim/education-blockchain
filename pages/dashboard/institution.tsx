@@ -354,34 +354,34 @@ const InstitutionDashboard = () => {
     );
   }
 
-  if (institutionError) {
-    return (
-      <Container centerContent py={10}>
-        <Alert status="error">
-          <AlertIcon />
-          <Box flex="1">
-            <AlertTitle>{t('unauthorized')}</AlertTitle>
-            <AlertDescription display="block">
-              {t('unauthorizedDescription')}
-            </AlertDescription>
-          </Box>
-          <CloseButton
-            position="absolute"
-            right="8px"
-            top="8px"
-            onClick={() => setError(null)}
-          />
-        </Alert>
-        <Button
-          mt={4}
-          colorScheme="blue"
-          onClick={() => router.push('/')}
-        >
-          {t('returnToHome')}
-        </Button>
-      </Container>
-    );
-  }
+  // if (institutionError) {
+  //   return (
+  //     <Container centerContent py={10}>
+  //       <Alert status="error">
+  //         <AlertIcon />
+  //         <Box flex="1">
+  //           <AlertTitle>{t('unauthorized')}</AlertTitle>
+  //           <AlertDescription display="block">
+  //             {t('unauthorizedDescription')}
+  //           </AlertDescription>
+  //         </Box>
+  //         <CloseButton
+  //           position="absolute"
+  //           right="8px"
+  //           top="8px"
+  //           onClick={() => setError(null)}
+  //         />
+  //       </Alert>
+  //       <Button
+  //         mt={4}
+  //         colorScheme="blue"
+  //         onClick={() => router.push('/')}
+  //       >
+  //         {t('returnToHome')}
+  //       </Button>
+  //     </Container>
+  //   );
+  // }
 
   return (
     <Layout

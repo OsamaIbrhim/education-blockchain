@@ -75,18 +75,12 @@ export type ExamManagementContractType = ethers.Contract & {
 
 // Interface
 export interface Exam {
-    address: string; // Exam ID
-    ipfsHash: string;
-    students: string[];
-    exists: boolean;
-}
-
-export interface ExamData {
-    address: string;
+    address?: string;
     title: string;
     description: string;
     date: Date;
     duration: number;
+    pdfFile: any;
     ipfsHash: string;
     students: string[];
     exists: boolean;
@@ -114,13 +108,3 @@ export interface ExamStatistics {
     passRate: number;
     mostCommonGrade: string;
 }
-
-export interface NewExam {
-    address: string;
-    title: string;
-    description: string;
-    date: number;
-    duration: number;
-    ipfsHash: string;
-    pdfFile: any;
-} 

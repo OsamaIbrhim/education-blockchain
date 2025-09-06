@@ -92,11 +92,15 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
       }}
     >
       <Td fontSize="sm">
-        <Tooltip label={inst.address} hasArrow>
-          <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
-            {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
-          </span>
-        </Tooltip>
+        {inst?.address ? (
+          <Tooltip label={inst.address} hasArrow>
+            <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
+              {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
+            </span>
+          </Tooltip>
+        ) : (
+          <Text color="gray.500">-</Text>
+        )}
       </Td>
       <Td fontSize="sm">
         <Tooltip label={t('showInstitution')} hasArrow>

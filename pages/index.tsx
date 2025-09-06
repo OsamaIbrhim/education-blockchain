@@ -9,6 +9,8 @@ import {
   useToast,
   Select,
 } from '@chakra-ui/react';
+import { RegistrationData } from 'types/registration';
+import RegistrationForm from 'components/auth/RegistrationForm';
 import { useRouter } from 'next/router';
 import { connectWallet, getAccounts } from '../utils/web3Provider';
 import { registerUser, getUserRole, isVerifiedUser, isOwner } from 'services/identity';
@@ -107,7 +109,7 @@ export default function Home() {
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (registrationData: RegistrationData) => {
     try {
       setLoading(true);
       setError('');
@@ -123,11 +125,8 @@ export default function Home() {
         router.push('/dashboard/admin');
         return;
       }
-      if (!selectedRole || selectedRole === 'none') {
-        throw new Error(t('pleaseSelectRole') || 'Please select a role');
-      }
-      await registerUser(selectedRole);
-      setCurrentRole(selectedRole);
+      await registerUser(registrationData);
+      setCurrentRole(registrationData.role);
 
       // Check verification status for institutions
       if (selectedRole === 'institution') {
@@ -270,24 +269,10 @@ export default function Home() {
                 <Text mb={4}>
                   {t('accountNotRegistered')}
                 </Text>
-                <Select
-                  placeholder={t('selectYourRole')}
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as RoleType)}
-                  mb={4}
-                >
-                  <option value="student">{t('studentRole')}</option>
-                  <option value="institution">{t('institutionRole')}</option>
-                  <option value="employer">{t('employerRole')}</option>
-                </Select>
-                <Button
-                  colorScheme="green"
-                  onClick={handleRegister}
+                <RegistrationForm
+                  onSuccess={handleRegister}
                   isLoading={loading || redirecting}
-                  width="full"
-                >
-                  {t('register')}
-                </Button>
+                />
               </Box>
             )}
           </VStack>

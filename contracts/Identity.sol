@@ -3,8 +3,11 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract Identity is Ownable, Pausable {
+    using Counters for Counters.Counter;
+
     enum UserRole {
         NONE,
         STUDENT,
@@ -15,8 +18,28 @@ contract Identity is Ownable, Pausable {
 
     struct User {
         address userAddress;
-        string ipfsHash;
         UserRole role;
+        address institutionAddress;
+        string nationalId;
+        string firstName;
+        string lastName;
+        string phoneNumber;
+        string email;
+        string[] enrolledCourses;
+        uint8 status;
+        bool isVerified;
+    }
+
+    // Add this struct for returning student data
+    struct StudentData {
+        address userAddress;
+        string nationalId;
+        string firstName;
+        string lastName;
+        string phoneNumber;
+        string email;
+        string[] enrolledCourses;
+        uint8 status;
         bool isVerified;
     }
 
@@ -24,12 +47,14 @@ contract Identity is Ownable, Pausable {
     mapping(address => bool) public institutions;
     mapping(address => bool) public admins;
     mapping(address => mapping(address => bool)) public institutionStudents;
+    
+    // Array to keep track of all user addresses
+    address[] private userAddresses;
 
     event UserRegistered(address indexed userAddress, UserRole indexed role);
     event UserVerified(address indexed userAddress);
     event AdminAdded(address indexed admin);
     event AdminRemoved(address indexed admin);
-    event IPFSHashUpdated(address indexed user, string ipfsHash);
     event UserRoleUpdated(address indexed user, UserRole oldRole, UserRole newRole);
 
     modifier onlyInstitution() {
@@ -53,7 +78,19 @@ contract Identity is Ownable, Pausable {
     }
 
     function _setupAdmin(address _admin) private {
-        users[_admin] = User(_admin, "", UserRole.ADMIN, true);
+        users[_admin] = User(
+            _admin,                // userAddress
+            UserRole.ADMIN,        // role
+            address(0),            // institutionAddress
+            "N/A",                // nationalId
+            "Admin",              // firstName
+            "Admin",              // lastName
+            "N/A",                // phoneNumber
+            "N/A",                // email
+            new string[](0),      // enrolledCourses
+            0,                    // status
+            true                  // isVerified
+        );
         admins[_admin] = true;
         emit AdminAdded(_admin);
         emit UserRegistered(_admin, UserRole.ADMIN);
@@ -86,9 +123,14 @@ contract Identity is Ownable, Pausable {
         return users[_userAddress].isVerified;
     }
 
-    function registerUser(
+    function userRegistration(
         UserRole _role,
-        string memory _ipfsHash
+        address _institutionAddress,
+        string memory nationalId,
+        string memory firstName,
+        string memory lastName,
+        string memory phoneNumber,
+        string memory email
     ) external whenNotPaused {
         require(
             users[msg.sender].userAddress == address(0),
@@ -101,14 +143,24 @@ contract Identity is Ownable, Pausable {
 
         users[msg.sender] = User(
             msg.sender,
-            _ipfsHash,
             _role,
+            _institutionAddress,
+            nationalId,
+            firstName,
+            lastName,
+            phoneNumber,
+            email,
+            new string[](0), // No enrolled courses initially
+            0,  // Status can be set later
             false
         );
 
         if (_role == UserRole.INSTITUTION) {
             institutions[msg.sender] = true;
         }
+
+        // Add address to the array
+        userAddresses.push(msg.sender);
 
         emit UserRegistered(msg.sender, _role);
     }
@@ -171,15 +223,6 @@ contract Identity is Ownable, Pausable {
         emit UserRoleUpdated(_userAddress, oldRole, _newRole);
     }
 
-    function updateUserIPFS(address _userAddress, string memory _newIpfsHash) external whenNotPaused {
-        require(
-            users[_userAddress].userAddress != address(0),
-            "User does not exist"
-        );
-        users[_userAddress].ipfsHash = _newIpfsHash;
-        emit IPFSHashUpdated(_userAddress, _newIpfsHash);
-    }
-
     // Emergency functions
     function pause() external onlyAdmin {
         _pause();
@@ -195,5 +238,55 @@ contract Identity is Ownable, Pausable {
 
     function isStudentEnrolled(address _institution, address _student) external view returns (bool) {
         return institutionStudents[_institution][_student];
+    }
+
+    // Internal helper function to get student data
+    function _getStudentData(address _studentAddress) internal view returns (StudentData memory) {
+        require(users[_studentAddress].userAddress != address(0), "Student does not exist");
+        require(users[_studentAddress].role == UserRole.STUDENT, "Address is not a student");
+        
+        User storage student = users[_studentAddress];
+        
+        return StudentData(
+            student.userAddress,
+            student.nationalId,
+            student.firstName,
+            student.lastName,
+            student.phoneNumber,
+            student.email,
+            student.enrolledCourses,
+            student.status,
+            student.isVerified
+        );
+    }
+
+    // Public function to get student data
+    function getStudentData(address _studentAddress) external view returns (StudentData memory) {
+        return _getStudentData(_studentAddress);
+    }
+
+    // Add this function to get all students for an institution
+    function getInstitutionStudents() external view onlyInstitution returns (StudentData[] memory) {
+        uint studentCount = 0;
+        
+        // First count total students
+        for (uint i = 0; i < userAddresses.length; i++) {
+            if (institutionStudents[msg.sender][userAddresses[i]]) {
+                studentCount++;
+            }
+        }
+        
+        StudentData[] memory students = new StudentData[](studentCount);
+        uint currentIndex = 0;
+        
+        // Fill array with student data
+        for (uint i = 0; i < userAddresses.length; i++) {
+            if (institutionStudents[msg.sender][userAddresses[i]]) {
+                students[currentIndex] = _getStudentData(userAddresses[i]);
+                currentIndex++;
+            }
+        }
+        
+        return students;
     }
 }
