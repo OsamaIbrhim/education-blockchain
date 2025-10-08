@@ -16,40 +16,57 @@ contract Identity is Ownable, Pausable {
         ADMIN
     }
 
-    struct User {
+    struct BaseUser {
         address userAddress;
         UserRole role;
-        address institutionAddress;
-        string nationalId;
-        string firstName;
-        string lastName;
-        string phoneNumber;
-        string email;
-        string[] enrolledCourses;
-        uint8 status;
         bool isVerified;
     }
 
-    // Add this struct for returning student data
-    struct StudentData {
+    struct Student {
         address userAddress;
         string nationalId;
         string firstName;
         string lastName;
         string phoneNumber;
         string email;
+        address institutionAddress;
         string[] enrolledCourses;
         uint8 status;
         bool isVerified;
     }
 
-    mapping(address => User) public users;
-    mapping(address => bool) public institutions;
+    struct Institution {
+        address userAddress;
+        string name;
+        string location;
+        string phoneNumber;
+        string email;
+        string website;
+        uint8 status;
+        bool isVerified;
+    }
+
+    struct Employer {
+        address userAddress;
+        string companyName;
+        string location;
+        string phoneNumber;
+        string email;
+        string website;
+        bool isVerified;
+    }
+
+    mapping(address => BaseUser) public users;
+    mapping(address => Student) private students;
+    mapping(address => Institution) private institutions;
+    mapping(address => Employer) private employers;
     mapping(address => bool) public admins;
     mapping(address => mapping(address => bool)) public institutionStudents;
     
-    // Array to keep track of all user addresses
-    address[] private userAddresses;
+    // Arrays to keep track of addresses by role
+    address[] private studentAddresses;
+    address[] private institutionAddresses;
+    address[] private employerAddresses;
 
     event UserRegistered(address indexed userAddress, UserRole indexed role);
     event UserVerified(address indexed userAddress);
@@ -74,41 +91,77 @@ contract Identity is Ownable, Pausable {
 
     constructor() {
         // Set deployer as admin
-        _setupAdmin(msg.sender);
+        _setupAdmin(msg.sender, "admin@platform.com");
     }
 
-    function _setupAdmin(address _admin) private {
-        users[_admin] = User(
-            _admin,                // userAddress
-            UserRole.ADMIN,        // role
-            address(0),            // institutionAddress
-            "N/A",                // nationalId
-            "Admin",              // firstName
-            "Admin",              // lastName
-            "N/A",                // phoneNumber
-            "N/A",                // email
-            new string[](0),      // enrolledCourses
-            0,                    // status
-            true                  // isVerified
+    struct Admin {
+        address userAddress;
+        string email;
+        bool isActive;
+        uint256 addedAt;
+    }
+
+    mapping(address => Admin) private adminData;
+    address[] private adminAddresses;
+
+    function _setupAdmin(address _admin, string memory _email) private {
+        require(!admins[_admin], "Already an admin");
+        require(_admin != address(0), "Invalid address");
+        
+        // إعداد المعلومات الأساسية
+        users[_admin] = BaseUser(
+            _admin,
+            UserRole.ADMIN,
+            true
         );
+
+        // إضافة بيانات الأدمن
+        adminData[_admin] = Admin(
+            _admin,
+            _email,
+            true,
+            block.timestamp
+        );
+        
         admins[_admin] = true;
+        adminAddresses.push(_admin);
+
         emit AdminAdded(_admin);
         emit UserRegistered(_admin, UserRole.ADMIN);
         emit UserVerified(_admin);
     }
 
-    function addAdmin(address _newAdmin) external onlyOwner {
-        require(!admins[_newAdmin], "Already an admin");
-        _setupAdmin(_newAdmin);
+    function addAdmin(address _newAdmin, string memory _email) external onlyOwner {
+        _setupAdmin(_newAdmin, _email);
     }
 
     function removeAdmin(address _admin) external onlyOwner {
         require(_admin != owner(), "Cannot remove owner");
         require(admins[_admin], "Not an admin");
+        require(_admin != msg.sender, "Cannot remove self");
+
+        // تحديث حالة الأدمن
         admins[_admin] = false;
+        adminData[_admin].isActive = false;
         users[_admin].role = UserRole.NONE;
         users[_admin].isVerified = false;
+
         emit AdminRemoved(_admin);
+    }
+
+    function getAdminData(address _admin) external view returns (Admin memory) {
+        require(admins[_admin] || _admin == owner(), "Not an admin");
+        return adminData[_admin];
+    }
+
+    function getAllAdmins() external view onlyAdmin returns (Admin[] memory) {
+        Admin[] memory allAdmins = new Admin[](adminAddresses.length);
+        
+        for (uint i = 0; i < adminAddresses.length; i++) {
+            allAdmins[i] = adminData[adminAddresses[i]];
+        }
+        
+        return allAdmins;
     }
 
     function isAdmin(address _address) public view returns (bool) {
@@ -116,67 +169,109 @@ contract Identity is Ownable, Pausable {
     }
 
     function isInstitution(address _address) public view returns (bool) {
-        return institutions[_address];
+        return users[_address].role == UserRole.INSTITUTION && users[_address].isVerified;
     }
 
     function isVerifiedUser(address _userAddress) external view returns (bool) {
         return users[_userAddress].isVerified;
     }
 
-    function userRegistration(
-        UserRole _role,
+    function registerStudent(
         address _institutionAddress,
-        string memory nationalId,
-        string memory firstName,
-        string memory lastName,
-        string memory phoneNumber,
-        string memory email
+        string memory _nationalId,
+        string memory _firstName,
+        string memory _lastName,
+        string memory _phoneNumber,
+        string memory _email
     ) external whenNotPaused {
-        require(
-            users[msg.sender].userAddress == address(0),
-            "User already exists"
-        );
-        require(
-            _role != UserRole.NONE && _role != UserRole.ADMIN,
-            "Invalid role"
-        );
-
-        users[msg.sender] = User(
+        require(users[msg.sender].userAddress == address(0), "User already exists");
+        
+        users[msg.sender] = BaseUser(msg.sender, UserRole.STUDENT, false);
+        students[msg.sender] = Student(
             msg.sender,
-            _role,
+            _nationalId,
+            _firstName,
+            _lastName,
+            _phoneNumber,
+            _email,
             _institutionAddress,
-            nationalId,
-            firstName,
-            lastName,
-            phoneNumber,
-            email,
-            new string[](0), // No enrolled courses initially
-            0,  // Status can be set later
+            new string[](0),
+            0,
             false
         );
+        
+        studentAddresses.push(msg.sender);
+        emit UserRegistered(msg.sender, UserRole.STUDENT);
+    }
 
-        if (_role == UserRole.INSTITUTION) {
-            institutions[msg.sender] = true;
-        }
+    function registerInstitution(
+        string memory _name,
+        string memory _location,
+        string memory _phoneNumber,
+        string memory _email,
+        string memory _website
+    ) external whenNotPaused {
+        require(users[msg.sender].userAddress == address(0), "User already exists");
+        
+        users[msg.sender] = BaseUser(msg.sender, UserRole.INSTITUTION, false);
+        institutions[msg.sender] = Institution(
+            msg.sender,
+            _name,
+            _location,
+            _phoneNumber,
+            _email,
+            _website,
+            0,
+            false
+        );
+        
+        institutionAddresses.push(msg.sender);
+        emit UserRegistered(msg.sender, UserRole.INSTITUTION);
+    }
 
-        // Add address to the array
-        userAddresses.push(msg.sender);
-
-        emit UserRegistered(msg.sender, _role);
+    function registerEmployer(
+        string memory _companyName,
+        string memory _location,
+        string memory _phoneNumber,
+        string memory _email,
+        string memory _website
+    ) external whenNotPaused {
+        require(users[msg.sender].userAddress == address(0), "User already exists");
+        
+        users[msg.sender] = BaseUser(msg.sender, UserRole.EMPLOYER, false);
+        employers[msg.sender] = Employer(
+            msg.sender,
+            _companyName,
+            _location,
+            _phoneNumber,
+            _email,
+            _website,
+            false
+        );
+        
+        employerAddresses.push(msg.sender);
+        emit UserRegistered(msg.sender, UserRole.EMPLOYER);
     }
 
     function verifyUser(address _userAddress) external onlyAdmin {
-        require(
-            users[_userAddress].userAddress != address(0),
-            "User does not exist"
-        );
+        require(users[_userAddress].userAddress != address(0), "User does not exist");
         require(!users[_userAddress].isVerified, "User already verified");
 
         users[_userAddress].isVerified = true;
+        
+        UserRole role = users[_userAddress].role;
+        if (role == UserRole.STUDENT) {
+            students[_userAddress].isVerified = true;
+        } else if (role == UserRole.INSTITUTION) {
+            institutions[_userAddress].isVerified = true;
+        } else if (role == UserRole.EMPLOYER) {
+            employers[_userAddress].isVerified = true;
+        }
+
         emit UserVerified(_userAddress);
     }
 
-    function addStudents(address[] memory studentAddresses) external onlyVerified onlyInstitution {
+    function addStudents(address[] memory _students) external onlyVerified onlyInstitution {
         for (uint i = 0; i < studentAddresses.length; i++) {
             address studentAddress = studentAddresses[i];
 
@@ -215,7 +310,17 @@ contract Identity is Ownable, Pausable {
         users[_userAddress].role = _newRole;
 
         if (_newRole == UserRole.INSTITUTION) {
-            institutions[_userAddress] = true;
+            // تحديث بيانات المؤسسة التعليمية
+            institutions[_userAddress] = Institution(
+                _userAddress,
+                "", // name
+                "", // location
+                "", // phoneNumber
+                "", // email
+                "", // website
+                0,  // status
+                users[_userAddress].isVerified
+            );
         } else if (oldRole == UserRole.INSTITUTION) {
             delete institutions[_userAddress];
         }
@@ -240,53 +345,89 @@ contract Identity is Ownable, Pausable {
         return institutionStudents[_institution][_student];
     }
 
-    // Internal helper function to get student data
-    function _getStudentData(address _studentAddress) internal view returns (StudentData memory) {
-        require(users[_studentAddress].userAddress != address(0), "Student does not exist");
-        require(users[_studentAddress].role == UserRole.STUDENT, "Address is not a student");
-        
-        User storage student = users[_studentAddress];
-        
-        return StudentData(
-            student.userAddress,
-            student.nationalId,
-            student.firstName,
-            student.lastName,
-            student.phoneNumber,
-            student.email,
-            student.enrolledCourses,
-            student.status,
-            student.isVerified
-        );
+    // Student specific functions
+    function getStudentData(address _studentAddress) external view returns (Student memory) {
+        require(users[_studentAddress].role == UserRole.STUDENT, "Not a student");
+        return students[_studentAddress];
     }
 
-    // Public function to get student data
-    function getStudentData(address _studentAddress) external view returns (StudentData memory) {
-        return _getStudentData(_studentAddress);
-    }
-
-    // Add this function to get all students for an institution
-    function getInstitutionStudents() external view onlyInstitution returns (StudentData[] memory) {
-        uint studentCount = 0;
-        
-        // First count total students
-        for (uint i = 0; i < userAddresses.length; i++) {
-            if (institutionStudents[msg.sender][userAddresses[i]]) {
-                studentCount++;
+    function getInstitutionStudents() external view onlyInstitution onlyVerified returns (Student[] memory) {
+        uint count = 0;
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddr = studentAddresses[i];
+            if (institutionStudents[msg.sender][studentAddr]) {
+                count++;
             }
         }
         
-        StudentData[] memory students = new StudentData[](studentCount);
+        Student[] memory studentsArray = new Student[](count);
         uint currentIndex = 0;
         
-        // Fill array with student data
-        for (uint i = 0; i < userAddresses.length; i++) {
-            if (institutionStudents[msg.sender][userAddresses[i]]) {
-                students[currentIndex] = _getStudentData(userAddresses[i]);
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddr = studentAddresses[i];
+            if (institutionStudents[msg.sender][studentAddr]) {
+                studentsArray[currentIndex] = students[studentAddr];
                 currentIndex++;
             }
         }
         
-        return students;
+        return studentsArray;
+    }
+
+    // Institution specific functions
+    function getInstitutionData(address _institutionAddress) external view returns (Institution memory) {
+        require(users[_institutionAddress].role == UserRole.INSTITUTION, "Not an institution");
+        return institutions[_institutionAddress];
+    }
+
+    function getAllInstitutions() external view onlyAdmin returns (Institution[] memory) {
+        Institution[] memory allInstitutions = new Institution[](institutionAddresses.length);
+        
+        for (uint i = 0; i < institutionAddresses.length; i++) {
+            allInstitutions[i] = institutions[institutionAddresses[i]];
+        }
+        
+        return allInstitutions;
+    }
+
+    // Employer specific functions
+    function getEmployerData(address _employerAddress) external view returns (Employer memory) {
+        require(users[_employerAddress].role == UserRole.EMPLOYER, "Not an employer");
+        return employers[_employerAddress];
+    }
+
+    function getAllEmployers() external view onlyAdmin returns (Employer[] memory) {
+        Employer[] memory allEmployers = new Employer[](employerAddresses.length);
+        
+        for (uint i = 0; i < employerAddresses.length; i++) {
+            allEmployers[i] = employers[employerAddresses[i]];
+        }
+        
+        return allEmployers;
+    }
+
+    function getInstitutionStudentsByAdmin(address _institutionAddress) external view onlyAdmin returns (Student[] memory) {
+        require(users[_institutionAddress].role == UserRole.INSTITUTION, "Not an institution");
+        
+        uint count = 0;
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddr = studentAddresses[i];
+            if (institutionStudents[_institutionAddress][studentAddr]) {
+                count++;
+            }
+        }
+        
+        Student[] memory studentsArray = new Student[](count);
+        uint currentIndex = 0;
+        
+        for (uint i = 0; i < studentAddresses.length; i++) {
+            address studentAddr = studentAddresses[i];
+            if (institutionStudents[_institutionAddress][studentAddr]) {
+                studentsArray[currentIndex] = students[studentAddr];
+                currentIndex++;
+            }
+        }
+        
+        return studentsArray;
     }
 }
