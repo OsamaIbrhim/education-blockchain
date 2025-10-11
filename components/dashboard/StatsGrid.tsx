@@ -1,9 +1,10 @@
 import { SimpleGrid, Box, Stat, StatLabel, StatNumber, useColorModeValue, Fade, StatHelpText } from '@chakra-ui/react';
 import { Institution } from 'types/institution';
 import { useLanguage } from 'context/LanguageContext';
+import { UserData } from 'services/identity';
 
 interface StatsGridProps {
-  institutions: Institution[];
+  institutions: UserData[];
   scrollToTotal: () => void;
   scrollToVerified: () => void;
   scrollToPending: () => void;

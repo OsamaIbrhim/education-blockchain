@@ -58,7 +58,7 @@ import { ExamResults } from '../../components/institution/ExamResults';
 import { useAppData } from '../../hooks/useAppData';
 import { Institution, Student } from '../../types/institution';
 import { Certificate } from '../../types/certificate';
-import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
+// import { Exam, ExamResult, ExamStatistics, NewExam } from '../../types/examManagement';
 import { useRouter } from 'next/router';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { RiDashboardLine, RiNotification3Line, RiSettings4Line } from 'react-icons/ri';
@@ -178,6 +178,9 @@ const ConnectWallet = ({ connect, connectors }: ConnectWalletProps) => {
   );
 };
 
+import { StudentManagement } from '../../components/institution/StudentManagement';
+import { getInstitutionStudents, addStudents } from '../../services/identity';
+
 const InstitutionDashboard = () => {
   // 2. External hooks
   const { address = undefined, isConnected: isWalletConnected = false } = useAccount() || {};
@@ -188,6 +191,61 @@ const InstitutionDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const { t, translations } = useLanguage();
+
+  // Handle adding a new student
+  const handleAddStudent = async (studentData: any) => {
+    try {
+      await addStudents([studentData.address]);
+      await getInstitutionStudents(); // Reload the students list
+      return true;
+    } catch (error: any) {
+      console.error('Error adding student:', error);
+      toast({
+        title: 'Error adding student',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return false;
+    }
+  };
+
+  // Handle updating student status
+  const handleUpdateStatus = async (studentId: string, newStatus: string) => {
+    try {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return false;
+
+      // Update student status in the smart contract
+      // Note: You'll need to implement this function in your smart contract
+      // await updateStudentStatus(student.address, newStatus);
+
+      // Update local state
+      setStudents(students.map(s => 
+        s.id === studentId ? { ...s, status: newStatus } : s
+      ));
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error updating student status:', error);
+      toast({
+        title: 'Error updating student status',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return false;
+    }
+  };
+
+  // Load students on component mount
+  useEffect(() => {
+    if (isWalletConnected) {
+      loadStudents();
+    }
+  }, [isWalletConnected]);
 
   // 1. Color mode values - ALL useColorModeValue hooks MUST be at the top
   const bgColor = useColorModeValue('gray.50', 'gray.800');
@@ -555,11 +613,11 @@ const InstitutionDashboard = () => {
                   zIndex={1}
                 >
                   {[
-                    // {
-                    //   icon: FaUniversity,
-                    //   text: "الملف الشخصي | Profile",
-                    //   color: 'blue'
-                    // },
+                    {
+                      icon: FaUniversity,
+                      text: t('students'),
+                      color: 'blue'
+                    },
                     {
                       icon: FaGraduationCap,
                       text: t('exams'),
@@ -600,6 +658,21 @@ const InstitutionDashboard = () => {
                 </TabList>
 
                 <TabPanels>
+                  <TabPanel>
+                    <StudentManagement
+                      students={students.map((student, index) => ({
+                        id: String(index),
+                        address: student.userAddress,
+                        name: `${student.firstName} ${student.lastName}`,
+                        email: student.email,
+                        enrollmentDate: new Date().toISOString(),
+                        status: student.status === 0 ? 'inactive' : student.status === 1 ? 'active' : 'graduated'
+                      }))}
+                      onAddStudent={handleAddStudent}
+                      onUpdateStatus={handleUpdateStatus}
+                      loading={studentsLoading}
+                    />
+                  </TabPanel>
                   <TabPanel>
                     <ExamManagement
                       exams={exams?.map(exam => ({

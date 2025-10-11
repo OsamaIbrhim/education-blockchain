@@ -5,7 +5,7 @@ import { Toast } from '@chakra-ui/react';
 import { useContract } from './useContract';
 
 // Services
-import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRole } from 'services/identity';
+import { getUserData, verifyUser as verifyUserService, getUserRole, getUsersByRole, UserData, getInstitutionStudents } from 'services/identity';
 import { createExam, getExamResults, getUserExams, registerStudentsForExam, submitExamResult, updateExam } from 'services/examManagement';
 import { getUserCertificates, issueCertificate } from 'services/certificate';
 import { uploadToIPFS } from 'utils/ipfsUtils';
@@ -15,6 +15,7 @@ import { Exam, ExamData, ExamResult, ExamStatistics, NewExam, StudentStructOutpu
 import { Institution } from 'types/institution';
 import { Hash } from 'viem';
 import { useRouter } from 'next/router';
+import { Student } from 'types/student';
 
 interface UseAppDataReturn {
     isLoading: boolean;
@@ -29,6 +30,8 @@ interface UseAppDataReturn {
     institutionData: Institution | null;
     userRole: string | null;
     account: `0x${string}` | undefined;
+    students: Student[];
+    studentsLoading: boolean;
     checkAccess: () => Promise<void>;
     createNewExam: (exam: NewExam) => Promise<any>;
     saveInstitutionProfile: (data: Institution) => Promise<void>;
@@ -38,7 +41,7 @@ interface UseAppDataReturn {
     handleEnrollStudents: (examId: string, studentAddresses: string[]) => Promise<boolean>;
     loadExamResults: (examId: string) => Promise<void>;
     issueNewCertificate: (studentAddress: string, certificate: { title: string; metadata: any; studentAddress?: string; institutionAddress?: string }) => Promise<boolean>;
-    allInstitutions: Institution[];
+    allInstitutions: UserData[];
     verifyUser: (userAddress: string) => Promise<any>;
     loadAllInstitutionData: () => Promise<void>;
 }
@@ -55,9 +58,13 @@ export const useAppData = (): UseAppDataReturn => {
     const [examStatistics, setExamStatistics] = useState<ExamStatistics | null>(null);
     const publicClient = usePublicClient();
     const [institutionData, setInstitutionData] = useState<Institution | null>(null);
-    const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
+    const [allInstitutions, setAllInstitutions] = useState<UserData[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
     const router = useRouter();
+
+    // New states and functions for students
+    const [students, setStudents] = useState<Student[]>([]);
+    const [studentsLoading, setStudentsLoading] = useState(false);
 
     // Access & Verification check
     useEffect(() => {
@@ -570,7 +577,7 @@ export const useAppData = (): UseAppDataReturn => {
 
     // Admin functions
     const loadAllInstitutionData = useCallback(async (): Promise<void> => {
-        if (!account || !identityContract) return;
+        if (!account || !identityContract || userRole != 'admin' ) return;
         try {
             setIsLoading(true);
             const institutions = await getUsersByRole(2);
@@ -613,6 +620,37 @@ export const useAppData = (): UseAppDataReturn => {
         }
     }
 
+    // Load students data
+    const loadStudents = useCallback(async () => {
+        if (!identityContract || !account) return;
+        
+        try {
+            setStudentsLoading(true);
+            const studentsList = await getInstitutionStudents();
+            setStudents(studentsList);
+            setError(null);
+        } catch (error: any) {
+            console.error('Error loading students:', error);
+            setError(error?.message || 'Error loading students');
+            Toast({
+                title: 'Error',
+                description: `Failed to load students: ${error?.message || 'Unknown error'}`,
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+        } finally {
+            setStudentsLoading(false);
+        }
+    }, [identityContract, account]);
+
+    // Load students when contract is ready
+    useEffect(() => {
+        if (account && identityContract && isInitialized && isCorrectNetwork) {
+            loadStudents();
+        }
+    }, [account, identityContract, isInitialized, isCorrectNetwork]);
+
     return {
         isLoading: isLoading || isLoadingContract,
         isVerified,
@@ -627,6 +665,8 @@ export const useAppData = (): UseAppDataReturn => {
         allInstitutions,
         userRole,
         account,
+        students,
+        studentsLoading,
         checkAccess,
         createNewExam,
         saveInstitutionProfile,

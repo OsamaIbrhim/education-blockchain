@@ -125,11 +125,40 @@ async function validateNetwork(): Promise<void> {
 
   try {
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    if (chainId !== EXPECTED_NETWORK.chainId) {
-      throw new Error(`Please switch to the correct network (chainId: ${EXPECTED_NETWORK.chainId})`);
+    const expectedChainId = `0x${Number(EXPECTED_NETWORK.chainId).toString(16)}`;
+
+    if (chainId !== expectedChainId) {
+      try {
+        // Try to switch to the correct network
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: expectedChainId }],
+        });
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: expectedChainId,
+                chainName: 'Ganache Local',
+                nativeCurrency: {
+                  name: 'ETH',
+                  symbol: 'ETH',
+                  decimals: 18
+                },
+                rpcUrls: [EXPECTED_NETWORK.rpcUrl],
+              },
+            ],
+          });
+        } else {
+          throw switchError;
+        }
+      }
     }
   } catch (error) {
-    console.error('Error validating network:', error);
+    console.error('Error validating/switching network:', error);
     throw error;
   }
-} 
+}

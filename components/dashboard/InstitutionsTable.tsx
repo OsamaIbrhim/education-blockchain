@@ -23,12 +23,12 @@ import {
   Spinner
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { Institution } from 'types/institution';
 import InstitutionDetailsModal from './InstitutionDetailsModal';
 import { useLanguage } from 'context/LanguageContext';
+import { UserData } from 'services/identity';
 
 interface InstitutionsTableProps {
-  institutions: Institution[];
+  institutions: UserData[];
   onVerify?: (address: string) => Promise<void>;
   isLoading?: boolean;
 }
@@ -64,8 +64,8 @@ const InfoIcon = createIcon({
 });
 
 type InstitutionRowProps = {
-  inst: Institution;
-  onClick: (inst: Institution) => void;
+  inst: UserData;
+  onClick: (inst: UserData) => void;
   onVerify?: (address: string) => Promise<void>;
 };
 
@@ -74,7 +74,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
 
   const handleCopyAddress = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(inst.address);
+    navigator.clipboard.writeText(inst.userAddress);
     toast({
       title: t('copiedTitle'),
       description: t('copiedDescription'),
@@ -92,10 +92,10 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
       }}
     >
       <Td fontSize="sm">
-        {inst?.address ? (
-          <Tooltip label={inst.address} hasArrow>
+        {inst?.userAddress ? (
+          <Tooltip label={inst.userAddress} hasArrow>
             <span style={{ cursor: 'pointer' }} onClick={handleCopyAddress}>
-              {inst.address.slice(0, 6)}...{inst.address.slice(-4)}
+              {inst.userAddress.slice(0, 6)}...{inst.userAddress.slice(-4)}
             </span>
           </Tooltip>
         ) : (
@@ -109,7 +109,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
           </span>
         </Tooltip>
       </Td>
-      <Td fontSize="sm">
+      {/* <Td fontSize="sm">
         {(() => {
           if (inst.verificationDate) {
             const date = new Date(inst.verificationDate);
@@ -123,7 +123,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
           }
           return '-';
         })()}
-      </Td>
+      </Td> */}
       <Td>
         <Badge
           colorScheme={inst.isVerified ? 'green' : 'orange'}
@@ -153,7 +153,7 @@ const InstitutionRow = React.memo(({ inst, onClick, onVerify, t }: InstitutionRo
             colorScheme="green"
             onClick={e => {
               e.stopPropagation();
-              onVerify(inst.address);
+              onVerify(inst.userAddress);
             }}
           >
             {t('verify')}
@@ -180,8 +180,8 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
   const { isOpen: isInstitutionModalOpen, onOpen: openInstitutionModal, onClose: closeInstitutionModal } = useDisclosure();
 
   // Function to handle row click
-  const handleInstitutionClick = (inst: Institution) => {
-    setSelectedInstitutionAddress(inst.address);
+  const handleInstitutionClick = (inst: UserData) => {
+    setSelectedInstitutionAddress(inst.userAddress);
     openInstitutionModal();
   };
 
@@ -224,14 +224,13 @@ export default function InstitutionsTable({ institutions, onVerify, isLoading }:
                 <Tr>
                   <Th>{t('institutionAddress')}</Th>
                   <Th>{t('institutionName')}</Th>
-                  <Th>{t('verificationDate')}</Th>
                   <Th>{t('status')}</Th>
                   <Th>{t('action')}</Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {institutions.map((inst) => (
-                  <InstitutionRow key={inst.address} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} t={t} />
+                  <InstitutionRow key={inst.userAddress} inst={inst} onClick={handleInstitutionClick} onVerify={onVerify} t={t} />
                 ))}
               </Tbody>
             </Table>

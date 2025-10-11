@@ -1,164 +1,68 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  VStack,
-  useToast,
-} from '@chakra-ui/react';
-import { useLanguage } from 'context/LanguageContext';
+import { useState } from 'react';
+import { VStack, Input, Button, Select } from '@chakra-ui/react';
 import { RegistrationData } from 'types/registration';
 
-interface RegistrationFormProps {
-  onSuccess: (data: RegistrationData) => Promise<void>;
-  isLoading?: boolean;
-}
+type Props = {
+  onSuccess: (data: RegistrationData) => void;
+  isLoading: boolean;
+};
 
-const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, isLoading }) => {
-  const toast = useToast();
-  const { t } = useLanguage();
-  const [formData, setFormData] = useState<RegistrationData>({
-    role: 'student',
-    name: '',
-    email: '',
-    phoneNumber: '',
-    nationalId: '',
-    institutionAddress: '',
-    status: 0,
-    isVerified: false,
-    enrolledCourses: []
-  });
+export default function RegistrationForm({ onSuccess, isLoading }: Props) {
+  const [role, setRole] = useState<'student' | 'institution' | 'employer'>('student');
+  const [formData, setFormData] = useState<any>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Validate required fields
-      const requiredFields = ['role', 'name', 'email', 'phoneNumber', 'nationalId'];
-      
-      // Add institutionAddress validation for students
-      if (formData.role === 'student') {
-        requiredFields.push('institutionAddress');
-      }
-
-      for (const field of requiredFields) {
-        if (!formData[field as keyof RegistrationData]) {
-          throw new Error(t('pleaseComplete') || `Please complete ${field}`);
-        }
-      }
-
-      // Validate institution address format for students
-      if (formData.role === 'student' && formData.institutionAddress) {
-        if (!/^0x[a-fA-F0-9]{40}$/.test(formData.institutionAddress)) {
-          throw new Error(t('invalidInstitutionAddress') || 'Invalid institution address format');
-        }
-      }
-
-      await onSuccess(formData);
-      
-    } catch (error: any) {
-      toast({
-        title: t('registrationFailed') || 'Registration Failed',
-        description: error.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
+  const handleSubmit = () => {
+    onSuccess({ ...formData, role });
   };
 
   return (
-    <Box as="form" onSubmit={handleSubmit} width="100%" maxWidth="500px" mx="auto">
-      <VStack spacing={4}>
-        <FormControl isRequired>
-          <FormLabel>{t('role')}</FormLabel>
-          <Select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-          >
-            <option value="student">{t('studentRole')}</option>
-            <option value="institution">{t('institutionRole')}</option>
-            <option value="employer">{t('employerRole')}</option>
-          </Select>
-        </FormControl>
+    <VStack spacing={4}>
+      {/* اختيار الدور */}
+      <Select name="role" value={role} onChange={(e) => setRole(e.target.value as any)}>
+        <option value="student">Student</option>
+        <option value="institution">Institution</option>
+        <option value="employer">Employer</option>
+      </Select>
 
-        <FormControl isRequired>
-          <FormLabel>{t('name')}</FormLabel>
-          <Input
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder={t('enterName') || "Enter your name"}
-          />
-        </FormControl>
+      {/* الحقول الديناميكية حسب الدور */}
+      {role === 'student' && (
+        <>
+          <Input placeholder="National ID" name="nationalId" onChange={handleChange}/>
+          <Input placeholder="First Name" name="firstName" onChange={handleChange}/>
+          <Input placeholder="Last Name" name="lastName" onChange={handleChange}/>
+          <Input placeholder="Phone Number" name="phoneNumber" onChange={handleChange}/>
+          <Input placeholder="Email" name="email" onChange={handleChange}/>
+          <Input placeholder="Institution Address" name="institutionAddress" onChange={handleChange}/>
+        </>
+      )}
 
-        <FormControl isRequired>
-          <FormLabel>{t('email')}</FormLabel>
-          <Input
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder={t('enterEmail') || "Enter your email"}
-          />
-        </FormControl>
+      {role === 'institution' && (
+        <>
+          <Input placeholder="Institution Name" name="name" onChange={handleChange}/>
+          <Input placeholder="Location" name="location" onChange={handleChange}/>
+          <Input placeholder="Phone Number" name="phoneNumber" onChange={handleChange}/>
+          <Input placeholder="Email" name="email" onChange={handleChange}/>
+          <Input placeholder="Website" name="website" onChange={handleChange}/>
+        </>
+      )}
 
-        <FormControl isRequired>
-          <FormLabel>{t('phoneNumber')}</FormLabel>
-          <Input
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            placeholder={t('enterPhone') || "Enter your phone number"}
-          />
-        </FormControl>
+      {role === 'employer' && (
+        <>
+          <Input placeholder="Company Name" name="companyName" onChange={handleChange}/>
+          <Input placeholder="Location" name="location" onChange={handleChange}/>
+          <Input placeholder="Phone Number" name="phoneNumber" onChange={handleChange}/>
+          <Input placeholder="Email" name="email" onChange={handleChange}/>
+          <Input placeholder="Website" name="website" onChange={handleChange}/>
+        </>
+      )}
 
-        <FormControl isRequired>
-          <FormLabel>{t('nationalId')}</FormLabel>
-          <Input
-            name="nationalId"
-            value={formData.nationalId}
-            onChange={handleChange}
-            placeholder={t('enterNationalId') || "Enter your National ID"}
-          />
-        </FormControl>
-
-        {formData.role === 'student' && (
-          <FormControl isRequired>
-            <FormLabel>{t('institutionAddress')}</FormLabel>
-            <Input
-              name="institutionAddress"
-              value={formData.institutionAddress}
-              onChange={handleChange}
-              placeholder={t('enterInstitutionAddress') || "Enter institution address (0x...)"}
-              pattern="^0x[a-fA-F0-9]{40}$"
-              title={t('invalidInstitutionAddress') || "Please enter a valid Ethereum address"}
-            />
-          </FormControl>
-        )}
-        <Button
-          type="submit"
-          colorScheme="blue"
-          width="100%"
-          isLoading={isLoading}
-        >
-          Register
-        </Button>
-      </VStack>
-    </Box>
+      <Button colorScheme="blue" onClick={handleSubmit} isLoading={isLoading} width="full">
+        Register
+      </Button>
+    </VStack>
   );
-};
-
-export default RegistrationForm;
+}

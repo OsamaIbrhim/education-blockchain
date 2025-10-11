@@ -40,10 +40,7 @@ export const ExamManagementABI = [
 
 // --- Identity ABI ---
 export const IdentityABI = [
-  // Constructor
   "constructor()",
-
-  // Events
   "event AdminAdded(address indexed admin)",
   "event AdminRemoved(address indexed admin)",
   "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
@@ -52,35 +49,40 @@ export const IdentityABI = [
   "event UserRegistered(address indexed userAddress, uint8 indexed role)",
   "event UserVerified(address indexed userAddress)",
   "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)",
-  "event UserRegistered(address indexed userAddress, uint8 indexed role)", // UserRole enum maps to uint8
-  "event UserVerified(address indexed userAddress)",
-  "event UserRoleUpdated(address indexed user, uint8 oldRole, uint8 newRole)", // UserRole enum maps to uint8
 
   // State Variable Getters
   "function admins(address) view returns (bool)",
-  "function institutions(address) view returns (bool)",
+  "function users(address) view returns (address userAddress, uint8 role, bool isVerified)",
   "function owner() view returns (address)",
   "function paused() view returns (bool)",
-  "function users(address) view returns (address userAddress, uint8 role, address institutionAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified)",
 
   // Core Functions
-  "function userRegistration(uint8 _role, address _institutionAddress, string memory nationalId, string memory firstName, string memory lastName, string memory phoneNumber, string memory email) external",
+  "function registerStudent(address _institutionAddress, string memory _nationalId, string memory _firstName, string memory _lastName, string memory _phoneNumber, string memory _email) external",
+  "function registerInstitution(string memory _name, string memory _location, string memory _phoneNumber, string memory _email, string memory _website) external",
+  "function registerEmployer(string memory _companyName, string memory _location, string memory _phoneNumber, string memory _email, string memory _website) external",
   "function getUserRole(address _userAddress) external view returns (uint8)",
   "function updateUserRole(address _userAddress, uint8 _newRole) external",
   "function verifyUser(address _userAddress) external",
   
   // Admin Functions
-  "function addAdmin(address _newAdmin) external",
+  "function addAdmin(address _newAdmin, string memory _email) external",
   "function removeAdmin(address _admin) external",
   "function isAdmin(address _address) public view returns (bool)",
 
   // Institution Functions
   "function isInstitution(address _address) public view returns (bool)",
-  "function addStudents(address[] memory studentAddresses) external",
-  "function getInstitutionStudents() external view returns (tuple(address userAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified)[])",
+  "function addStudents(address[] memory _students) external",
+  "function getInstitutionStudents() external view returns (tuple(address userAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, address institutionAddress, string[] enrolledCourses, uint8 status, bool isVerified)[])",
   
   // Student Functions
-  "function getStudentData(address _studentAddress) external view returns (tuple(address userAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, string[] enrolledCourses, uint8 status, bool isVerified))",
+  "function getStudentData(address _studentAddress) external view returns (tuple(address userAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, address institutionAddress, string[] enrolledCourses, uint8 status, bool isVerified))",
+  "function getInstitutionData(address _institutionAddress) external view returns (tuple(address userAddress, string name, string location, string phoneNumber, string email, string website, uint8 status, bool isVerified))",
+  "function getEmployerData(address _employerAddress) external view returns (tuple(address userAddress, string companyName, string location, string phoneNumber, string email, string website, bool isVerified))",
+  "function getAdminData(address _admin) external view returns (tuple(address userAddress, string email, bool isActive, uint256 addedAt))",
+  "function getAllAdmins() external view returns (tuple(address userAddress, string email, bool isActive, uint256 addedAt)[])",
+  "function getAllInstitutions() external view returns (tuple(address userAddress, string name, string location, string phoneNumber, string email, string website, uint8 status, bool isVerified)[])",
+  "function getAllEmployers() external view returns (tuple(address userAddress, string companyName, string location, string phoneNumber, string email, string website, bool isVerified)[])",
+  "function getInstitutionStudentsByAdmin(address _institutionAddress) external view returns (tuple(address userAddress, string nationalId, string firstName, string lastName, string phoneNumber, string email, address institutionAddress, string[] enrolledCourses, uint8 status, bool isVerified)[])",
   "function isStudentEnrolled(address _institution, address _student) external view returns (bool)",
   
   // Utility Functions

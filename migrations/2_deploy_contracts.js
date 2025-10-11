@@ -7,35 +7,27 @@ const CourseManagement = artifacts.require("CourseManagement");
 const StudentAcademicManager = artifacts.require("StudentAcademicManager");
 
 module.exports = async function(deployer, network, accounts) {
-    // Deploy SecurityUtils first
     await deployer.deploy(SecurityUtils);
     const securityUtilsInstance = await SecurityUtils.deployed();
     
-    // Deploy Identity contract
     await deployer.deploy(Identity);
     const identityInstance = await Identity.deployed();
     
-    // Deploy CourseManagement with Identity address
     await deployer.deploy(CourseManagement, identityInstance.address);
     const courseManagementInstance = await CourseManagement.deployed();
-          
-    // Deploy StudentAcademicManager with required addresses
+    
     await deployer.deploy(StudentAcademicManager, identityInstance.address, courseManagementInstance.address);
     const studentAcademicManagerInstance = await StudentAcademicManager.deployed();
     
-    // Deploy Certificates contract with Identity contract address
     await deployer.deploy(Certificates, identityInstance.address);
     const certificatesInstance = await Certificates.deployed();
     
-    // Deploy Examinations contract with Identity contract address
     await deployer.deploy(Examinations, identityInstance.address);
     const examinationsInstance = await Examinations.deployed();
     
-    // Deploy ExamManagement contract with required addresses
     await deployer.deploy(ExamManagement, identityInstance.address);
     const examManagementInstance = await ExamManagement.deployed();
     
-    // If we're on a testnet or mainnet, verify contracts on Etherscan
     if (network !== 'development' && network !== 'test') {
         console.log('SecurityUtils contract deployed at:', securityUtilsInstance.address);
         console.log('Identity contract deployed at:', identityInstance.address);
