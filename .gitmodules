@@ -1,0 +1,3 @@
+[submodule "education-blockchain-main"]
+	path = education-blockchain-main
+	url = https://github.com/OsamaIbrhim/education-blockchain.git
